@@ -1,33 +1,60 @@
-import BinanceCombinedStreamClient from './providers/Binance/BinanceCombinedStreamClient';
-import { BinanceDepth, BinanceTrade, BinanceBookTicker } from './providers/Binance/types';
+import BinanceHTTPClient from './providers/Binance/BinanceHTTPClient';
+import BinanceCombinedStreamClient, {
+  TStreamSubscription,
+  TBinanceTrade,
+  TBinanceBookTicker,
+  TBinanceDepth,
+} from './providers/Binance/BinanceCombinedStreamClient';
+import SupportLevels from './math/SupportLevels';
 
 const binanceClient = BinanceCombinedStreamClient.getInstance();
+const binanceHttpClient = BinanceHTTPClient.getInstance();
 
-binanceClient.on('connected', () => {
-  console.log('Соединение с Binance установлено');
+const TRADED_TICKERS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'];
+const CANDLE_INTERVALS = ['5m', '1d'];
+const CANDLE_LIMIT = 100;
+const DEPTH_LIMIT = 10;
+
+TRADED_TICKERS.forEach((ticker) => {
+  CANDLE_INTERVALS.forEach((interval) => {
+    binanceHttpClient.fetchHistoricalKlines(ticker, interval, CANDLE_LIMIT).then((klines) => {
+      console.log(`Получено ${klines.length} исторических ${interval} свечей для ${ticker}`);
+
+      const supportLevels = SupportLevels.calculateSupportLevels(klines);
+      console.log('Уровни поддержки:', supportLevels);
+    });
+  });
 });
 
-binanceClient.on('disconnected', () => {
-  console.log('Соединение с Binance разорвано');
+const streams: TStreamSubscription[] = [];
+
+TRADED_TICKERS.forEach((ticker) => {
+  streams.push(
+    { type: 'trade', symbol: ticker },
+    { type: 'bookTicker', symbol: ticker },
+    { type: 'depth', symbol: ticker, depth: DEPTH_LIMIT },
+  );
 });
+
+binanceClient.subscribeMultiple(streams);
 
 binanceClient.on('error', (error) => {
   console.error('Ошибка WebSocket:', error);
 });
 
-binanceClient.on('trade', (data: BinanceTrade) => {
+binanceClient.on('trade', (data: TBinanceTrade) => {
   console.log(
     `Сделка ${data.s}: Цена: ${data.p}, Количество: ${data.q}, Время: ${new Date(data.T).toISOString()}`,
   );
 });
 
-binanceClient.on('bookTicker', (data: BinanceBookTicker) => {
+binanceClient.on('bookTicker', (data: TBinanceBookTicker) => {
   console.log(
     `Стакан ${data.s}: Лучшая цена покупки: ${data.b}, Объем: ${data.B}, Лучшая цена продажи: ${data.a}, Объем: ${data.A}`,
   );
 });
 
-binanceClient.on('depth', (data: BinanceDepth) => {
+binanceClient.on('depth', (data: TBinanceDepth) => {
   console.log(`Глубина стакана ${data.s} (обновление ${data.u}):`);
 
   if (data.b && data.b.length) {
@@ -45,14 +72,7 @@ binanceClient.on('depth', (data: BinanceDepth) => {
   }
 });
 
-binanceClient.subscribeMultiple([
-  { type: 'trade', symbol: 'BTCUSDT' },
-  { type: 'bookTicker', symbol: 'BTCUSDT' },
-  { type: 'depth', symbol: 'BTCUSDT', depth: 10 },
-]);
-
 process.on('SIGINT', () => {
-  console.log('Закрытие соединения...');
   binanceClient.disconnect();
   process.exit(0);
 });
