@@ -1,25 +1,26 @@
-import { EventEmitter } from "events";
+import { EventEmitter } from 'events';
 
 type BinanceWebSocketEvent =
-  | "trade"
-  | "aggTrade"
-  | "kline"
-  | "miniTicker"
-  | "ticker"
-  | "bookTicker"
-  | "depth";
+  | 'trade'
+  | 'aggTrade'
+  | 'kline'
+  | 'miniTicker'
+  | 'ticker'
+  | 'bookTicker'
+  | 'depth';
 
 type SubscriptionParams = {
   symbol: string;
   interval?: string;
   levels?: number;
-  updateSpeed?: "1000ms" | "100ms";
+  updateSpeed?: '1000ms' | '100ms';
 };
 
 class BinanceWebSocketClient extends EventEmitter {
   private static instance: BinanceWebSocketClient;
+
   private socket: WebSocket | null = null;
-  private baseUrl = "wss://stream.binance.com:9443";
+  private baseUrl = 'wss://stream.binance.com:9443';
   private subscriptions: Set<string> = new Set();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -39,7 +40,7 @@ class BinanceWebSocketClient extends EventEmitter {
 
   public connect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      console.log("WebSocket is already connected");
+      console.log('WebSocket is already connected');
       return;
     }
 
@@ -47,11 +48,11 @@ class BinanceWebSocketClient extends EventEmitter {
       this.socket = new WebSocket(`${this.baseUrl}/ws`);
 
       this.socket.onopen = () => {
-        console.log("Binance WebSocket connected");
+        console.log('Binance WebSocket connected');
         this.reconnectAttempts = 0;
         this.setupPingInterval();
         this.resubscribeAll();
-        this.emit("connected");
+        this.emit('connected');
       };
 
       this.socket.onmessage = (event) => {
@@ -59,30 +60,30 @@ class BinanceWebSocketClient extends EventEmitter {
           const data = JSON.parse(event.data);
           if (data.e) {
             // Regular event message
-            this.emit("message", data);
+            this.emit('message', data);
             this.emit(data.e, data);
           } else if (data.result !== undefined) {
             // Response to a request
-            this.emit("response", data);
+            this.emit('response', data);
           }
         } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
+          console.error('Error parsing WebSocket message:', error);
         }
       };
 
       this.socket.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        this.emit("error", error);
+        console.error('WebSocket error:', error);
+        this.emit('error', error);
       };
 
       this.socket.onclose = (event) => {
         console.log(`WebSocket closed: ${event.code} ${event.reason}`);
         this.clearPingInterval();
-        this.emit("disconnected");
+        this.emit('disconnected');
         this.handleReconnect();
       };
     } catch (error) {
-      console.error("Failed to connect to WebSocket:", error);
+      console.error('Failed to connect to WebSocket:', error);
       this.handleReconnect();
     }
   }
@@ -92,14 +93,11 @@ class BinanceWebSocketClient extends EventEmitter {
       this.clearPingInterval();
       this.socket.close();
       this.socket = null;
-      this.emit("disconnected");
+      this.emit('disconnected');
     }
   }
 
-  public subscribe(
-    event: BinanceWebSocketEvent,
-    params: SubscriptionParams
-  ): void {
+  public subscribe(event: BinanceWebSocketEvent, params: SubscriptionParams): void {
     const streamName = this.getStreamName(event, params);
     if (!streamName) return;
 
@@ -112,10 +110,7 @@ class BinanceWebSocketClient extends EventEmitter {
     }
   }
 
-  public unsubscribe(
-    event: BinanceWebSocketEvent,
-    params: SubscriptionParams
-  ): void {
+  public unsubscribe(event: BinanceWebSocketEvent, params: SubscriptionParams): void {
     const streamName = this.getStreamName(event, params);
     if (!streamName) return;
 
@@ -130,7 +125,7 @@ class BinanceWebSocketClient extends EventEmitter {
     subscriptions: Array<{
       event: BinanceWebSocketEvent;
       params: SubscriptionParams;
-    }>
+    }>,
   ): void {
     const streamNames = subscriptions
       .map((sub) => this.getStreamName(sub.event, sub.params))
@@ -145,37 +140,32 @@ class BinanceWebSocketClient extends EventEmitter {
     }
   }
 
-  private getStreamName(
-    event: BinanceWebSocketEvent,
-    params: SubscriptionParams
-  ): string | null {
+  private getStreamName(event: BinanceWebSocketEvent, params: SubscriptionParams): string | null {
     const { symbol, interval, levels, updateSpeed } = params;
     const lowerSymbol = symbol.toLowerCase();
 
     switch (event) {
-      case "trade":
+      case 'trade':
         return `${lowerSymbol}@trade`;
-      case "aggTrade":
+      case 'aggTrade':
         return `${lowerSymbol}@aggTrade`;
-      case "kline":
+      case 'kline':
         if (!interval) {
-          console.error("Interval is required for kline subscription");
+          console.error('Interval is required for kline subscription');
           return null;
         }
         return `${lowerSymbol}@kline_${interval}`;
-      case "miniTicker":
+      case 'miniTicker':
         return `${lowerSymbol}@miniTicker`;
-      case "ticker":
+      case 'ticker':
         return `${lowerSymbol}@ticker`;
-      case "bookTicker":
+      case 'bookTicker':
         return `${lowerSymbol}@bookTicker`;
-      case "depth":
+      case 'depth':
         if (levels) {
-          return `${lowerSymbol}@depth${levels}${
-            updateSpeed === "100ms" ? "@100ms" : ""
-          }`;
+          return `${lowerSymbol}@depth${levels}${updateSpeed === '100ms' ? '@100ms' : ''}`;
         }
-        return `${lowerSymbol}@depth${updateSpeed === "100ms" ? "@100ms" : ""}`;
+        return `${lowerSymbol}@depth${updateSpeed === '100ms' ? '@100ms' : ''}`;
       default:
         console.error(`Unknown event type: ${event}`);
         return null;
@@ -183,10 +173,12 @@ class BinanceWebSocketClient extends EventEmitter {
   }
 
   private sendSubscribeRequest(streams: string[]): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
 
     const request = {
-      method: "SUBSCRIBE",
+      method: 'SUBSCRIBE',
       params: streams,
       id: Date.now(),
     };
@@ -195,10 +187,12 @@ class BinanceWebSocketClient extends EventEmitter {
   }
 
   private sendUnsubscribeRequest(streams: string[]): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
 
     const request = {
-      method: "UNSUBSCRIBE",
+      method: 'UNSUBSCRIBE',
       params: streams,
       id: Date.now(),
     };
@@ -240,10 +234,8 @@ class BinanceWebSocketClient extends EventEmitter {
         this.connect();
       }, delay);
     } else {
-      console.error(
-        `Failed to reconnect after ${this.maxReconnectAttempts} attempts`
-      );
-      this.emit("reconnect_failed");
+      console.error(`Failed to reconnect after ${this.maxReconnectAttempts} attempts`);
+      this.emit('reconnect_failed');
     }
   }
 }
