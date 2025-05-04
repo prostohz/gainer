@@ -1,0 +1,12 @@
+.DS_Store
+.idea/
+nyc_output
+**/creds*
+dist/
+coverage/
+/data/
+temp/
+logs/
+node_modules/
+npm-debug.log
+!src/data/*
