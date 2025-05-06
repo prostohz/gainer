@@ -1,4 +1,4 @@
-export type THistoricalKline = {
+type THistoricalKline = {
   openTime: number;
   open: string;
   high: string;
@@ -26,6 +26,37 @@ type TBinanceRawKline = [
   string, // Taker buy quote asset volume
   string, // Ignore
 ];
+
+type TFilter =
+  | {
+      filterType: 'PRICE_FILTER';
+      tickSize: string;
+    }
+  | {
+      filterType: 'LOT_SIZE';
+      stepSize: string;
+    };
+
+type TExchangeInfoSymbol = {
+  symbol: string;
+  status: string;
+  baseAsset: string;
+  baseAssetPrecision: number;
+  quoteAsset: string;
+  quotePrecision: number;
+  quoteAssetPrecision: number;
+  baseCommissionPrecision: number;
+  quoteCommissionPrecision: number;
+  orderTypes: string[];
+  icebergAllowed: boolean;
+  ocoAllowed: boolean;
+  quoteOrderQtyMarketAllowed: boolean;
+  allowTrailingStop: boolean;
+  isSpotTradingAllowed: boolean;
+  isMarginTradingAllowed: boolean;
+  permissions: string[];
+  filters: TFilter[];
+};
 
 class BinanceHTTPClient {
   private static instance: BinanceHTTPClient;
@@ -56,12 +87,12 @@ class BinanceHTTPClient {
       const response = await fetch(
         `${this.baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
       );
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const data = await response.json();
+
       return data.map((kline: TBinanceRawKline) => ({
         openTime: kline[0],
         open: kline[1],
@@ -77,9 +108,53 @@ class BinanceHTTPClient {
       }));
     } catch (error) {
       console.error(`Ошибка при получении исторических свечей: ${error}`);
-      return [];
+      throw error;
+    }
+  }
+
+  /**
+   * Получение информации о торговой паре
+   * @param symbol Символ торговой пары (например, 'BTCUSDT')
+   * @returns Информация о торговой паре
+   */
+  public async fetchExchangeInfo(symbol: string): Promise<TExchangeInfoSymbol> {
+    try {
+      const response = await fetch(`${this.baseUrl}/exchangeInfo?symbol=${symbol}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return data.symbols.find((item: TExchangeInfoSymbol) => item.symbol === symbol);
+    } catch (error) {
+      console.error(`Ошибка при получении информации о торговой паре: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Получает текущую цену для указанного символа
+   * @param symbol Символ торговой пары (например, 'BTCUSDT')
+   * @returns Текущая цена в виде числа
+   */
+  public async fetchCurrentPrice(symbol: string): Promise<number> {
+    try {
+      const response = await fetch(`${this.baseUrl}/ticker/price?symbol=${symbol}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return parseFloat(data.price);
+    } catch (error) {
+      console.error(`Ошибка при получении текущей цены для ${symbol}:`, error);
+      throw error;
     }
   }
 }
 
 export default BinanceHTTPClient;
+
+export { THistoricalKline, TExchangeInfoSymbol, TFilter };
