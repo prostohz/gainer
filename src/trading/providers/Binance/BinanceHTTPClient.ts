@@ -1,17 +1,3 @@
-type THistoricalKline = {
-  openTime: number;
-  open: string;
-  high: string;
-  low: string;
-  close: string;
-  volume: string;
-  closeTime: number;
-  quoteAssetVolume: string;
-  numberOfTrades: number;
-  takerBuyBaseAssetVolume: string;
-  takerBuyQuoteAssetVolume: string;
-};
-
 type TBinanceRawKline = [
   number, // Open time
   string, // Open
@@ -26,6 +12,20 @@ type TBinanceRawKline = [
   string, // Taker buy quote asset volume
   string, // Ignore
 ];
+
+type TKline = {
+  openTime: number;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  volume: string;
+  closeTime: number;
+  quoteAssetVolume: string;
+  numberOfTrades: number;
+  takerBuyBaseAssetVolume: string;
+  takerBuyQuoteAssetVolume: string;
+};
 
 type TFilter =
   | {
@@ -82,7 +82,7 @@ class BinanceHTTPClient {
     symbol: string,
     interval: string,
     limit: number = 100,
-  ): Promise<THistoricalKline[]> {
+  ): Promise<TKline[]> {
     try {
       const response = await fetch(
         `${this.baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
@@ -157,4 +157,4 @@ class BinanceHTTPClient {
 
 export default BinanceHTTPClient;
 
-export { THistoricalKline, TExchangeInfoSymbol, TFilter };
+export { TKline, TExchangeInfoSymbol, TFilter };
