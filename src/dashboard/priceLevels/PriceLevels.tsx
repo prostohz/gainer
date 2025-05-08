@@ -22,7 +22,7 @@ const PriceLevels = () => {
   }, [minStrength]);
 
   const klines = useMemo(() => {
-    return data.timeFrameKlines[selectedTimeFrame as keyof typeof data.timeFrameKlines];
+    return data.timeframeKlines[selectedTimeFrame as keyof typeof data.timeframeKlines];
   }, [selectedTimeFrame]);
 
   const supportLevelsOnChart = useMemo(() => {
@@ -31,7 +31,7 @@ const PriceLevels = () => {
 
     if (!minPrice || !maxPrice) return [];
 
-    return supportLevels.filter((level) => level.price >= minPrice && level.price <= maxPrice);
+    return supportLevels.filter((item) => item.price >= minPrice && item.price <= maxPrice);
   }, [klines, supportLevels]);
 
   const resistanceLevelsOnChart = useMemo(() => {
@@ -40,19 +40,19 @@ const PriceLevels = () => {
 
     if (!minPrice || !maxPrice) return [];
 
-    return resistanceLevels.filter((level) => level.price >= minPrice && level.price <= maxPrice);
+    return resistanceLevels.filter((item) => item.price >= minPrice && item.price <= maxPrice);
   }, [klines, resistanceLevels]);
 
   useEffect(() => {
-    const timeFrames = Object.keys(data.timeFrameKlines);
+    const timeframes = Object.keys(data.timeframeKlines);
 
-    if (!timeFrames.includes(selectedTimeFrame)) {
-      setSelectedTimeFrame(timeFrames[0]);
+    if (!timeframes.includes(selectedTimeFrame)) {
+      setSelectedTimeFrame(timeframes[0]);
     }
   }, []);
 
   const currentPrice = useMemo(() => {
-    const klines = data.timeFrameKlines[selectedTimeFrame as keyof typeof data.timeFrameKlines];
+    const klines = data.timeframeKlines[selectedTimeFrame as keyof typeof data.timeframeKlines];
     const prices = klines.map((kline) => parseFloat(kline.close));
 
     return prices[prices.length - 1];
@@ -63,7 +63,7 @@ const PriceLevels = () => {
 
     return (
       <div className="space-y-4">
-        {_.sortBy(supportLevels, 'price')
+        {_.sortBy(data.supportLevels, 'price')
           .reverse()
           .map((level, index) => (
             <div className="flex items-center space-x-2" key={`support-${index}`}>
@@ -87,7 +87,7 @@ const PriceLevels = () => {
 
     return (
       <div className="space-y-4">
-        {_.sortBy(resistanceLevels, 'price').map((level, index) => (
+        {_.sortBy(data.resistanceLevels, 'price').map((level, index) => (
           <div className="flex items-center space-x-2" key={`resistance-${index}`}>
             <div
               className="w-4 h-4 rounded-full"
@@ -105,7 +105,7 @@ const PriceLevels = () => {
   };
 
   const renderTimeFrameSelector = () => {
-    const timeFrames = Object.keys(data.timeFrameKlines);
+    const timeFrames = Object.keys(data.timeframeKlines);
 
     return (
       <select
@@ -126,9 +126,12 @@ const PriceLevels = () => {
     <div className="container mx-auto px-4 py-6">
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold">
-          {`${data.asset.symbol} Price Chart with Support Levels (${selectedTimeFrame})`}
+          <span className="text-primary">{data.asset.symbol}</span> Price Chart with Levels (
+          {selectedTimeFrame})
         </h1>
-        <div className="text-2xl font-bold">{currentPrice}</div>
+        <div className="text-2xl font-bold">
+          Current Price: <span className="text-primary">${currentPrice}</span>
+        </div>
       </div>
 
       <div className="flex flex-row gap-6">

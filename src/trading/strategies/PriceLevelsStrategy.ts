@@ -1,27 +1,27 @@
 import BinanceHTTPClient from '../providers/Binance/BinanceHTTPClient';
-import BinanceCombinedStreamClient, {
+import BinanceStreamClient, {
   TStreamSubscription,
   TBinanceTrade,
   TBinanceBookTicker,
-} from '../providers/Binance/BinanceCombinedStreamClient';
+} from '../providers/Binance/BinanceStreamClient';
 
 export const trade = async () => {
-  const binanceClient = BinanceCombinedStreamClient.getInstance();
+  const binanceStreamClient = BinanceStreamClient.getInstance();
   const binanceHttpClient = BinanceHTTPClient.getInstance();
 
   const TRADED_ASSETS_TICKERS = ['BTCUSDT'];
 
-  binanceClient.on('error', (error) => {
+  binanceStreamClient.on('error', (error) => {
     console.error('Ошибка WebSocket:', error);
   });
 
-  binanceClient.on('trade', (data: TBinanceTrade) => {
+  binanceStreamClient.on('trade', (data: TBinanceTrade) => {
     console.log(
       `Сделка ${data.s}: Цена: ${data.p}, Количество: ${data.q}, Время: ${new Date(data.T).toISOString()}`,
     );
   });
 
-  binanceClient.on('bookTicker', (data: TBinanceBookTicker) => {
+  binanceStreamClient.on('bookTicker', (data: TBinanceBookTicker) => {
     console.log(
       `Стакан ${data.s}: Лучшая цена покупки: ${data.b}, Объем: ${data.B}, Лучшая цена продажи: ${data.a}, Объем: ${data.A}`,
     );
@@ -43,5 +43,5 @@ export const trade = async () => {
     [],
   );
 
-  binanceClient.subscribeMultiple(streams);
+  binanceStreamClient.subscribeMultiple(streams);
 };

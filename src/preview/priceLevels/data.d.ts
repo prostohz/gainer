@@ -45,8 +45,8 @@ declare module '*/data.json' {
     takerBuyQuoteAssetVolume: string;
   }
 
-  export interface TimeFrameKlines {
-    [timeFrame: string]: Kline[];
+  export interface TimeframeKlines {
+    [timeframe: string]: Kline[];
   }
 
   export interface Level {
@@ -57,7 +57,7 @@ declare module '*/data.json' {
   export interface PriceLevelsData {
     asset: Asset;
     precision: number;
-    timeFrameKlines: TimeFrameKlines;
+    timeframeKlines: TimeframeKlines;
     supportLevels: Level[];
     resistanceLevels: Level[];
   }

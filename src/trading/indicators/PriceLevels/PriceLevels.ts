@@ -1,6 +1,6 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 
-import { TKline } from '../providers/Binance/BinanceHTTPClient';
+import { TPriceLevelsTimeframe, TKline } from '../../types';
 
 type TPriceLevelType = 'support' | 'resistance';
 
@@ -29,14 +29,12 @@ export default class PriceLevels {
   // чтобы считаться одним уровнем поддержки/сопротивления (в % от ценового диапазона)
   private static readonly SENSITIVITY = 0.01;
   // Веса для разных таймфреймов при расчете уровней
-  private static readonly TIMEFRAME_WEIGHTS: Record<string, number> = {
+  private static readonly TIMEFRAME_WEIGHTS: Record<TPriceLevelsTimeframe, number> = {
     '1m': 0.5,
-    '5m': 0.7,
     '15m': 0.8,
     '1h': 1.0,
     '4h': 1.2,
     '1d': 1.5,
-    '1w': 2.0,
   };
 
   /**
@@ -136,9 +134,9 @@ export default class PriceLevels {
    * Рассчитывает уровни поддержки и сопротивления на основе исторических свечей
    */
   private static calculatePriceLevels(
-    timeFrameKlinesMap: Record<string, TKline[]>,
+    timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
   ): TSupportLevel[] {
-    if (Object.keys(timeFrameKlinesMap).length === 0) {
+    if (Object.keys(timeframeKlinesMap).length === 0) {
       return [];
     }
 
@@ -150,7 +148,10 @@ export default class PriceLevels {
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
-    for (const [timeframe, klines] of Object.entries(timeFrameKlinesMap)) {
+    for (const [timeframe, klines] of Object.entries(timeframeKlinesMap) as [
+      TPriceLevelsTimeframe,
+      TKline[],
+    ][]) {
       if (klines.length === 0) continue;
 
       const prices = klines.map((kline) => ({
@@ -192,8 +193,8 @@ export default class PriceLevels {
 
     // Берем последние свечи для определения текущей цены
     // Используем самый короткий таймфрейм для более точного определения текущей цены
-    const shortestTimeframe = Object.keys(timeFrameKlinesMap).sort()[0];
-    const latestKlines = timeFrameKlinesMap[shortestTimeframe];
+    const shortestTimeframe = Object.keys(timeframeKlinesMap).sort()[0] as TPriceLevelsTimeframe;
+    const latestKlines = timeframeKlinesMap[shortestTimeframe];
     const currentPrice = parseFloat(latestKlines[latestKlines.length - 1].close);
 
     // Преобразуем кластеры в уровни поддержки/сопротивления
@@ -243,8 +244,10 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки на основе исторических свечей
    */
-  public static calculateSupportLevels(timeFrameKlinesMap: Record<string, TKline[]>) {
-    const levels = this.calculatePriceLevels(timeFrameKlinesMap);
+  public static calculateSupportLevels(
+    timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
+  ) {
+    const levels = this.calculatePriceLevels(timeframeKlinesMap);
 
     return levels
       .filter((level) => level.type === 'support')
@@ -254,8 +257,10 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни сопротивления на основе исторических свечей
    */
-  public static calculateResistanceLevels(timeFrameKlinesMap: Record<string, TKline[]>) {
-    const levels = this.calculatePriceLevels(timeFrameKlinesMap);
+  public static calculateResistanceLevels(
+    timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
+  ) {
+    const levels = this.calculatePriceLevels(timeframeKlinesMap);
 
     return levels
       .filter((level) => level.type === 'resistance')

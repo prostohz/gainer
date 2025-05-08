@@ -1,3 +1,5 @@
+import { TKline, TTimeframe } from '../../types';
+
 type TBinanceRawKline = [
   number, // Open time
   string, // Open
@@ -12,20 +14,6 @@ type TBinanceRawKline = [
   string, // Taker buy quote asset volume
   string, // Ignore
 ];
-
-type TKline = {
-  openTime: number;
-  open: string;
-  high: string;
-  low: string;
-  close: string;
-  volume: string;
-  closeTime: number;
-  quoteAssetVolume: string;
-  numberOfTrades: number;
-  takerBuyBaseAssetVolume: string;
-  takerBuyQuoteAssetVolume: string;
-};
 
 type TFilter =
   | {
@@ -60,6 +48,7 @@ type TExchangeInfoSymbol = {
 
 class BinanceHTTPClient {
   private static instance: BinanceHTTPClient;
+
   private readonly baseUrl = 'https://api.binance.com/api/v3';
 
   private constructor() {}
@@ -74,18 +63,18 @@ class BinanceHTTPClient {
   /**
    * Получение исторических свечей через REST API
    * @param symbol Символ торговой пары (например, 'BTCUSDT')
-   * @param interval Интервал свечи ('1m', '5m', '15m', '1h', '1d' и т.д.)
+   * @param timeframe Интервал свечи ('1m', '5m', '15m', '1h', '1d' и т.д.)
    * @param limit Количество свечей (максимум 1000)
    * @returns Массив исторических свечей
    */
   public async fetchHistoricalKlines(
     symbol: string,
-    interval: string,
-    limit: number = 100,
+    timeframe: TTimeframe,
+    limit: number,
   ): Promise<TKline[]> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
+        `${this.baseUrl}/klines?symbol=${symbol}&interval=${timeframe}&limit=${limit}`,
       );
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -121,7 +110,7 @@ class BinanceHTTPClient {
     try {
       const response = await fetch(`${this.baseUrl}/exchangeInfo?symbol=${symbol}`);
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw new Error(`HTTP error! Status: ${response.status}, ${response.statusText}`);
       }
 
       const data = await response.json();

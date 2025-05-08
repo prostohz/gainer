@@ -202,8 +202,8 @@ interface BinanceEventEmitter extends EventEmitter {
   emit(event: 'miniTicker', data: TBinanceMiniTicker): boolean;
 }
 
-class BinanceCombinedStreamClient extends EventEmitter implements BinanceEventEmitter {
-  private static instance: BinanceCombinedStreamClient;
+class BinanceStreamClient extends EventEmitter implements BinanceEventEmitter {
+  private static instance: BinanceStreamClient;
 
   private readonly baseUrl = 'wss://stream.binance.com:9443';
   private readonly subscriptions: Set<string> = new Set();
@@ -221,11 +221,11 @@ class BinanceCombinedStreamClient extends EventEmitter implements BinanceEventEm
     super();
   }
 
-  public static getInstance(): BinanceCombinedStreamClient {
-    if (!BinanceCombinedStreamClient.instance) {
-      BinanceCombinedStreamClient.instance = new BinanceCombinedStreamClient();
+  public static getInstance(): BinanceStreamClient {
+    if (!BinanceStreamClient.instance) {
+      BinanceStreamClient.instance = new BinanceStreamClient();
     }
-    return BinanceCombinedStreamClient.instance;
+    return BinanceStreamClient.instance;
   }
 
   public connect(): void {
@@ -447,7 +447,7 @@ class BinanceCombinedStreamClient extends EventEmitter implements BinanceEventEm
   }
 }
 
-export default BinanceCombinedStreamClient;
+export default BinanceStreamClient;
 export {
   BinanceStreamType,
   TStreamSubscription,

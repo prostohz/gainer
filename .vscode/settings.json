@@ -2,5 +2,5 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "cSpell.language": "en,ru",
-  "cSpell.words": ["klines", "таймфрейм", "таймфрейма"]
+  "cSpell.words": ["klines", "таймфрейм", "таймфрейма", "таймфреймам", "таймфреймах", "таймфрейму"]
 }

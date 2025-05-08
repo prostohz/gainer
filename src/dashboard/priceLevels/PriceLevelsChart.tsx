@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, LineSeries, CandlestickSeries } from 'lightweight-charts';
+import { createChart, LineSeries, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 
 import { getColorForStrength } from './colors';
-import { TKline } from '../../trading/providers/Binance/BinanceHTTPClient';
+import { TKline } from '../../trading/types';
 
 type Level = {
   price: number;
@@ -47,13 +47,34 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
       },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    const mainSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#50fa7b',
       downColor: '#ff5555',
       borderUpColor: '#50fa7b',
       borderDownColor: '#ff5555',
       wickUpColor: '#50fa7b',
       wickDownColor: '#ff5555',
+    });
+
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      color: '#bd93f9',
+      priceScaleId: 'volume',
+      priceFormat: {
+        type: 'volume',
+      },
+      overlay: true,
+      scaleMargins: {
+        top: 0.8,
+        bottom: 0,
+      },
+    });
+
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: {
+        top: 0.8,
+        bottom: 0,
+      },
+      visible: true,
     });
 
     const candleData = klines.map((kline) => {
@@ -66,7 +87,17 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
       };
     });
 
-    candlestickSeries.setData(candleData);
+    const volumeData = klines.map((kline) => {
+      const isGreen = parseFloat(kline.close) >= parseFloat(kline.open);
+      return {
+        time: kline.openTime,
+        value: parseFloat(kline.volume),
+        color: isGreen ? 'rgba(80, 250, 123, 0.5)' : 'rgba(255, 85, 85, 0.5)',
+      };
+    });
+
+    mainSeries.setData(candleData);
+    volumeSeries.setData(volumeData);
 
     const startTime = candleData[0].time;
     const endTime = candleData[candleData.length - 1].time;
