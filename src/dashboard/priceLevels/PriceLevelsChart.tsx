@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, LineSeries, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import {
+  createChart,
+  LineSeries,
+  CandlestickSeries,
+  HistogramSeries,
+  UTCTimestamp,
+} from 'lightweight-charts';
 
 import { getColorForStrength } from './colors';
 import { TKline } from '../../trading/types';
@@ -13,9 +19,10 @@ type Props = {
   klines: TKline[];
   supportLevels: Level[];
   resistanceLevels: Level[];
+  precision: number;
 };
 
-export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Props) => {
+export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels, precision }: Props) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +34,7 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
     const chart = createChart(chartContainer, {
       layout: {
         textColor: '#f8f8f2',
-        background: { color: '#282a36' },
+        background: { color: '#1f212b' },
       },
       grid: {
         vertLines: { color: 'rgba(68, 71, 90, 0.2)' },
@@ -45,6 +52,9 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
           style: 0, // 0 = solid line
         },
       },
+      rightPriceScale: {
+        borderColor: 'rgba(68, 71, 90, 0.5)',
+      },
     });
 
     const mainSeries = chart.addSeries(CandlestickSeries, {
@@ -54,6 +64,11 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
       borderDownColor: '#ff5555',
       wickUpColor: '#50fa7b',
       wickDownColor: '#ff5555',
+      priceFormat: {
+        type: 'custom',
+        formatter: (price: number) => price.toFixed(precision),
+        minMove: 1 / Math.pow(10, precision),
+      },
     });
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -61,11 +76,6 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
       priceScaleId: 'volume',
       priceFormat: {
         type: 'volume',
-      },
-      overlay: true,
-      scaleMargins: {
-        top: 0.8,
-        bottom: 0,
       },
     });
 
@@ -77,20 +87,18 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
       visible: true,
     });
 
-    const candleData = klines.map((kline) => {
-      return {
-        time: kline.openTime,
-        open: parseFloat(kline.open),
-        high: parseFloat(kline.high),
-        low: parseFloat(kline.low),
-        close: parseFloat(kline.close),
-      };
-    });
+    const candleData = klines.map((kline) => ({
+      time: (kline.openTime / 1000) as UTCTimestamp,
+      open: parseFloat(kline.open),
+      high: parseFloat(kline.high),
+      low: parseFloat(kline.low),
+      close: parseFloat(kline.close),
+    }));
 
     const volumeData = klines.map((kline) => {
       const isGreen = parseFloat(kline.close) >= parseFloat(kline.open);
       return {
-        time: kline.openTime,
+        time: (kline.openTime / 1000) as UTCTimestamp,
         value: parseFloat(kline.volume),
         color: isGreen ? 'rgba(80, 250, 123, 0.5)' : 'rgba(255, 85, 85, 0.5)',
       };
@@ -107,13 +115,17 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
         color: getColorForStrength(level.strength),
         lineWidth: 1,
         lineStyle: 0,
-        title: `${level.strength.toFixed(0)}`,
+        title: `${level.strength}`,
         lastValueVisible: true,
+        priceFormat: {
+          type: 'price',
+          precision,
+        },
       });
 
       supportLine.setData([
-        { time: startTime, value: level.price },
-        { time: endTime, value: level.price },
+        { time: startTime as UTCTimestamp, value: level.price },
+        { time: endTime as UTCTimestamp, value: level.price },
       ]);
     });
 
@@ -122,13 +134,17 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
         color: getColorForStrength(level.strength),
         lineWidth: 1,
         lineStyle: 0,
-        title: `${level.strength.toFixed(0)}`,
+        title: `${level.strength}`,
         lastValueVisible: true,
+        priceFormat: {
+          type: 'price',
+          precision,
+        },
       });
 
       supportLine.setData([
-        { time: startTime, value: level.price },
-        { time: endTime, value: level.price },
+        { time: startTime as UTCTimestamp, value: level.price },
+        { time: endTime as UTCTimestamp, value: level.price },
       ]);
     });
 
@@ -149,5 +165,10 @@ export const PriceLevelsChart = ({ klines, supportLevels, resistanceLevels }: Pr
     };
   }, [klines, supportLevels, resistanceLevels]);
 
-  return <div ref={chartContainerRef} className="w-full h-[500px] bg-[#282a36]"></div>;
+  return (
+    <div
+      ref={chartContainerRef}
+      className="w-full h-[500px] bg-[#282a36] rounded-lg overflow-hidden"
+    ></div>
+  );
 };

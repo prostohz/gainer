@@ -16,7 +16,6 @@
   "description": "",
   "devDependencies": {
     "@types/jest": "^29.5.5",
-    "@types/lodash": "^4.14.202",
     "@types/node": "^20.8.2",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
@@ -43,9 +42,9 @@
   },
   "dependencies": {
     "lightweight-charts": "^5.0.6",
-    "lodash": "^4.17.21",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "remeda": "^2.21.4",
     "ws": "^8.18.2"
   }
 }

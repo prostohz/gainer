@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import _ from 'lodash';
+import * as R from 'remeda';
 
 import data from '../../preview/priceLevels/data.json';
 import { getColorForStrength } from './colors';
@@ -26,8 +26,16 @@ const PriceLevels = () => {
   }, [selectedTimeFrame]);
 
   const supportLevelsOnChart = useMemo(() => {
-    const minPrice = _.min(klines.map((kline) => parseFloat(kline.low)));
-    const maxPrice = _.max(klines.map((kline) => parseFloat(kline.high)));
+    const minPrice = R.pipe(
+      klines,
+      R.map((kline) => parseFloat(kline.low)),
+      R.firstBy([R.identity(), 'asc']),
+    );
+    const maxPrice = R.pipe(
+      klines,
+      R.map((kline) => parseFloat(kline.high)),
+      R.firstBy([R.identity(), 'desc']),
+    );
 
     if (!minPrice || !maxPrice) return [];
 
@@ -35,8 +43,16 @@ const PriceLevels = () => {
   }, [klines, supportLevels]);
 
   const resistanceLevelsOnChart = useMemo(() => {
-    const minPrice = _.min(klines.map((kline) => parseFloat(kline.low)));
-    const maxPrice = _.max(klines.map((kline) => parseFloat(kline.high)));
+    const minPrice = R.pipe(
+      klines,
+      R.map((kline) => parseFloat(kline.low)),
+      R.firstBy([R.identity(), 'asc']),
+    );
+    const maxPrice = R.pipe(
+      klines,
+      R.map((kline) => parseFloat(kline.high)),
+      R.firstBy([R.identity(), 'desc']),
+    );
 
     if (!minPrice || !maxPrice) return [];
 
@@ -63,21 +79,22 @@ const PriceLevels = () => {
 
     return (
       <div className="space-y-4">
-        {_.sortBy(data.supportLevels, 'price')
-          .reverse()
-          .map((level, index) => (
-            <div className="flex items-center space-x-2" key={`support-${index}`}>
-              <div
-                className="w-4 h-4 rounded-full"
-                style={{
-                  backgroundColor: getColorForStrength(level.strength),
-                }}
-              ></div>
-              <div className="text-sm">
-                {level.price.toFixed(precision)} (Strength: {level.strength})
-              </div>
+        {R.sortBy(data.supportLevels, [R.prop('price'), 'desc']).map((level, index) => (
+          <div
+            className={`flex items-center space-x-2 p-3 rounded bg-base-300`}
+            key={`support-${index}`}
+          >
+            <div
+              className="w-4 h-4 rounded-full"
+              style={{
+                backgroundColor: getColorForStrength(level.strength),
+              }}
+            ></div>
+            <div className="text-sm">
+              {level.price.toFixed(precision)} (Strength: {level.strength})
             </div>
-          ))}
+          </div>
+        ))}
       </div>
     );
   };
@@ -87,8 +104,11 @@ const PriceLevels = () => {
 
     return (
       <div className="space-y-4">
-        {_.sortBy(data.resistanceLevels, 'price').map((level, index) => (
-          <div className="flex items-center space-x-2" key={`resistance-${index}`}>
+        {R.sortBy(data.resistanceLevels, [R.prop('price'), 'asc']).map((level, index) => (
+          <div
+            className={`flex items-center space-x-2 p-3 rounded bg-base-300`}
+            key={`resistance-${index}`}
+          >
             <div
               className="w-4 h-4 rounded-full"
               style={{
@@ -105,7 +125,7 @@ const PriceLevels = () => {
   };
 
   const renderTimeFrameSelector = () => {
-    const timeFrames = Object.keys(data.timeframeKlines);
+    const timeFrames = R.keys(data.timeframeKlines);
 
     return (
       <select
@@ -136,15 +156,16 @@ const PriceLevels = () => {
 
       <div className="flex flex-row gap-6">
         <div className="flex-grow">
-          <div className="flex-grow p-4 mb-6 bg-base-300 rounded-lg">
+          <div className="mb-6">
             <PriceLevelsChart
               klines={klines}
               supportLevels={supportLevelsOnChart}
               resistanceLevels={resistanceLevelsOnChart}
+              precision={data.precision}
             />
           </div>
 
-          <div className="flex bg-base-300 rounded-lg mb-6">
+          <div className="flex bg-base-200 rounded-lg mb-6">
             <div className="p-4 flex-1">
               <h3 className="text-lg font-semibold mb-4">Support Levels</h3>
               {renderSupportLevelsList()}
@@ -158,30 +179,28 @@ const PriceLevels = () => {
         </div>
 
         <div className="w-80 flex-shrink-0">
-          <div className="sticky top-4">
-            <div className="p-4 bg-base-300 rounded-lg mb-6">
-              <h3 className="text-lg font-semibold mb-4">Filters</h3>
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="font-medium block mb-2" htmlFor="timeFrameSelector">
-                    Timeframe:
-                  </label>
-                  {renderTimeFrameSelector()}
-                </div>
+          <div className="p-4 bg-base-200 rounded-lg mb-6">
+            <h3 className="text-lg font-semibold mb-4">Filters</h3>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="font-medium block mb-2" htmlFor="timeFrameSelector">
+                  Timeframe:
+                </label>
+                {renderTimeFrameSelector()}
+              </div>
 
-                <div>
-                  <label className="font-medium block mb-2" htmlFor="minStrength">
-                    Minimum strength:
-                  </label>
-                  <input
-                    type="number"
-                    className="input input-bordered input-sm"
-                    min="0"
-                    step="1"
-                    value={minStrength}
-                    onChange={(e) => setMinStrength(parseInt(e.target.value))}
-                  />
-                </div>
+              <div>
+                <label className="font-medium block mb-2" htmlFor="minStrength">
+                  Minimum strength:
+                </label>
+                <input
+                  type="number"
+                  className="input input-bordered input-sm"
+                  min="0"
+                  step="1"
+                  value={minStrength}
+                  onChange={(e) => setMinStrength(parseInt(e.target.value))}
+                />
               </div>
             </div>
           </div>

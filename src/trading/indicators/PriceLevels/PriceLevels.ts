@@ -1,6 +1,8 @@
-import _ from 'lodash';
+import * as R from 'remeda';
 
+import { TExchangeInfoSymbol } from '../../providers/Binance/BinanceHTTPClient';
 import { TPriceLevelsTimeframe, TKline } from '../../types';
+import { roundTo } from '../../utils/math';
 
 type TPriceLevelType = 'support' | 'resistance';
 
@@ -23,13 +25,14 @@ type TCluster = {
 };
 
 export default class PriceLevels {
+  private readonly MIN_WINDOW_SIZE = 3;
   // Размер окна при поиске экстремумов
-  private static readonly EXTREME_POINTS_WINDOW_RATIO = 0.005;
+  private readonly EXTREME_POINTS_WINDOW_RATIO = 0.005;
   // Чувствительность алгоритма кластеризации - определяет, насколько близкими должны быть цены,
   // чтобы считаться одним уровнем поддержки/сопротивления (в % от ценового диапазона)
-  private static readonly SENSITIVITY = 0.01;
+  private readonly SENSITIVITY = 0.01;
   // Веса для разных таймфреймов при расчете уровней
-  private static readonly TIMEFRAME_WEIGHTS: Record<TPriceLevelsTimeframe, number> = {
+  private readonly TIMEFRAME_WEIGHTS: Record<TPriceLevelsTimeframe, number> = {
     '1m': 0.5,
     '15m': 0.8,
     '1h': 1.0,
@@ -37,10 +40,18 @@ export default class PriceLevels {
     '1d': 1.5,
   };
 
+  private asset: TExchangeInfoSymbol;
+  private precision: number;
+
+  constructor(asset: TExchangeInfoSymbol, precision: number) {
+    this.asset = asset;
+    this.precision = precision;
+  }
+
   /**
    * Находит экстремальные точки (локальные минимумы и максимумы) в исторических данных
    */
-  private static findExtremePoints(
+  private findExtremePoints(
     prices: {
       low: number;
       high: number;
@@ -55,7 +66,10 @@ export default class PriceLevels {
     }
 
     // Определяем размер окна для поиска экстремумов (примерно 5% от общего количества свечей)
-    const windowSize = Math.max(3, Math.floor(prices.length * this.EXTREME_POINTS_WINDOW_RATIO));
+    const windowSize = Math.max(
+      this.MIN_WINDOW_SIZE,
+      Math.floor(prices.length * this.EXTREME_POINTS_WINDOW_RATIO),
+    );
 
     const extremePoints: TExtremePoint[] = [];
 
@@ -64,11 +78,7 @@ export default class PriceLevels {
       const currentPrice = prices[i];
 
       // Проверяем, является ли текущая свеча локальным минимумом (поддержка)
-      const isSupport = currentWindow.every((p) => p.low >= currentPrice.low);
-
-      // Проверяем, является ли текущая свеча локальным максимумом (сопротивление)
-      const isResistance = currentWindow.every((p) => p.high <= currentPrice.high);
-
+      const isSupport = currentWindow.every((item) => item.low >= currentPrice.low);
       if (isSupport) {
         extremePoints.push({
           price: currentPrice.low,
@@ -77,6 +87,8 @@ export default class PriceLevels {
         });
       }
 
+      // Проверяем, является ли текущая свеча локальным максимумом (сопротивление)
+      const isResistance = currentWindow.every((item) => item.high <= currentPrice.high);
       if (isResistance) {
         extremePoints.push({
           price: currentPrice.high,
@@ -92,7 +104,7 @@ export default class PriceLevels {
   /**
    * Группирует близкие экстремумы в кластеры
    */
-  private static clusterExtremePoints(
+  private clusterExtremePoints(
     extremePoints: TExtremePoint[],
     clusterThreshold: number,
   ): TCluster[] {
@@ -114,6 +126,7 @@ export default class PriceLevels {
           cluster.volumes.push(point.volume);
           cluster.timestamps.push(point.timestamp);
           foundCluster = true;
+
           break;
         }
       }
@@ -133,7 +146,7 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки и сопротивления на основе исторических свечей
    */
-  private static calculatePriceLevels(
+  private calculatePriceLevels(
     timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
   ): TSupportLevel[] {
     if (Object.keys(timeframeKlinesMap).length === 0) {
@@ -148,10 +161,7 @@ export default class PriceLevels {
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
-    for (const [timeframe, klines] of Object.entries(timeframeKlinesMap) as [
-      TPriceLevelsTimeframe,
-      TKline[],
-    ][]) {
+    for (const [timeframe, klines] of R.entries(timeframeKlinesMap)) {
       if (klines.length === 0) continue;
 
       const prices = klines.map((kline) => ({
@@ -214,7 +224,7 @@ export default class PriceLevels {
       }
 
       return {
-        price: averagePrice,
+        price: roundTo(averagePrice, this.precision),
         strength: rawStrength,
         type,
       };
@@ -238,32 +248,31 @@ export default class PriceLevels {
       }
     }
 
-    return levels;
+    return R.pipe(
+      levels,
+      R.filter((item) => item.strength > 0),
+    );
   }
 
   /**
    * Рассчитывает уровни поддержки на основе исторических свечей
    */
-  public static calculateSupportLevels(
-    timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
-  ) {
-    const levels = this.calculatePriceLevels(timeframeKlinesMap);
-
-    return levels
-      .filter((level) => level.type === 'support')
-      .map((level) => _.pick(level, ['price', 'strength']));
+  public calculateSupportLevels(timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
+    return R.pipe(
+      this.calculatePriceLevels(timeframeKlinesMap),
+      R.filter((level) => level.type === 'support'),
+      R.map((level) => R.pick(level, ['price', 'strength'])),
+    );
   }
 
   /**
    * Рассчитывает уровни сопротивления на основе исторических свечей
    */
-  public static calculateResistanceLevels(
-    timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
-  ) {
-    const levels = this.calculatePriceLevels(timeframeKlinesMap);
-
-    return levels
-      .filter((level) => level.type === 'resistance')
-      .map((level) => _.pick(level, ['price', 'strength']));
+  public calculateResistanceLevels(timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
+    return R.pipe(
+      this.calculatePriceLevels(timeframeKlinesMap),
+      R.filter((level) => level.type === 'resistance'),
+      R.map((level) => R.pick(level, ['price', 'strength'])),
+    );
   }
 }

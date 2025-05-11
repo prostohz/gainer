@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as _ from 'lodash';
+import * as R from 'remeda';
 
 import BinanceHTTPClient from '../../trading/providers/Binance/BinanceHTTPClient';
 import PriceLevels from '../../trading/indicators/PriceLevels/PriceLevels';
@@ -23,13 +23,15 @@ import { getPricePrecision } from '../../trading/utils/asset';
     ),
   );
 
-  const timeframeKlinesMap = _.zipObject(TIMEFRAMES, timeframeKlines) as Record<
+  const timeframeKlinesMap = R.fromEntries(R.zip(TIMEFRAMES, timeframeKlines)) as Record<
     TPriceLevelsTimeframe,
     TKline[]
   >;
 
-  const supportLevels = PriceLevels.calculateSupportLevels(timeframeKlinesMap);
-  const resistanceLevels = PriceLevels.calculateResistanceLevels(timeframeKlinesMap);
+  const priceLevels = new PriceLevels(asset, precision);
+
+  const supportLevels = priceLevels.calculateSupportLevels(timeframeKlinesMap);
+  const resistanceLevels = priceLevels.calculateResistanceLevels(timeframeKlinesMap);
 
   const filePath = path.join(__dirname, 'data.json');
   const dataToSave = {
