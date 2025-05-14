@@ -8,7 +8,7 @@ import { TKline, TPriceLevelsTimeframe, TTimeframe } from '../../trading/types';
 import { getPricePrecision } from '../../trading/utils/asset';
 
 (async () => {
-  const TICKER = 'OMUSDT';
+  const TICKER = 'KERNELUSDT';
   const TIMEFRAMES: TTimeframe[] = ['1m', '15m', '1h', '4h', '1d'];
   const CANDLE_LIMIT = 1000;
 

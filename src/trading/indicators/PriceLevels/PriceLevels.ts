@@ -6,6 +6,15 @@ import { roundTo } from '../../utils/math';
 
 type TPriceLevelType = 'support' | 'resistance';
 
+type TPriceLevel = {
+  low: number;
+  high: number;
+  close: number;
+  open: number;
+  volume: number;
+  timestamp: number;
+};
+
 type TSupportLevel = {
   price: number;
   strength: number;
@@ -30,7 +39,7 @@ export default class PriceLevels {
   private readonly EXTREME_POINTS_WINDOW_RATIO = 0.005;
   // Чувствительность алгоритма кластеризации - определяет, насколько близкими должны быть цены,
   // чтобы считаться одним уровнем поддержки/сопротивления (в % от ценового диапазона)
-  private readonly SENSITIVITY = 0.01;
+  private readonly CLUSTER_SENSITIVITY = 0.01;
   // Веса для разных таймфреймов при расчете уровней
   private readonly TIMEFRAME_WEIGHTS: Record<TPriceLevelsTimeframe, number> = {
     '1m': 0.5,
@@ -51,16 +60,7 @@ export default class PriceLevels {
   /**
    * Находит экстремальные точки (локальные минимумы и максимумы) в исторических данных
    */
-  private findExtremePoints(
-    prices: {
-      low: number;
-      high: number;
-      close: number;
-      open: number;
-      volume: number;
-      timestamp: number;
-    }[],
-  ): TExtremePoint[] {
+  private findExtremePoints(prices: TPriceLevel[]): TExtremePoint[] {
     if (prices.length === 0) {
       return [];
     }
@@ -161,6 +161,11 @@ export default class PriceLevels {
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
+    // Определяем длительность торговой истории на основе дневных свечей
+    const dailyKlines = timeframeKlinesMap['1d'] || [];
+    const tradingHistoryFactor =
+      dailyKlines.length > 0 ? Math.min(1, Math.log(dailyKlines.length) / Math.log(1000)) : 1;
+
     for (const [timeframe, klines] of R.entries(timeframeKlinesMap)) {
       if (klines.length === 0) continue;
 
@@ -198,13 +203,12 @@ export default class PriceLevels {
     const priceRange = maxPrice - minPrice;
 
     // Группируем близкие экстремумы в кластеры
-    const clusterThreshold = priceRange * this.SENSITIVITY;
+    const clusterThreshold = priceRange * this.CLUSTER_SENSITIVITY;
     const clusters = this.clusterExtremePoints(allExtremePrices, clusterThreshold);
 
     // Берем последние свечи для определения текущей цены
     // Используем самый короткий таймфрейм для более точного определения текущей цены
-    const shortestTimeframe = Object.keys(timeframeKlinesMap).sort()[0] as TPriceLevelsTimeframe;
-    const latestKlines = timeframeKlinesMap[shortestTimeframe];
+    const latestKlines = timeframeKlinesMap['1m'];
     const currentPrice = parseFloat(latestKlines[latestKlines.length - 1].close);
 
     // Преобразуем кластеры в уровни поддержки/сопротивления
@@ -215,7 +219,8 @@ export default class PriceLevels {
       // Рассчитываем силу уровня
       const countFactor = cluster.prices.length * (1 + Math.log(cluster.prices.length));
       const volumeFactor = totalVolume / cluster.prices.length;
-      const rawStrength = countFactor * (1 + volumeFactor);
+      // Учитываем длительность торговой истории при расчете силы уровня
+      const strength = countFactor * (1 + volumeFactor);
 
       // Определяем тип уровня
       let type: TPriceLevelType = 'resistance';
@@ -225,7 +230,7 @@ export default class PriceLevels {
 
       return {
         price: roundTo(averagePrice, this.precision),
-        strength: rawStrength,
+        strength,
         type,
       };
     });
@@ -238,7 +243,9 @@ export default class PriceLevels {
       if (maxStrength > minStrength) {
         levels.forEach((level) => {
           level.strength = Math.round(
-            ((level.strength - minStrength) / (maxStrength - minStrength)) * 100,
+            ((level.strength - minStrength) / (maxStrength - minStrength)) *
+              100 *
+              tradingHistoryFactor,
           );
         });
       } else {

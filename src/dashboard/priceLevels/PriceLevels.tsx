@@ -6,7 +6,7 @@ import { getColorForStrength } from './colors';
 import { PriceLevelsChart } from './PriceLevelsChart';
 
 const PriceLevels = () => {
-  const [selectedTimeFrame, setSelectedTimeFrame] = useState<string>('1m');
+  const [selectedTimeFrame, setSelectedTimeFrame] = useState<string>('15m');
   const [minStrength, setMinStrength] = useState<number>(0);
 
   const supportLevels = useMemo(() => {
