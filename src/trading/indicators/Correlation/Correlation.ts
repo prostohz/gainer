@@ -1,6 +1,6 @@
 import * as R from 'remeda';
 
-import { TPriceLevelsTimeframe, TKline } from '../../types';
+import { TPriceLevelsTimeframe, TKline, TTimeframe } from '../../types';
 
 export class Correlation {
   private pearsonCorrelation(x: number[], y: number[]): number {
@@ -67,12 +67,22 @@ export class Correlation {
 
     // Рассчитываем общую корреляцию как среднее взвешенное значение
     // Более короткие таймфреймы имеют меньший вес, более длинные - больший
-    const weights: Record<TPriceLevelsTimeframe, number> = {
-      '1m': 1,
-      '15m': 3,
-      '1h': 5,
-      '4h': 6,
-      '1d': 7,
+    const weights: Record<TTimeframe, number> = {
+      '1s': 1,
+      '1m': 7,
+      '3m': 8,
+      '5m': 9,
+      '15m': 10,
+      '30m': 11,
+      '1h': 12,
+      '2h': 13,
+      '4h': 14,
+      '6h': 15,
+      '8h': 16,
+      '12h': 17,
+      '1d': 18,
+      '1w': 19,
+      '1M': 20,
     };
 
     let totalWeight = 0;
@@ -87,7 +97,7 @@ export class Correlation {
     const overall = totalWeight > 0 ? weightedSum / totalWeight : 0;
 
     return {
-      timeframe: correlations,
+      timeframes: correlations,
       overall,
     };
   }

@@ -9,4 +9,4 @@ temp/
 logs/
 node_modules/
 npm-debug.log
-src/preview/priceLevels/data.json
+src/**/cache.json

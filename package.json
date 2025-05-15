@@ -4,11 +4,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/trading/index.ts",
-    "priceLevels": "ts-node-dev --respawn --transpile-only src/preview/priceLevels/index.ts",
-    "volumeAnomalies": "ts-node-dev --respawn --transpile-only src/preview/volumeAnomalies/index.ts",
-    "correlation": "ts-node-dev --respawn --transpile-only src/preview/correlation/index.ts",
-    "dashboard:dev": "vite",
+    "dashboard:server": "ts-node-dev --respawn src/dashboard/server/index.ts",
+    "dashboard:client": "vite",
+    "dashboard": "concurrently \"npm run dashboard:server\" \"npm run dashboard:client\"",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx"
   },
@@ -16,14 +14,19 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.1",
     "@types/jest": "^29.5.5",
     "@types/node": "^20.8.2",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@types/react-window": "^1.8.8",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.1.2",
     "daisyui": "^4.12.14",
     "eslint": "^8.50.0",
     "eslint-config-prettier": "^9.0.0",
@@ -42,9 +45,14 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "lightweight-charts": "^5.0.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^7.6.0",
+    "react-window": "^1.8.11",
     "remeda": "^2.21.4",
     "ws": "^8.18.2"
   }

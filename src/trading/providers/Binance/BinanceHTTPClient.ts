@@ -142,6 +142,29 @@ class BinanceHTTPClient {
       throw error;
     }
   }
+
+  /**
+   * Получение списка всех торгуемых активов на Binance
+   * @returns Массив объектов с информацией о торговых парах
+   */
+  public async fetchTradableAssets(): Promise<TExchangeInfoSymbol[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/exchangeInfo`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}, ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Фильтруем только активные торговые пары
+      return data.symbols.filter(
+        (symbol: TExchangeInfoSymbol) => symbol.status === 'TRADING' && symbol.isSpotTradingAllowed,
+      );
+    } catch (error) {
+      console.error(`Ошибка при получении списка торгуемых активов: ${error}`);
+      throw error;
+    }
+  }
 }
 
 export default BinanceHTTPClient;
