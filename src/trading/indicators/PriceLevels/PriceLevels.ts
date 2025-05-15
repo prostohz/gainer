@@ -147,9 +147,9 @@ export default class PriceLevels {
    * Рассчитывает уровни поддержки и сопротивления на основе исторических свечей
    */
   private calculatePriceLevels(
-    timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
+    klinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
   ): TSupportLevel[] {
-    if (Object.keys(timeframeKlinesMap).length === 0) {
+    if (Object.keys(klinesMap).length === 0) {
       return [];
     }
 
@@ -162,11 +162,11 @@ export default class PriceLevels {
     let maxPrice = -Infinity;
 
     // Определяем длительность торговой истории на основе дневных свечей
-    const dailyKlines = timeframeKlinesMap['1d'] || [];
+    const dailyKlines = klinesMap['1d'] || [];
     const tradingHistoryFactor =
       dailyKlines.length > 0 ? Math.min(1, Math.log(dailyKlines.length) / Math.log(1000)) : 1;
 
-    for (const [timeframe, klines] of R.entries(timeframeKlinesMap)) {
+    for (const [timeframe, klines] of R.entries(klinesMap)) {
       if (klines.length === 0) continue;
 
       const prices = klines.map((kline) => ({
@@ -208,7 +208,7 @@ export default class PriceLevels {
 
     // Берем последние свечи для определения текущей цены
     // Используем самый короткий таймфрейм для более точного определения текущей цены
-    const latestKlines = timeframeKlinesMap['1m'];
+    const latestKlines = klinesMap['1m'];
     const currentPrice = parseFloat(latestKlines[latestKlines.length - 1].close);
 
     // Преобразуем кластеры в уровни поддержки/сопротивления
@@ -264,9 +264,9 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки на основе исторических свечей
    */
-  public calculateSupportLevels(timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
+  public calculateSupportLevels(klinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
     return R.pipe(
-      this.calculatePriceLevels(timeframeKlinesMap),
+      this.calculatePriceLevels(klinesMap),
       R.filter((level) => level.type === 'support'),
       R.map((level) => R.pick(level, ['price', 'strength'])),
     );
@@ -275,9 +275,9 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни сопротивления на основе исторических свечей
    */
-  public calculateResistanceLevels(timeframeKlinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
+  public calculateResistanceLevels(klinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
     return R.pipe(
-      this.calculatePriceLevels(timeframeKlinesMap),
+      this.calculatePriceLevels(klinesMap),
       R.filter((level) => level.type === 'resistance'),
       R.map((level) => R.pick(level, ['price', 'strength'])),
     );

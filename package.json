@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/trading/index.ts",
     "priceLevels": "ts-node-dev --respawn --transpile-only src/preview/priceLevels/index.ts",
     "volumeAnomalies": "ts-node-dev --respawn --transpile-only src/preview/volumeAnomalies/index.ts",
+    "correlation": "ts-node-dev --respawn --transpile-only src/preview/correlation/index.ts",
     "dashboard:dev": "vite",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx"
