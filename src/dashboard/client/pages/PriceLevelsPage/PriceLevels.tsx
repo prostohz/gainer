@@ -1,7 +1,7 @@
 import * as R from 'remeda';
 
 import { getColorForStrength } from './colors';
-import { TPriceLevels } from '../../../server/api/priceLevels/types';
+import { TPriceLevels } from '../../../server/services/priceLevelsService/types';
 
 type PriceLevelRowProps = {
   level: TPriceLevels['supportLevels'][number] | TPriceLevels['resistanceLevels'][number];

@@ -8,12 +8,12 @@ const links = [
     label: 'Price Levels',
   },
   {
-    to: '/correlationAnalysis',
-    label: 'Correlation Analysis',
+    to: '/correlationPair',
+    label: 'Correlation Pair',
   },
   {
-    to: '/volumeAnomalies',
-    label: 'Volume Anomalies',
+    to: '/correlationReport',
+    label: 'Correlation Report',
   },
 ];
 

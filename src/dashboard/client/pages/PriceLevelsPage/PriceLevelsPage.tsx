@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import * as R from 'remeda';
 
 import { Chart } from './Chart';
-import { TPriceLevels } from '../../../server/api/priceLevels/types';
+import { TPriceLevels } from '../../../server/services/priceLevelsService/types';
 import { useAssets } from '../../entities/assets';
 import { AssetSelector } from '../../widgets/AssetSelector';
 import { PriceLevels } from './PriceLevels';
+import http from '../../shared/http';
+import { useQuery } from '@tanstack/react-query';
 
 export const PriceLevelsPage = () => {
   const { assets } = useAssets();
 
   const [selectedAssetSymbol, setSelectedAssetSymbol] = useState<string>('BTCUSDT');
-  const [assetData, setAssetData] = useState<TPriceLevels | null>(null);
   const [selectedTimeFrame, setSelectedTimeFrame] = useState<string>('15m');
   const [minStrength, setMinStrength] = useState<number>(0);
 
@@ -22,15 +23,11 @@ export const PriceLevelsPage = () => {
     setSelectedAssetSymbol(assets[0].symbol);
   }, [assets, selectedAssetSymbol]);
 
-  useEffect(() => {
-    if (!assets || !selectedAssetSymbol) {
-      return;
-    }
-
-    fetch(`http://localhost:3001/api/priceLevels?symbol=${selectedAssetSymbol}`)
-      .then((response) => response.json())
-      .then((data) => setAssetData(data));
-  }, [assets, selectedAssetSymbol]);
+  const { data: assetData = null } = useQuery<TPriceLevels>({
+    queryKey: ['priceLevels', selectedAssetSymbol],
+    queryFn: () =>
+      http.get(`/api/priceLevels?symbol=${selectedAssetSymbol}`).then((res) => res.data),
+  });
 
   const supportLevels = useMemo(() => {
     if (!assetData) return [];

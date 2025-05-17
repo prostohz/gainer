@@ -9,4 +9,3 @@ temp/
 logs/
 node_modules/
 npm-debug.log
-src/**/cache.json

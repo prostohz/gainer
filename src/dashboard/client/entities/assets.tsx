@@ -1,50 +1,33 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { TExchangeInfoSymbol } from '../../../trading/providers/Binance/BinanceHTTPClient';
+import { createContext, useContext } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-interface AssetsContextType {
+import { TExchangeInfoSymbol } from '../../../trading/providers/Binance/BinanceHTTPClient';
+import http from '../shared/http';
+
+type AssetsContextType = {
   assets: TExchangeInfoSymbol[];
-  loading: boolean;
+  isLoading: boolean;
   error: Error | null;
-  refetch: () => Promise<void>;
-}
+};
 
 const AssetsContext = createContext<AssetsContextType | undefined>(undefined);
 
 export const AssetsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [assets, setAssets] = useState<TExchangeInfoSymbol[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchAssets = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('http://localhost:3001/api/assets');
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch assets: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setAssets(data);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAssets();
-  }, []);
+  const {
+    data: assets = [],
+    isLoading,
+    error,
+  } = useQuery<TExchangeInfoSymbol[]>({
+    queryKey: ['assets'],
+    queryFn: () => http.get('/api/assets').then((res) => res.data),
+  });
 
   return (
     <AssetsContext.Provider
       value={{
         assets,
-        loading,
+        isLoading,
         error,
-        refetch: fetchAssets,
       }}
     >
       {children}

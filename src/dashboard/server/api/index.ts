@@ -1,8 +1,8 @@
 import express from 'express';
 
-import assets from './assets';
-import priceLevels from './priceLevels';
-import correlation from './correlation';
+import assets from './assetsApi';
+import priceLevels from './priceLevelsApi';
+import correlation from './correlationApi';
 
 const router = express.Router();
 

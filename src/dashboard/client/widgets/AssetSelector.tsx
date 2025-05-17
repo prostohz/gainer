@@ -1,8 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { FixedSizeList as List } from 'react-window';
 
 import { TExchangeInfoSymbol } from '../../../trading/providers/Binance/BinanceHTTPClient';
-import { getLocalStorageProvider } from '../shared/localStorage';
+import { useLSState } from '../shared/localStorage';
 
 type AssetSelectorProps = {
   assets: TExchangeInfoSymbol[];
@@ -10,75 +10,29 @@ type AssetSelectorProps = {
   onAssetSelect: (symbol: string) => void;
 };
 
-const FAVORITES_STORAGE_KEY = 'favoriteAssets';
-const SHOW_FAVORITES_ONLY_KEY = 'showFavoritesOnly';
-
-const { getValue: getFavorites, setValue: saveFavorites } = getLocalStorageProvider<string[]>(
-  FAVORITES_STORAGE_KEY,
-  [],
-);
-const { getValue: getShowOnlyFavorites, setValue: saveShowOnlyFavorites } =
-  getLocalStorageProvider<boolean>(SHOW_FAVORITES_ONLY_KEY, false);
-
 export const AssetSelector = ({
   assets,
   selectedAssetSymbol,
   onAssetSelect,
 }: AssetSelectorProps) => {
   const [assetFilter, setAssetFilter] = useState('');
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
-
-  useEffect(() => {
-    setFavorites(getFavorites());
-    setShowOnlyFavorites(getShowOnlyFavorites());
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === FAVORITES_STORAGE_KEY) {
-        setFavorites(e.newValue ? JSON.parse(e.newValue) : []);
-      } else if (e.key === SHOW_FAVORITES_ONLY_KEY) {
-        setShowOnlyFavorites(e.newValue ? JSON.parse(e.newValue) : false);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  const [favorites, setFavorites] = useLSState<string[]>('favoriteAssets', []);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useLSState<boolean>('showFavoritesOnly', false);
 
   const toggleFavorite = (symbol: string) => {
-    const currentFavorites = getFavorites(); // Получаем актуальный список из localStorage
     let newFavorites: string[];
 
-    if (currentFavorites.includes(symbol)) {
-      newFavorites = currentFavorites.filter((fav) => fav !== symbol);
+    if (favorites.includes(symbol)) {
+      newFavorites = favorites.filter((fav) => fav !== symbol);
     } else {
-      newFavorites = [...currentFavorites, symbol];
+      newFavorites = [...favorites, symbol];
     }
 
-    saveFavorites(newFavorites);
     setFavorites(newFavorites);
-
-    // Создаем событие для синхронизации других экземпляров компонента
-    const event = new StorageEvent('storage', {
-      key: FAVORITES_STORAGE_KEY,
-      newValue: JSON.stringify(newFavorites),
-      storageArea: localStorage,
-    });
-    window.dispatchEvent(event);
   };
 
   const toggleShowOnlyFavorites = () => {
-    const newValue = !showOnlyFavorites;
-    saveShowOnlyFavorites(newValue);
-    setShowOnlyFavorites(newValue);
-
-    // Создаем событие для синхронизации других экземпляров компонента
-    const event = new StorageEvent('storage', {
-      key: SHOW_FAVORITES_ONLY_KEY,
-      newValue: JSON.stringify(newValue),
-      storageArea: localStorage,
-    });
-    window.dispatchEvent(event);
+    setShowOnlyFavorites(!showOnlyFavorites);
   };
 
   const filteredAssets = useMemo(() => {
