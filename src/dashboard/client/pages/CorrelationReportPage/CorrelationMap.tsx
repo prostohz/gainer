@@ -5,9 +5,9 @@ import cn from 'classnames';
 import * as R from 'remeda';
 import { VariableSizeGrid as Grid } from 'react-window';
 
-import { TCorrelation } from '../../../server/services/correlationService/types';
+import { TCorrelationReport } from '../../../server/services/correlationService/types';
 
-export const CorrelationMap = ({ report }: { report: Record<string, TCorrelation | null> }) => {
+export const CorrelationMap = ({ report }: { report: TCorrelationReport }) => {
   const navigate = useNavigate();
 
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -56,17 +56,8 @@ export const CorrelationMap = ({ report }: { report: Record<string, TCorrelation
     }
   }, [symbols, containerSize]);
 
-  const getCorrelationValue = (symbolA: string, symbolB: string) => {
-    if (!report) {
-      return null;
-    }
-    const key = `${symbolA}-${symbolB}`;
-    const data = report[key];
-    if (!data) {
-      return null;
-    }
-    return data.overall;
-  };
+  const getCorrelationValue = (symbolA: string, symbolB: string) =>
+    report[`${symbolA}-${symbolB}`] || null;
 
   const getCorrelationColor = (value: number | null) => {
     if (value === null) return 'neutral';

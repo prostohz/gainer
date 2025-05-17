@@ -17,8 +17,8 @@ import { getPricePrecision, getVolumePrecision } from '../../../../trading/utils
   const binanceStreamClient = BinanceStreamClient.getInstance();
   const binanceHttpClient = BinanceHTTPClient.getInstance();
 
-  const asset = await binanceHttpClient.fetchExchangeInfo(TICKER);
-  const assetPrice = await binanceHttpClient.fetchCurrentPrice(TICKER);
+  const asset = await binanceHttpClient.fetchAssetInfo(TICKER);
+  const assetPrice = await binanceHttpClient.fetchAssetPrice(TICKER);
   const klines = await binanceHttpClient.fetchHistoricalKlines(
     asset.symbol,
     TIMEFRAME,

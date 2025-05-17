@@ -12,7 +12,7 @@ export const getPriceLevels = async (symbol: string) => {
   try {
     const binanceHttpClient = BinanceHTTPClient.getInstance();
 
-    const asset = await binanceHttpClient.fetchExchangeInfo(symbol);
+    const asset = await binanceHttpClient.fetchAssetInfo(symbol);
     const precision = getPricePrecision(asset);
 
     const timeframeKlines = await Promise.all(

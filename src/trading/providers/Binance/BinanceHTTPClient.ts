@@ -46,6 +46,15 @@ type TExchangeInfoSymbol = {
   filters: TFilter[];
 };
 
+type TAsset24HrStats = {
+  symbol: string;
+  lastPrice: string;
+  priceChange: string;
+  priceChangePercent: string;
+  volume: string;
+  quoteVolume: string;
+};
+
 class BinanceHTTPClient {
   private static instance: BinanceHTTPClient;
 
@@ -106,7 +115,7 @@ class BinanceHTTPClient {
    * @param symbol Символ торговой пары (например, 'BTCUSDT')
    * @returns Информация о торговой паре
    */
-  public async fetchExchangeInfo(symbol: string): Promise<TExchangeInfoSymbol> {
+  public async fetchAssetInfo(symbol: string): Promise<TExchangeInfoSymbol> {
     try {
       const response = await fetch(`${this.baseUrl}/exchangeInfo?symbol=${symbol}`);
       if (!response.ok) {
@@ -127,7 +136,7 @@ class BinanceHTTPClient {
    * @param symbol Символ торговой пары (например, 'BTCUSDT')
    * @returns Текущая цена в виде числа
    */
-  public async fetchCurrentPrice(symbol: string): Promise<number> {
+  public async fetchAssetPrice(symbol: string): Promise<number> {
     try {
       const response = await fetch(`${this.baseUrl}/ticker/price?symbol=${symbol}`);
       if (!response.ok) {
@@ -147,7 +156,7 @@ class BinanceHTTPClient {
    * Получение списка всех торгуемых активов на Binance
    * @returns Массив объектов с информацией о торговых парах
    */
-  public async fetchTradableAssets(): Promise<TExchangeInfoSymbol[]> {
+  public async fetchAssetsTradable(): Promise<TExchangeInfoSymbol[]> {
     try {
       const response = await fetch(`${this.baseUrl}/exchangeInfo`);
       if (!response.ok) {
@@ -165,8 +174,26 @@ class BinanceHTTPClient {
       throw error;
     }
   }
+
+  /**
+   * Получение статистики 24 часов для всех торгуемых активов
+   * @returns Массив объектов с информацией о торговых парах
+   */
+  public async getAssets24HrStats(): Promise<TAsset24HrStats[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/ticker/24hr`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}, ${response.statusText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Ошибка при получении статистики 24 часов: ${error}`);
+      throw error;
+    }
+  }
 }
 
 export default BinanceHTTPClient;
 
-export { TKline, TExchangeInfoSymbol, TFilter };
+export { TKline, TExchangeInfoSymbol, TAsset24HrStats, TFilter };

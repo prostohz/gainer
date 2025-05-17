@@ -20,11 +20,13 @@ router.get('/pair', async (req: Request, res: Response<TCorrelation>) => {
 
 router.get('/report', async (req: Request, res: Response) => {
   const report = await getCorrelationReport();
+
   res.json(report);
 });
 
 router.post('/build', async (req: Request, res: Response) => {
   await buildCorrelationReport();
+
   res.json({ message: 'Report built' });
 });
 

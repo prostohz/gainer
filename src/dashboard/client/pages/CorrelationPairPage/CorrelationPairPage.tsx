@@ -9,7 +9,7 @@ import http from '../../shared/http';
 import { useSearchParams } from 'react-router-dom';
 
 export const CorrelationPairPage = () => {
-  const { assets } = useAssets();
+  const { assetList } = useAssets();
   const [searchParams] = useSearchParams();
 
   const [symbolA, setSymbolA] = useState<string | null>(searchParams.get('tickerA') || null);
@@ -42,8 +42,16 @@ export const CorrelationPairPage = () => {
         <h2 className="text-2xl font-bold mb-4">Assets</h2>
 
         <div className="flex flex-row gap-4">
-          <AssetSelector assets={assets} selectedAssetSymbol={symbolA} onAssetSelect={setSymbolA} />
-          <AssetSelector assets={assets} selectedAssetSymbol={symbolB} onAssetSelect={setSymbolB} />
+          <AssetSelector
+            assets={assetList}
+            selectedAssetSymbol={symbolA}
+            onAssetSelect={setSymbolA}
+          />
+          <AssetSelector
+            assets={assetList}
+            selectedAssetSymbol={symbolB}
+            onAssetSelect={setSymbolB}
+          />
         </div>
       </div>
       <div className="p-4 bg-base-200 rounded-lg flex-grow">

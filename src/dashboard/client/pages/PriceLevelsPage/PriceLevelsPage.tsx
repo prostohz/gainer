@@ -10,7 +10,7 @@ import http from '../../shared/http';
 import { useQuery } from '@tanstack/react-query';
 
 export const PriceLevelsPage = () => {
-  const { assets } = useAssets();
+  const { assetList } = useAssets();
 
   const [selectedAssetSymbol, setSelectedAssetSymbol] = useState<string>('BTCUSDT');
   const [selectedTimeFrame, setSelectedTimeFrame] = useState<string>('15m');
@@ -18,10 +18,10 @@ export const PriceLevelsPage = () => {
 
   useEffect(() => {
     if (selectedAssetSymbol) return;
-    if (!assets.length) return;
+    if (!assetList.length) return;
 
-    setSelectedAssetSymbol(assets[0].symbol);
-  }, [assets, selectedAssetSymbol]);
+    setSelectedAssetSymbol(assetList[0].symbol);
+  }, [assetList, selectedAssetSymbol]);
 
   const { data: assetData = null } = useQuery<TPriceLevels>({
     queryKey: ['priceLevels', selectedAssetSymbol],
@@ -184,7 +184,7 @@ export const PriceLevelsPage = () => {
                 <label className="font-medium block mb-2">Select Asset:</label>
                 <div className="overflow-auto">
                   <AssetSelector
-                    assets={assets}
+                    assets={assetList}
                     selectedAssetSymbol={selectedAssetSymbol}
                     onAssetSelect={setSelectedAssetSymbol}
                   />

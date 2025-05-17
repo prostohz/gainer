@@ -9,7 +9,7 @@ import BinanceHTTPClient, {
   TExchangeInfoSymbol,
 } from '../../../../trading/providers/Binance/BinanceHTTPClient';
 import { getAssets } from '../assetsService';
-import { TCorrelation } from './types';
+import { TCorrelationReport } from './types';
 
 const TIMEFRAMES: TTimeframe[] = ['1m', '15m', '1h', '4h', '1d'];
 const CANDLE_LIMIT = 1000;
@@ -93,12 +93,12 @@ const serializePairName = (tickerA: string, tickerB: string) => `${tickerA}-${ti
 
 export const buildCorrelationReport = async () => {
   const assets: TExchangeInfoSymbol[] = await getAssets();
-  const assetTickers = assets.map((asset) => asset.symbol).slice(0, 200);
+  const assetTickers = assets.map((asset) => asset.symbol);
 
-  const report: Record<string, TCorrelation | null> = {};
+  const report: TCorrelationReport = {};
 
   for await (const ticker of assetTickers) {
-    await fetchCachedHistoricalKlines(ticker, '1d', 100);
+    await fetchCachedHistoricalKlines(ticker, '1d', 1000);
   }
 
   for await (const tickerA of assetTickers) {
@@ -113,10 +113,12 @@ export const buildCorrelationReport = async () => {
         continue;
       }
 
-      report[serializePairName(tickerA, tickerB)] = await getPairCorrelation(tickerA, tickerB, {
+      const correlation = await getPairCorrelation(tickerA, tickerB, {
         timeframes: ['1d'],
-        candleLimit: 100,
+        candleLimit: 1000,
       });
+
+      report[serializePairName(tickerA, tickerB)] = correlation.overall;
     }
   }
 

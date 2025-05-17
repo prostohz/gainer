@@ -1,11 +1,13 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import * as R from 'remeda';
 
-import { TExchangeInfoSymbol } from '../../../trading/providers/Binance/BinanceHTTPClient';
+import { TAsset } from '../../../dashboard/server/services/assetsService/types';
 import http from '../shared/http';
 
 type AssetsContextType = {
-  assets: TExchangeInfoSymbol[];
+  assetList: TAsset[];
+  assetMap: Record<string, TAsset>;
   isLoading: boolean;
   error: Error | null;
 };
@@ -14,18 +16,23 @@ const AssetsContext = createContext<AssetsContextType | undefined>(undefined);
 
 export const AssetsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
-    data: assets = [],
+    data: assetList = [],
     isLoading,
     error,
-  } = useQuery<TExchangeInfoSymbol[]>({
+  } = useQuery<TAsset[]>({
     queryKey: ['assets'],
     queryFn: () => http.get('/api/assets').then((res) => res.data),
   });
 
+  const assetMap = useMemo(() => {
+    return R.indexBy(assetList, (asset) => asset.symbol);
+  }, [assetList]);
+
   return (
     <AssetsContext.Provider
       value={{
-        assets,
+        assetList,
+        assetMap,
         isLoading,
         error,
       }}
