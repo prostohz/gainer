@@ -409,7 +409,7 @@ class BinanceStreamClient extends EventEmitter implements BinanceEventEmitter {
       }
       default:
         const _exhaustiveCheck: never = type;
-        console.error(`Unknown stream type: ${_exhaustiveCheck}`);
+        console.error(`Неизвестный тип потока: ${_exhaustiveCheck}`);
         return null;
     }
   }

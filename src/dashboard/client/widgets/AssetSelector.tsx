@@ -8,16 +8,24 @@ type AssetSelectorProps = {
   assets: TExchangeInfoSymbol[];
   selectedAssetSymbol: string | null;
   onAssetSelect: (symbol: string) => void;
+  isLoading: boolean;
 };
+
+const FAVORITES_LS_KEY = 'favoriteAssets';
+const SHOW_FAVORITES_LS_KEY = 'showFavoritesOnly';
 
 export const AssetSelector = ({
   assets,
   selectedAssetSymbol,
   onAssetSelect,
+  isLoading,
 }: AssetSelectorProps) => {
   const [assetFilter, setAssetFilter] = useState('');
-  const [favorites, setFavorites] = useLSState<string[]>('favoriteAssets', []);
-  const [showOnlyFavorites, setShowOnlyFavorites] = useLSState<boolean>('showFavoritesOnly', false);
+  const [favorites, setFavorites] = useLSState<string[]>(FAVORITES_LS_KEY, []);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useLSState<boolean>(
+    SHOW_FAVORITES_LS_KEY,
+    false,
+  );
 
   const toggleFavorite = (symbol: string) => {
     let newFavorites: string[];
@@ -93,10 +101,8 @@ export const AssetSelector = ({
     );
   };
 
-  if (!assets.length) return null;
-
   return (
-    <div className="flex flex-col max-h-[500px]">
+    <div className="flex flex-col flex-grow">
       <div className="mb-3">
         <input
           type="text"
@@ -117,15 +123,27 @@ export const AssetSelector = ({
           <span className="text-sm">Show favorites only</span>
         </label>
       </div>
-      <div className="overflow-y-auto max-h-[450px]">
-        {filteredAssets.length > 0 ? (
-          <List height={400} width="100%" itemCount={filteredAssets.length} itemSize={40}>
-            {renderAssetItem}
-          </List>
-        ) : (
-          <div className="text-center py-4 text-gray-500">No assets found</div>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-sm text-neutral-content">Loading assets...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-y-auto flex-grow">
+          {filteredAssets.length > 0 ? (
+            <List height={400} width="100%" itemCount={filteredAssets.length} itemSize={40}>
+              {renderAssetItem}
+            </List>
+          ) : (
+            <div className="text-center text-md text-neutral-content py-4">No assets found</div>
+          )}
+        </div>
+      )}
     </div>
   );
+};
+
+export const setFavorites = (symbols: string[]) => {
+  localStorage.setItem(FAVORITES_LS_KEY, JSON.stringify(symbols));
 };

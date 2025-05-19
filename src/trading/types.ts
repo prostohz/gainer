@@ -12,10 +12,9 @@ export type TTimeframe =
   | '8h'
   | '12h'
   | '1d'
+  | '3d'
   | '1w'
   | '1M';
-
-export type TPriceLevelsTimeframe = Extract<TTimeframe, '1m' | '15m' | '1h' | '4h' | '1d'>;
 
 export type TKline = {
   openTime: number;

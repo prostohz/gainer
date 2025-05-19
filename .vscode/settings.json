@@ -3,6 +3,9 @@
   "editor.formatOnSave": true,
   "cSpell.language": "en,ru",
   "cSpell.words": [
+    "Cointegrated",
+    "cointegration",
+    "Engle",
     "klines",
     "таймфрейм",
     "таймфрейма",

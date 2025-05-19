@@ -1,13 +1,13 @@
 import express from 'express';
 
-import assets from './assetsApi';
-import priceLevels from './priceLevelsApi';
-import correlation from './correlationApi';
+import assetApi from './assetApi';
+import correlationApi from './correlationApi';
+import priceLevelsApi from './priceLevelsApi';
 
 const router = express.Router();
 
-router.use('/assets', assets);
-router.use('/priceLevels', priceLevels);
-router.use('/correlation', correlation);
+router.use('/asset', assetApi);
+router.use('/correlation', correlationApi);
+router.use('/priceLevels', priceLevelsApi);
 
 export default router;

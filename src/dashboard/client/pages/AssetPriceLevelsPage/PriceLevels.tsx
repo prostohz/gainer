@@ -1,7 +1,7 @@
 import * as R from 'remeda';
 
 import { getColorForStrength } from './colors';
-import { TPriceLevels } from '../../../server/services/priceLevelsService/types';
+import { TAsset, TPriceLevels } from '../../../server/services/assetService/types';
 
 type PriceLevelRowProps = {
   level: TPriceLevels['supportLevels'][number] | TPriceLevels['resistanceLevels'][number];
@@ -25,18 +25,19 @@ const PriceLevelRow = ({ level, precision }: PriceLevelRowProps) => {
 };
 
 type PriceLevelsProps = {
-  assetData: TPriceLevels;
+  asset: TAsset;
+  priceLevels: TPriceLevels;
 };
 
-export const PriceLevels = ({ assetData }: PriceLevelsProps) => {
-  const { precision } = assetData;
+export const PriceLevels = ({ asset, priceLevels }: PriceLevelsProps) => {
+  const { precision } = asset;
 
   return (
     <div className="flex bg-base-200 rounded-lg mb-6">
       <div className="p-4 flex-1">
         <h3 className="text-lg font-semibold mb-4">Support Levels</h3>
         <div className="space-y-4">
-          {R.sortBy(assetData.supportLevels, [R.prop('price'), 'desc']).map((level, index) => (
+          {R.sortBy(priceLevels.supportLevels, [R.prop('price'), 'desc']).map((level, index) => (
             <PriceLevelRow level={level} precision={precision} key={`support-${index}`} />
           ))}
         </div>
@@ -45,7 +46,7 @@ export const PriceLevels = ({ assetData }: PriceLevelsProps) => {
       <div className="p-4 flex-1">
         <h3 className="text-lg font-semibold mb-4">Resistance Levels</h3>
         <div className="space-y-4">
-          {R.sortBy(assetData.resistanceLevels, [R.prop('price'), 'asc']).map((level, index) => (
+          {R.sortBy(priceLevels.resistanceLevels, [R.prop('price'), 'asc']).map((level, index) => (
             <PriceLevelRow level={level} precision={precision} key={`resistance-${index}`} />
           ))}
         </div>

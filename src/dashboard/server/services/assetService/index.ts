@@ -2,11 +2,16 @@ import fs from 'fs';
 import path from 'path';
 
 import BinanceHTTPClient from '../../../../trading/providers/Binance/BinanceHTTPClient';
+import { getPricePrecision } from '../../../../trading/utils/asset';
+import { TKline, TTimeframe } from '../../../../trading/types';
+import { TAsset } from './types';
 
 const CACHE_FILE_PATH = path.resolve(__dirname, '../../../../../data/assets.json');
-const CACHE_TTL = 60 * 60 * 1000; // 1 час в миллисекундах
+const CACHE_TTL = 60 * 60 * 1000;
 
-export const getAssets = async () => {
+const binanceHttpClient = BinanceHTTPClient.getInstance();
+
+export const getAssetList = async () => {
   try {
     // Проверяем наличие и актуальность кеша
     if (fs.existsSync(CACHE_FILE_PATH)) {
@@ -19,15 +24,18 @@ export const getAssets = async () => {
       }
     }
 
-    // Если кеша нет или он устарел, получаем новые данные
-    const binanceHttpClient = BinanceHTTPClient.getInstance();
     const assets = await binanceHttpClient.fetchAssetsTradable();
     const assets24HrStats = await binanceHttpClient.getAssets24HrStats();
 
     const assetsWithStats = assets.map((asset) => {
+      const precision = getPricePrecision(asset);
+
       const assetStats = assets24HrStats.find((stats) => stats.symbol === asset.symbol);
       if (!assetStats) {
-        return asset;
+        return {
+          precision,
+          ...asset,
+        };
       }
 
       const usdtVolume = (() => {
@@ -49,9 +57,10 @@ export const getAssets = async () => {
       return {
         ...asset,
         ...assetStats,
+        precision,
         usdtVolume,
       };
-    });
+    }) as TAsset[];
 
     // Сохраняем данные в кеш
     const cacheData = {
@@ -66,4 +75,47 @@ export const getAssets = async () => {
     console.error('Error fetching assets:', error);
     throw error;
   }
+};
+
+const klinesCache: Record<string, TKline[]> = {};
+
+export const fetchCachedHistoricalKlines = async (
+  symbol: string,
+  timeframe: TTimeframe,
+  limit: number,
+): Promise<TKline[]> => {
+  const cacheKey = `${symbol}_${timeframe}_${limit}`;
+
+  if (klinesCache[cacheKey]) {
+    return klinesCache[cacheKey];
+  }
+
+  const klines = await binanceHttpClient.fetchHistoricalKlines(symbol, timeframe, limit);
+  klinesCache[cacheKey] = klines;
+
+  return klines;
+};
+
+export const getAssetKlines = async (
+  symbol: string,
+  timeframe: TTimeframe,
+  limit: number = 1000,
+  cache: boolean = true,
+) => {
+  const assets = await getAssetList();
+  const asset = assets.find((item: TAsset) => item.symbol === symbol);
+
+  if (!asset) {
+    throw new Error(`Asset ${symbol} not found`);
+  }
+
+  if (cache) {
+    return fetchCachedHistoricalKlines(asset.symbol, timeframe, limit);
+  }
+
+  return binanceHttpClient.fetchHistoricalKlines(asset.symbol, timeframe, limit);
+};
+
+export const getAssetPrice = async (symbol: string) => {
+  return binanceHttpClient.fetchAssetPrice(symbol);
 };

@@ -4,16 +4,20 @@ import logo from './logo.png';
 
 const links = [
   {
-    to: '/priceLevels',
-    label: 'Price Levels',
+    to: '/correlationReport',
+    label: 'Correlation Report',
+  },
+  {
+    to: '/correlationCluster',
+    label: 'Correlation Cluster',
   },
   {
     to: '/correlationPair',
     label: 'Correlation Pair',
   },
   {
-    to: '/correlationReport',
-    label: 'Correlation Report',
+    to: '/assetPriceLevels',
+    label: 'Asset Price Levels',
   },
 ];
 

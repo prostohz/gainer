@@ -1,7 +1,7 @@
 import * as R from 'remeda';
 
 import { TExchangeInfoSymbol } from '../../providers/Binance/BinanceHTTPClient';
-import { TPriceLevelsTimeframe, TKline } from '../../types';
+import { TKline, TTimeframe } from '../../types';
 import { roundTo } from '../../utils/math';
 
 type TPriceLevelType = 'support' | 'resistance';
@@ -41,7 +41,7 @@ export default class PriceLevels {
   // чтобы считаться одним уровнем поддержки/сопротивления (в % от ценового диапазона)
   private readonly CLUSTER_SENSITIVITY = 0.01;
   // Веса для разных таймфреймов при расчете уровней
-  private readonly TIMEFRAME_WEIGHTS: Record<TPriceLevelsTimeframe, number> = {
+  private readonly TIMEFRAME_WEIGHTS: Partial<Record<TTimeframe, number>> = {
     '1m': 0.5,
     '15m': 0.8,
     '1h': 1.0,
@@ -146,9 +146,7 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки и сопротивления на основе исторических свечей
    */
-  private calculatePriceLevels(
-    klinesMap: Record<TPriceLevelsTimeframe, TKline[]>,
-  ): TSupportLevel[] {
+  private calculatePriceLevels(klinesMap: Record<TTimeframe, TKline[]>): TSupportLevel[] {
     if (Object.keys(klinesMap).length === 0) {
       return [];
     }
@@ -264,7 +262,7 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки на основе исторических свечей
    */
-  public calculateSupportLevels(klinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
+  public calculateSupportLevels(klinesMap: Record<TTimeframe, TKline[]>) {
     return R.pipe(
       this.calculatePriceLevels(klinesMap),
       R.filter((level) => level.type === 'support'),
@@ -275,7 +273,7 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни сопротивления на основе исторических свечей
    */
-  public calculateResistanceLevels(klinesMap: Record<TPriceLevelsTimeframe, TKline[]>) {
+  public calculateResistanceLevels(klinesMap: Record<TTimeframe, TKline[]>) {
     return R.pipe(
       this.calculatePriceLevels(klinesMap),
       R.filter((level) => level.type === 'resistance'),

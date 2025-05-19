@@ -1,13 +1,13 @@
-import { Correlation } from '../indicators/Correlation/Correlation';
-import { TPriceLevelsTimeframe, TKline } from '../types';
+import { PearsonCorrelation } from '../indicators/Correlation/Correlation';
+import { TTimeframe, TKline } from '../types';
 
 export class CorrelationStrategy {
-  private correlation: Correlation;
+  private correlation: PearsonCorrelation;
   private zScoreThreshold: number = 2.0; // Порог для входа в позицию
   private lookbackPeriod: number = 20; // Период для расчета среднего и стандартного отклонения
 
   constructor() {
-    this.correlation = new Correlation();
+    this.correlation = new PearsonCorrelation();
   }
 
   // Рассчитывает Z-score для спреда между двумя активами
@@ -31,12 +31,15 @@ export class CorrelationStrategy {
 
   // Основная функция для определения торговых сигналов
   public generateSignals(
-    klinesMapA: Record<TPriceLevelsTimeframe, TKline[]>,
-    klinesMapB: Record<TPriceLevelsTimeframe, TKline[]>,
-    timeframe: TPriceLevelsTimeframe,
+    klinesMapA: Record<TTimeframe, TKline[]>,
+    klinesMapB: Record<TTimeframe, TKline[]>,
+    timeframe: TTimeframe,
   ): { action: 'BUY_A_SELL_B' | 'BUY_B_SELL_A' | 'CLOSE' | 'NONE'; zScore: number } {
     // Проверяем корреляцию
-    const correlationResult = this.correlation.calculateCorrelation(klinesMapA, klinesMapB);
+    const correlationResult = this.correlation.calculateMultipleTimeframeCorrelation(
+      klinesMapA,
+      klinesMapB,
+    );
     const timeframeCorrelation = correlationResult.timeframes[timeframe];
 
     // Если корреляция недостаточно высокая, не торгуем

@@ -1,64 +1,75 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import * as R from 'remeda';
 
-import { Chart } from './Chart';
-import { TPriceLevels } from '../../../server/services/priceLevelsService/types';
+import http from '../../shared/http';
+import { Chart } from '../../widgets/Chart';
+import { TPriceLevels } from '../../../server/services/assetService/types';
+import { TTimeframe, TKline } from '../../../../trading/types';
 import { useAssets } from '../../entities/assets';
+import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { AssetSelector } from '../../widgets/AssetSelector';
 import { PriceLevels } from './PriceLevels';
-import http from '../../shared/http';
-import { useQuery } from '@tanstack/react-query';
 
-export const PriceLevelsPage = () => {
-  const { assetList } = useAssets();
+export const AssetPriceLevelsPage = () => {
+  const { assetList, assetMap } = useAssets();
 
-  const [selectedAssetSymbol, setSelectedAssetSymbol] = useState<string>('BTCUSDT');
-  const [selectedTimeFrame, setSelectedTimeFrame] = useState<string>('15m');
+  const [assetSymbol, setAssetSymbol] = useState<string>('BTCUSDT');
+  const [timeframe, setTimeframe] = useState<TTimeframe>('15m');
   const [minStrength, setMinStrength] = useState<number>(0);
 
   useEffect(() => {
-    if (selectedAssetSymbol) return;
+    if (assetSymbol) return;
     if (!assetList.length) return;
 
-    setSelectedAssetSymbol(assetList[0].symbol);
-  }, [assetList, selectedAssetSymbol]);
+    setAssetSymbol(assetList[0].symbol);
+  }, [assetList, assetSymbol]);
 
-  const { data: assetData = null } = useQuery<TPriceLevels>({
-    queryKey: ['priceLevels', selectedAssetSymbol],
+  const { data: assetKlines = null } = useQuery<TKline[]>({
+    queryKey: ['assetKlines', assetSymbol, timeframe],
     queryFn: () =>
-      http.get(`/api/priceLevels?symbol=${selectedAssetSymbol}`).then((res) => res.data),
+      http
+        .get(`/api/asset/klines?symbol=${assetSymbol}&timeframe=${timeframe}`)
+        .then((res) => res.data),
   });
 
+  const { data: assetPriceLevels = null } = useQuery<TPriceLevels>({
+    queryKey: ['priceLevels', assetSymbol],
+    queryFn: () => http.get(`/api/priceLevels?symbol=${assetSymbol}`).then((res) => res.data),
+  });
+
+  const asset = useMemo(() => {
+    if (!assetMap) return null;
+
+    return assetMap[assetSymbol];
+  }, [assetMap, assetSymbol]);
+
   const supportLevels = useMemo(() => {
-    if (!assetData) return [];
+    if (!assetPriceLevels) return [];
 
     const minStr = minStrength || 0;
 
-    return assetData.supportLevels.filter((item) => item.strength >= minStr);
-  }, [assetData, minStrength]);
+    return assetPriceLevels.supportLevels.filter((item) => item.strength >= minStr);
+  }, [assetPriceLevels, minStrength]);
 
   const resistanceLevels = useMemo(() => {
-    if (!assetData) return [];
+    if (!assetPriceLevels) return [];
 
     const minStr = minStrength || 0;
 
-    return assetData.resistanceLevels.filter((item) => item.strength >= minStr);
-  }, [assetData, minStrength]);
-
-  const klines = useMemo(() => {
-    if (!assetData) return [];
-
-    return assetData.timeframeKlines[selectedTimeFrame as keyof typeof assetData.timeframeKlines];
-  }, [assetData, selectedTimeFrame]);
+    return assetPriceLevels.resistanceLevels.filter((item) => item.strength >= minStr);
+  }, [assetPriceLevels, minStrength]);
 
   const supportLevelsOnChart = useMemo(() => {
+    if (!assetKlines) return [];
+
     const minPrice = R.pipe(
-      klines,
+      assetKlines,
       R.map((kline) => parseFloat(kline.low)),
       R.firstBy([R.identity(), 'asc']),
     );
     const maxPrice = R.pipe(
-      klines,
+      assetKlines,
       R.map((kline) => parseFloat(kline.high)),
       R.firstBy([R.identity(), 'desc']),
     );
@@ -66,16 +77,18 @@ export const PriceLevelsPage = () => {
     if (!minPrice || !maxPrice) return [];
 
     return supportLevels.filter((item) => item.price >= minPrice && item.price <= maxPrice);
-  }, [klines, supportLevels]);
+  }, [assetKlines, supportLevels]);
 
   const resistanceLevelsOnChart = useMemo(() => {
+    if (!assetKlines) return [];
+
     const minPrice = R.pipe(
-      klines,
+      assetKlines,
       R.map((kline) => parseFloat(kline.low)),
       R.firstBy([R.identity(), 'asc']),
     );
     const maxPrice = R.pipe(
-      klines,
+      assetKlines,
       R.map((kline) => parseFloat(kline.high)),
       R.firstBy([R.identity(), 'desc']),
     );
@@ -83,52 +96,23 @@ export const PriceLevelsPage = () => {
     if (!minPrice || !maxPrice) return [];
 
     return resistanceLevels.filter((item) => item.price >= minPrice && item.price <= maxPrice);
-  }, [klines, resistanceLevels]);
-
-  useEffect(() => {
-    if (!assetData) return;
-
-    const timeframes = Object.keys(assetData.timeframeKlines);
-
-    if (!timeframes.includes(selectedTimeFrame)) {
-      setSelectedTimeFrame(timeframes[0]);
-    }
-  }, [assetData, selectedTimeFrame]);
+  }, [assetKlines, resistanceLevels]);
 
   const currentPrice = useMemo(() => {
-    if (!assetData) return 0;
+    if (!assetKlines) return 0;
 
-    const klines =
-      assetData.timeframeKlines[selectedTimeFrame as keyof typeof assetData.timeframeKlines];
+    const klines = assetKlines;
     const prices = klines.map((kline) => parseFloat(kline.close));
 
     return prices[prices.length - 1];
-  }, [assetData, selectedTimeFrame]);
-
-  const renderTimeFrameSelector = () => {
-    const timeFrames = assetData ? R.keys(assetData.timeframeKlines) : [];
-
-    return (
-      <select
-        className="select select-bordered select-sm w-full"
-        value={selectedTimeFrame}
-        onChange={(e) => setSelectedTimeFrame(e.target.value)}
-      >
-        {timeFrames.map((timeFrame) => (
-          <option key={timeFrame} value={timeFrame}>
-            {timeFrame}
-          </option>
-        ))}
-      </select>
-    );
-  };
+  }, [assetKlines]);
 
   return (
     <div>
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold">
-          <span className="text-primary">{assetData?.asset.symbol}</span> Price Chart with Levels (
-          {selectedTimeFrame})
+          <span className="text-primary">{asset?.symbol}</span> Price Chart with Levels ({timeframe}
+          )
         </h1>
         <div className="text-2xl font-bold">
           Current Price: <span className="text-primary">${currentPrice}</span>
@@ -137,17 +121,17 @@ export const PriceLevelsPage = () => {
 
       <div className="flex flex-row gap-6 flex-1">
         <div className="flex-grow overflow-auto min-h-[500px]">
-          {assetData ? (
+          {assetKlines && assetPriceLevels && asset ? (
             <>
-              <div className="mb-6">
+              <div className="h-[500px] mb-6">
                 <Chart
-                  klines={klines}
+                  klines={assetKlines}
                   supportLevels={supportLevelsOnChart}
                   resistanceLevels={resistanceLevelsOnChart}
-                  precision={assetData.precision}
+                  precision={asset.precision}
                 />
               </div>
-              <PriceLevels assetData={assetData} />
+              <PriceLevels asset={asset} priceLevels={assetPriceLevels} />
             </>
           ) : (
             <div className="flex justify-center items-center h-[500px]">
@@ -163,7 +147,10 @@ export const PriceLevelsPage = () => {
                 <label className="font-medium block mb-2" htmlFor="timeFrameSelector">
                   Timeframe:
                 </label>
-                {renderTimeFrameSelector()}
+                <TimeframeSelector
+                  selectedTimeFrame={timeframe}
+                  setSelectedTimeFrame={setTimeframe}
+                />
               </div>
 
               <div>
@@ -185,8 +172,8 @@ export const PriceLevelsPage = () => {
                 <div className="overflow-auto">
                   <AssetSelector
                     assets={assetList}
-                    selectedAssetSymbol={selectedAssetSymbol}
-                    onAssetSelect={setSelectedAssetSymbol}
+                    selectedAssetSymbol={assetSymbol}
+                    onAssetSelect={setAssetSymbol}
                   />
                 </div>
               </div>

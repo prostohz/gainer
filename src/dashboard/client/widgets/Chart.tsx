@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   createChart,
   LineSeries,
@@ -7,8 +7,8 @@ import {
   UTCTimestamp,
 } from 'lightweight-charts';
 
-import { getColorForStrength } from './colors';
-import { TKline } from '../../../../trading/types';
+import { getColorForStrength } from '../pages/AssetPriceLevelsPage/colors';
+import { TKline } from '../../../trading/types';
 
 type Level = {
   price: number;
@@ -17,9 +17,9 @@ type Level = {
 
 type Props = {
   klines: TKline[];
-  supportLevels: Level[];
-  resistanceLevels: Level[];
   precision: number;
+  supportLevels?: Level[];
+  resistanceLevels?: Level[];
 };
 
 export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Props) => {
@@ -54,6 +54,12 @@ export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Pr
       },
       rightPriceScale: {
         borderColor: 'rgba(68, 71, 90, 0.5)',
+      },
+      localization: {
+        timeFormatter: (time: number) => {
+          const date = new Date(time * 1000);
+          return date.toLocaleString();
+        },
       },
     });
 
@@ -110,43 +116,47 @@ export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Pr
     const startTime = candleData[0].time;
     const endTime = candleData[candleData.length - 1].time;
 
-    supportLevels.forEach((level) => {
-      const supportLine = chart.addSeries(LineSeries, {
-        color: getColorForStrength(level.strength),
-        lineWidth: 1,
-        lineStyle: 0,
-        title: `${level.strength}`,
-        lastValueVisible: true,
-        priceFormat: {
-          type: 'price',
-          precision,
-        },
+    if (supportLevels) {
+      supportLevels.forEach((level) => {
+        const supportLine = chart.addSeries(LineSeries, {
+          color: getColorForStrength(level.strength),
+          lineWidth: 1,
+          lineStyle: 0,
+          title: `${level.strength}`,
+          lastValueVisible: true,
+          priceFormat: {
+            type: 'price',
+            precision,
+          },
+        });
+
+        supportLine.setData([
+          { time: startTime as UTCTimestamp, value: level.price },
+          { time: endTime as UTCTimestamp, value: level.price },
+        ]);
       });
+    }
 
-      supportLine.setData([
-        { time: startTime as UTCTimestamp, value: level.price },
-        { time: endTime as UTCTimestamp, value: level.price },
-      ]);
-    });
+    if (resistanceLevels) {
+      resistanceLevels.forEach((level) => {
+        const supportLine = chart.addSeries(LineSeries, {
+          color: getColorForStrength(level.strength),
+          lineWidth: 1,
+          lineStyle: 0,
+          title: `${level.strength}`,
+          lastValueVisible: true,
+          priceFormat: {
+            type: 'price',
+            precision,
+          },
+        });
 
-    resistanceLevels.forEach((level) => {
-      const supportLine = chart.addSeries(LineSeries, {
-        color: getColorForStrength(level.strength),
-        lineWidth: 1,
-        lineStyle: 0,
-        title: `${level.strength}`,
-        lastValueVisible: true,
-        priceFormat: {
-          type: 'price',
-          precision,
-        },
+        supportLine.setData([
+          { time: startTime as UTCTimestamp, value: level.price },
+          { time: endTime as UTCTimestamp, value: level.price },
+        ]);
       });
-
-      supportLine.setData([
-        { time: startTime as UTCTimestamp, value: level.price },
-        { time: endTime as UTCTimestamp, value: level.price },
-      ]);
-    });
+    }
 
     chart.timeScale().fitContent();
 
@@ -168,7 +178,7 @@ export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Pr
   return (
     <div
       ref={chartContainerRef}
-      className="w-full h-[500px] bg-[#282a36] rounded-lg overflow-hidden"
-    ></div>
+      className="w-full h-full bg-[#282a36] rounded-lg overflow-hidden"
+    />
   );
 };

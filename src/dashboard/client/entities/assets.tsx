@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as R from 'remeda';
 
-import { TAsset } from '../../../dashboard/server/services/assetsService/types';
+import { TAsset } from '../../server/services/assetService/types';
 import http from '../shared/http';
 
 type AssetsContextType = {
@@ -21,7 +21,7 @@ export const AssetsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     error,
   } = useQuery<TAsset[]>({
     queryKey: ['assets'],
-    queryFn: () => http.get('/api/assets').then((res) => res.data),
+    queryFn: () => http.get('/api/asset/list').then((res) => res.data),
   });
 
   const assetMap = useMemo(() => {

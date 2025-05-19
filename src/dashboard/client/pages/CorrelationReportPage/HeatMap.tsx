@@ -4,11 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import cn from 'classnames';
 import * as R from 'remeda';
 import { VariableSizeGrid as Grid } from 'react-window';
+import { useQuery } from '@tanstack/react-query';
 
+import http from '../../shared/http';
 import { TCorrelationReport } from '../../../server/services/correlationService/types';
 
-export const CorrelationMap = ({ report }: { report: TCorrelationReport }) => {
+export const HeatMap = () => {
   const navigate = useNavigate();
+
+  const { data: report, isLoading } = useQuery<TCorrelationReport>({
+    queryKey: ['correlationReport'],
+    queryFn: () => http.get('/api/correlation/report').then((response) => response.data),
+  });
 
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const gridRef = useRef<Grid>(null);
@@ -57,7 +64,7 @@ export const CorrelationMap = ({ report }: { report: TCorrelationReport }) => {
   }, [symbols, containerSize]);
 
   const getCorrelationValue = (symbolA: string, symbolB: string) =>
-    report[`${symbolA}-${symbolB}`] || null;
+    report?.[`${symbolA}-${symbolB}`] || null;
 
   const getCorrelationColor = (value: number | null) => {
     if (value === null) return 'neutral';
@@ -114,7 +121,7 @@ export const CorrelationMap = ({ report }: { report: TCorrelationReport }) => {
     return (
       <div style={style} className="bg-base-200 p-0.5">
         <div
-          className={cn(getCorrelationColor(value), 'w-full h-full', {
+          className={cn(getCorrelationColor(value), 'w-full h-full text-center', {
             'hover:bg-opacity-70 transition-colors hover:cursor-pointer': value !== null,
           })}
           onClick={() => {
@@ -122,33 +129,41 @@ export const CorrelationMap = ({ report }: { report: TCorrelationReport }) => {
               navigate(`/correlationPair?tickerA=${rowSymbol}&tickerB=${colSymbol}`);
             }
           }}
-        />
+        >
+          {value ? value.toFixed(2) : ''}
+        </div>
       </div>
     );
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[500px]">
+        <div className="loading loading-ring loading-lg"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-base-200 rounded-lg p-4 flex-grow" ref={containerRef}>
-      {report && (
-        <div className="p-0.5 overflow-hidden">
-          {containerSize.width > 0 && symbols.length > 0 && (
-            <Grid
-              ref={gridRef}
-              columnCount={symbols.length + 1}
-              columnWidth={getColumnWidth}
-              height={containerSize.height}
-              rowCount={symbols.length + 1}
-              rowHeight={getRowHeight}
-              width={containerSize.width}
-              itemData={symbols}
-              overscanRowCount={5}
-              overscanColumnCount={5}
-            >
-              {Cell}
-            </Grid>
-          )}
-        </div>
-      )}
+      <div className="p-0.5 overflow-hidden">
+        {containerSize.width > 0 && symbols.length > 0 && (
+          <Grid
+            ref={gridRef}
+            columnCount={symbols.length + 1}
+            columnWidth={getColumnWidth}
+            height={containerSize.height}
+            rowCount={symbols.length + 1}
+            rowHeight={getRowHeight}
+            width={containerSize.width}
+            itemData={symbols}
+            overscanRowCount={5}
+            overscanColumnCount={5}
+          >
+            {Cell}
+          </Grid>
+        )}
+      </div>
     </div>
   );
 };

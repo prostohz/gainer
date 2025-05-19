@@ -2,36 +2,31 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import cn from 'classnames';
 
 import http from '../../shared/http';
-import { TCorrelationReport } from '../../../server/services/correlationService/types';
 import { useLSState } from '../../shared/localStorage';
-import { CorrelationMap } from './CorrelationMap';
-import { CorrelationClusters } from './CorrelationClusters';
+import { Clusters } from './Clusters';
+import { HeatMap } from './HeatMap';
 
 const TABS = [
-  {
-    id: 'heatmap',
-    label: 'Heatmap',
-  },
   {
     id: 'clusters',
     label: 'Clusters',
   },
+  {
+    id: 'heatmap',
+    label: 'Heatmap',
+  },
 ] as const;
 
 export const CorrelationReportPage = () => {
-  const [activeTab, setActiveTab] = useLSState<'heatmap' | 'clusters'>('activeTab', 'heatmap');
+  const [activeTab, setActiveTab] = useLSState<(typeof TABS)[number]['id']>('activeTab', 'heatmap');
 
-  const {
-    data: report,
-    isLoading,
-    refetch,
-  } = useQuery<TCorrelationReport>({
-    queryKey: ['correlationReport'],
-    queryFn: () => http.get('/api/correlation/report').then((response) => response.data),
+  const { data: hasReport, isLoading } = useQuery({
+    queryKey: ['hasCorrelationReport'],
+    queryFn: () => http.get('/api/correlation/report/has').then((response) => response.data),
   });
 
   const { mutate: buildReport } = useMutation({
-    mutationFn: () => http.post('/api/correlation/build').then(() => refetch()),
+    mutationFn: () => http.post('/api/correlation/report/build'),
   });
 
   if (isLoading) {
@@ -48,11 +43,11 @@ export const CorrelationReportPage = () => {
         <h1 className="text-2xl font-bold">Correlation Report</h1>
 
         <button className="btn btn-sm btn-primary" onClick={() => buildReport()}>
-          {report ? 'Rebuild report' : 'Build report'}
+          {hasReport ? 'Rebuild report' : 'Build report'}
         </button>
       </div>
 
-      {report ? (
+      {hasReport ? (
         <>
           <div role="tablist" className="mb-4 bg-base-200 rounded-lg p-1 inline-flex">
             {TABS.map((tab) => (
@@ -72,8 +67,8 @@ export const CorrelationReportPage = () => {
             ))}
           </div>
 
-          {activeTab === 'heatmap' && <CorrelationMap report={report} />}
-          {activeTab === 'clusters' && <CorrelationClusters report={report} />}
+          {activeTab === 'clusters' && <Clusters />}
+          {activeTab === 'heatmap' && <HeatMap />}
         </>
       ) : (
         <div>No report found</div>
