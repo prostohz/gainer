@@ -45,7 +45,6 @@ export class PearsonCorrelation {
     const pricesA = klinesA.slice(0, minLength).map((kline) => parseFloat(kline.close));
     const pricesB = klinesB.slice(0, minLength).map((kline) => parseFloat(kline.close));
 
-    // Рассчитываем корреляцию Пирсона
     return this.pearsonCorrelation(pricesA, pricesB);
   }
 

@@ -1,6 +1,6 @@
 import {
-  TAsset24HrStats,
   TExchangeInfoSymbol,
+  TAsset24HrStats,
 } from '../../../../trading/providers/Binance/BinanceHTTPClient';
 
 export type TAsset = TExchangeInfoSymbol &
@@ -9,12 +9,4 @@ export type TAsset = TExchangeInfoSymbol &
     usdtVolume: number;
   };
 
-type TPriceLevelItem = {
-  price: number;
-  strength: number;
-};
-
-export type TPriceLevels = {
-  supportLevels: TPriceLevelItem[];
-  resistanceLevels: TPriceLevelItem[];
-};
+export { TTimeframe, TKline } from '../../../../trading/types';

@@ -1,4 +1,4 @@
-import { PearsonCorrelation } from '../indicators/Correlation/Correlation';
+import { PearsonCorrelation } from '../indicators/PearsonCorrelation/PearsonCorrelation';
 import { TTimeframe, TKline } from '../types';
 
 export class CorrelationStrategy {

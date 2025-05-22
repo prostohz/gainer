@@ -259,7 +259,7 @@ class BinanceStreamClient extends EventEmitter implements BinanceEventEmitter {
       this.emit('connected');
     };
 
-    this.socket.onmessage = (event) => {
+    this.socket.onmessage = (event: WebSocket.MessageEvent) => {
       try {
         let message: string;
 
@@ -298,12 +298,12 @@ class BinanceStreamClient extends EventEmitter implements BinanceEventEmitter {
       }
     };
 
-    this.socket.onerror = (error) => {
+    this.socket.onerror = (error: Error) => {
       console.error('Ошибка WebSocket:', error);
       this.emit('error', error);
     };
 
-    this.socket.onclose = (event) => {
+    this.socket.onclose = (event: WebSocket.CloseEvent) => {
       console.log(`WebSocket закрыт: ${event.code} ${event.reason}`);
       this.clearPingInterval();
 

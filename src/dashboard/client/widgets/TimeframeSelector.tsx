@@ -1,4 +1,4 @@
-import { TTimeframe } from '../../../trading/types';
+import { TTimeframe } from '../../server/services/assetService/types';
 
 export const TimeframeSelector = ({
   selectedTimeFrame,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { TKline, TTimeframe } from '../../../../trading/types';
+import { TKline, TTimeframe } from '../../../server/services/assetService/types';
 import http from '../../shared/http';
 import { useQSState } from '../../shared/queryString';
 import { AssetSelector } from '../../widgets/AssetSelector';

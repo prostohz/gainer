@@ -2,17 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as R from 'remeda';
 
+import { TTimeframe, TKline } from '../../../../trading/types';
+import { TPriceLevels } from '../../../server/services/priceLevelsService/types';
 import http from '../../shared/http';
 import { Chart } from '../../widgets/Chart';
-import { TPriceLevels } from '../../../server/services/assetService/types';
-import { TTimeframe, TKline } from '../../../../trading/types';
-import { useAssets } from '../../entities/assets';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { AssetSelector } from '../../widgets/AssetSelector';
+import { useAssets } from '../../entities/assets';
 import { PriceLevels } from './PriceLevels';
 
 export const AssetPriceLevelsPage = () => {
-  const { assetList, assetMap } = useAssets();
+  const { assetList, assetMap, isLoading: isAssetsLoading } = useAssets();
 
   const [assetSymbol, setAssetSymbol] = useState<string>('BTCUSDT');
   const [timeframe, setTimeframe] = useState<TTimeframe>('15m');
@@ -174,6 +174,7 @@ export const AssetPriceLevelsPage = () => {
                     assets={assetList}
                     selectedAssetSymbol={assetSymbol}
                     onAssetSelect={setAssetSymbol}
+                    isLoading={isAssetsLoading}
                   />
                 </div>
               </div>

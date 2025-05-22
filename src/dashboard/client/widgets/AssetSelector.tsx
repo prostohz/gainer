@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { FixedSizeList as List } from 'react-window';
 
-import { TExchangeInfoSymbol } from '../../../trading/providers/Binance/BinanceHTTPClient';
+import { TAsset } from '../../server/services/assetService/types';
 import { useLSState } from '../shared/localStorage';
 
 type AssetSelectorProps = {
-  assets: TExchangeInfoSymbol[];
+  assets: TAsset[];
   selectedAssetSymbol: string | null;
   onAssetSelect: (symbol: string) => void;
   isLoading: boolean;

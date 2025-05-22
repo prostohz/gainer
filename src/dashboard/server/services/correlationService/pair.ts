@@ -1,7 +1,7 @@
 import * as R from 'remeda';
 
 import { TKline, TTimeframe } from '../../../../trading/types';
-import { PearsonCorrelation } from '../../../../trading/indicators/Correlation/Correlation';
+import { PearsonCorrelation } from '../../../../trading/indicators/PearsonCorrelation/PearsonCorrelation';
 import { ZScore } from '../../../../trading/indicators/ZScore/ZScore';
 import { EngleGrangerTest } from '../../../../trading/indicators/EngleGrangerTest/EngleGrangerTest';
 import { getAssetKlines } from '../assetService';

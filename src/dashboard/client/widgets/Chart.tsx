@@ -7,8 +7,8 @@ import {
   UTCTimestamp,
 } from 'lightweight-charts';
 
+import { TKline } from '../../server/services/assetService/types';
 import { getColorForStrength } from '../pages/AssetPriceLevelsPage/colors';
-import { TKline } from '../../../trading/types';
 
 type Level = {
   price: number;

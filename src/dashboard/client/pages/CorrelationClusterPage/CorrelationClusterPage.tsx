@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
+import { TTimeframe } from '../../../server/services/assetService/types';
 import http from '../../shared/http';
-import { TTimeframe } from '../../../../trading/types';
 import { useLSState } from '../../shared/localStorage';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { CorrelationMap } from './CorrelationMap';
