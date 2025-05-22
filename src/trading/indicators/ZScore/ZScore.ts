@@ -1,7 +1,6 @@
 import * as R from 'remeda';
 
-import { TTimeframe } from '../../types';
-import { TKline } from '../../types';
+import { TTimeframe, TKline } from '../../types';
 
 export class ZScore {
   public calculateZScore(klinesA: TKline[], klinesB: TKline[]): number {

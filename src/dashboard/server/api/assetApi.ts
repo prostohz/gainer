@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 
-import { getAssetList, getAssetKlines, getAssetPrice } from '../services/assetService';
 import { TTimeframe } from '../../../trading/types';
+import { getAssetList, getAssetKlines, getAssetPrice } from '../services/assetService';
 
 const router = express.Router();
 

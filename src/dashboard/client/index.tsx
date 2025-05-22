@@ -2,15 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import './index.css';
 import { App } from './app/App';
+import './index.css';
 
-// Создаем экземпляр QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // отключаем повторный запрос при фокусе окна
-      retry: 1, // количество повторных попыток при ошибке
+      refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 });

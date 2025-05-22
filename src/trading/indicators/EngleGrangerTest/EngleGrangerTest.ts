@@ -1,7 +1,6 @@
 import * as R from 'remeda';
-import { TKline } from '../../types';
 
-import { TTimeframe } from '../../types';
+import { TKline, TTimeframe } from '../../types';
 
 export type CointegrationResult = {
   isCointegrated: boolean;
