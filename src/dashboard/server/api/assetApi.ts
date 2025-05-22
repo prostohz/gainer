@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 
 import { TTimeframe } from '../../../trading/types';
-import { getAssetList, getAssetKlines, getAssetPrice } from '../services/assetService';
+import { getAssetList, getAssetCandles, getAssetPrice } from '../services/assetService';
 
 const router = express.Router();
 
@@ -15,23 +15,26 @@ router.get('/list', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/klines', async (req: Request, res: Response) => {
+router.get('/candles', async (req: Request, res: Response) => {
   try {
     const symbol = req.query.symbol as string;
     const timeframe = req.query.timeframe as TTimeframe;
     const limit = Number(req.query.limit) || 1000;
-    const assetKlines = await getAssetKlines(symbol, timeframe, limit);
 
-    res.json(assetKlines);
+    const assetCandles = await getAssetCandles(symbol, timeframe, limit);
+
+    res.json(assetCandles);
   } catch (error) {
-    console.error('Error fetching asset klines:', error);
-    res.status(500).json({ error: 'Failed to fetch asset klines' });
+    console.error('Error fetching asset candles:', error);
+    res.status(500).json({ error: 'Failed to fetch asset candles' });
   }
 });
 
 router.get('/price', async (req: Request, res: Response) => {
   const symbol = req.query.symbol as string;
+
   const price = await getAssetPrice(symbol);
+
   res.json(price);
 });
 

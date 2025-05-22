@@ -1,5 +1,5 @@
 import { PearsonCorrelation } from '../indicators/PearsonCorrelation/PearsonCorrelation';
-import { TTimeframe, TKline } from '../types';
+import { TTimeframe, TCandle } from '../types';
 
 export class CorrelationStrategy {
   private correlation: PearsonCorrelation;
@@ -31,28 +31,28 @@ export class CorrelationStrategy {
 
   // Основная функция для определения торговых сигналов
   public generateSignals(
-    klinesMapA: Record<TTimeframe, TKline[]>,
-    klinesMapB: Record<TTimeframe, TKline[]>,
+    candlesMapA: Record<TTimeframe, TCandle[]>,
+    candlesMapB: Record<TTimeframe, TCandle[]>,
     timeframe: TTimeframe,
   ): { action: 'BUY_A_SELL_B' | 'BUY_B_SELL_A' | 'CLOSE' | 'NONE'; zScore: number } {
     // Проверяем корреляцию
     const correlationResult = this.correlation.calculateMultipleTimeframeCorrelation(
-      klinesMapA,
-      klinesMapB,
+      candlesMapA,
+      candlesMapB,
     );
-    const timeframeCorrelation = correlationResult.timeframes[timeframe];
+    const timeframeCorrelation = correlationResult[timeframe];
 
     // Если корреляция недостаточно высокая, не торгуем
     if (Math.abs(timeframeCorrelation) < 0.7) {
       return { action: 'NONE', zScore: 0 };
     }
 
-    const klinesA = klinesMapA[timeframe];
-    const klinesB = klinesMapB[timeframe];
+    const candlesA = candlesMapA[timeframe];
+    const candlesB = candlesMapB[timeframe];
 
     // Получаем цены закрытия
-    const pricesA = klinesA.map((kline) => parseFloat(kline.close));
-    const pricesB = klinesB.map((kline) => parseFloat(kline.close));
+    const pricesA = candlesA.map((candle) => parseFloat(candle.close));
+    const pricesB = candlesB.map((candle) => parseFloat(candle.close));
 
     // Нормализуем цены к начальному значению для сравнения
     const normalizedA = pricesA.map((price) => price / pricesA[0]);

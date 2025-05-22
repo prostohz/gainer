@@ -1,12 +1,12 @@
 import * as R from 'remeda';
 
-import { TKline, TTimeframe } from '../../../../trading/types';
+import { TCandle, TTimeframe } from '../../../../trading/types';
 import { PearsonCorrelation } from '../../../../trading/indicators/PearsonCorrelation/PearsonCorrelation';
 import { ZScore } from '../../../../trading/indicators/ZScore/ZScore';
 import { EngleGrangerTest } from '../../../../trading/indicators/EngleGrangerTest/EngleGrangerTest';
-import { getAssetKlines } from '../assetService';
+import { getAssetCandles } from '../assetService';
 
-const TIMEFRAMES: TTimeframe[] = ['1m', '3m', '5m', '15m', '30m', '1h', '4h', '1d'];
+const TIMEFRAMES: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
 type TOptions = {
   timeframes: TTimeframe[];
@@ -17,6 +17,25 @@ const PEARSON_CANDLE_LIMIT = 500;
 const Z_SCORE_CANDLE_LIMIT = 100;
 const COINTEGRATION_CANDLE_LIMIT = 500;
 
+export const getPearsonCorrelation = async (
+  symbolA: string,
+  symbolB: string,
+  timeframe: TTimeframe,
+) => {
+  const [timeframeCandlesA, timeframeCandlesB] = await Promise.all([
+    getAssetCandles(symbolA, timeframe, CANDLE_LIMIT),
+    getAssetCandles(symbolB, timeframe, CANDLE_LIMIT),
+  ]);
+
+  const pearsonCorrelation = new PearsonCorrelation();
+  const multipleTimeframeCorrelation = pearsonCorrelation.calculateSingleTimeframeCorrelation(
+    timeframeCandlesA,
+    timeframeCandlesB,
+  );
+
+  return multipleTimeframeCorrelation;
+};
+
 export const getPairCorrelation = async (
   symbolA: string,
   symbolB: string,
@@ -26,46 +45,42 @@ export const getPairCorrelation = async (
 ) => {
   const { timeframes } = options;
 
-  const [timeframeKlinesA, timeframeKlinesB] = await Promise.all([
-    Promise.all(
-      timeframes.map((timeframe) => getAssetKlines(symbolA, timeframe, CANDLE_LIMIT, true)),
-    ),
-    Promise.all(
-      timeframes.map((timeframe) => getAssetKlines(symbolB, timeframe, CANDLE_LIMIT, true)),
-    ),
+  const [timeframeCandlesA, timeframeCandlesB] = await Promise.all([
+    Promise.all(timeframes.map((timeframe) => getAssetCandles(symbolA, timeframe, CANDLE_LIMIT))),
+    Promise.all(timeframes.map((timeframe) => getAssetCandles(symbolB, timeframe, CANDLE_LIMIT))),
   ]);
 
-  const timeframeKlinesMapA = R.fromEntries(R.zip(timeframes, timeframeKlinesA)) as Record<
+  const timeframeCandlesMapA = R.fromEntries(R.zip(timeframes, timeframeCandlesA)) as Record<
     TTimeframe,
-    TKline[]
+    TCandle[]
   >;
 
-  const timeframeKlinesMapB = R.fromEntries(R.zip(timeframes, timeframeKlinesB)) as Record<
+  const timeframeCandlesMapB = R.fromEntries(R.zip(timeframes, timeframeCandlesB)) as Record<
     TTimeframe,
-    TKline[]
+    TCandle[]
   >;
 
   const pearsonCorrelation = new PearsonCorrelation();
   const multipleTimeframeCorrelation = pearsonCorrelation.calculateMultipleTimeframeCorrelation(
-    R.mapValues(timeframeKlinesMapA, (klines) => klines.slice(-PEARSON_CANDLE_LIMIT)),
-    R.mapValues(timeframeKlinesMapB, (klines) => klines.slice(-PEARSON_CANDLE_LIMIT)),
+    R.mapValues(timeframeCandlesMapA, (candles) => candles.slice(-PEARSON_CANDLE_LIMIT)),
+    R.mapValues(timeframeCandlesMapB, (candles) => candles.slice(-PEARSON_CANDLE_LIMIT)),
   );
 
   const zScore = new ZScore();
   const multipleTimeframeZScore = zScore.calculateMultipleTimeframeZScore(
-    R.mapValues(timeframeKlinesMapA, (klines) => klines.slice(-Z_SCORE_CANDLE_LIMIT)),
-    R.mapValues(timeframeKlinesMapB, (klines) => klines.slice(-Z_SCORE_CANDLE_LIMIT)),
+    R.mapValues(timeframeCandlesMapA, (candles) => candles.slice(-Z_SCORE_CANDLE_LIMIT)),
+    R.mapValues(timeframeCandlesMapB, (candles) => candles.slice(-Z_SCORE_CANDLE_LIMIT)),
   );
   const multipleTimeframeZScoreHistory = zScore.calculateMultipleTimeframeZScoreHistory(
-    timeframeKlinesMapA,
-    timeframeKlinesMapB,
+    timeframeCandlesMapA,
+    timeframeCandlesMapB,
   );
 
   // Выполнение теста Энгла-Грейнджера для проверки коинтеграции
   const engleGrangerTest = new EngleGrangerTest();
   const multipleTimeframeCointegration = engleGrangerTest.calculateMultipleTimeframeCointegration(
-    R.mapValues(timeframeKlinesMapA, (klines) => klines.slice(-COINTEGRATION_CANDLE_LIMIT)),
-    R.mapValues(timeframeKlinesMapB, (klines) => klines.slice(-COINTEGRATION_CANDLE_LIMIT)),
+    R.mapValues(timeframeCandlesMapA, (candles) => candles.slice(-COINTEGRATION_CANDLE_LIMIT)),
+    R.mapValues(timeframeCandlesMapB, (candles) => candles.slice(-COINTEGRATION_CANDLE_LIMIT)),
   );
 
   return {
@@ -82,7 +97,7 @@ export const getPairWiseZScore = async (symbols: string[] = [], timeframe: TTime
   const zScore = new ZScore();
 
   for (const symbolA of symbols) {
-    await getAssetKlines(symbolA, timeframe, 100);
+    await getAssetCandles(symbolA, timeframe, 100);
   }
 
   for (const symbolA of symbols) {
@@ -100,12 +115,12 @@ export const getPairWiseZScore = async (symbols: string[] = [], timeframe: TTime
         continue;
       }
 
-      const [timeframeKlinesA, timeframeKlinesB] = await Promise.all([
-        getAssetKlines(symbolA, timeframe, Z_SCORE_CANDLE_LIMIT),
-        getAssetKlines(symbolB, timeframe, Z_SCORE_CANDLE_LIMIT),
+      const [timeframeCandlesA, timeframeCandlesB] = await Promise.all([
+        getAssetCandles(symbolA, timeframe, Z_SCORE_CANDLE_LIMIT),
+        getAssetCandles(symbolB, timeframe, Z_SCORE_CANDLE_LIMIT),
       ]);
 
-      result[pair] = zScore.calculateZScore(timeframeKlinesA, timeframeKlinesB);
+      result[pair] = zScore.calculateZScore(timeframeCandlesA, timeframeCandlesB);
     }
   }
 

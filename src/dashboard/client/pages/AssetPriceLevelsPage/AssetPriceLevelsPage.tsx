@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as R from 'remeda';
 
-import { TTimeframe, TKline } from '../../../../trading/types';
+import { TTimeframe, TCandle } from '../../../../trading/types';
 import { TPriceLevels } from '../../../server/services/priceLevelsService/types';
 import http from '../../shared/http';
 import { Chart } from '../../widgets/Chart';
@@ -25,11 +25,11 @@ export const AssetPriceLevelsPage = () => {
     setAssetSymbol(assetList[0].symbol);
   }, [assetList, assetSymbol]);
 
-  const { data: assetKlines = null } = useQuery<TKline[]>({
-    queryKey: ['assetKlines', assetSymbol, timeframe],
+  const { data: assetCandles = null } = useQuery<TCandle[]>({
+    queryKey: ['assetCandles', assetSymbol, timeframe],
     queryFn: () =>
       http
-        .get(`/api/asset/klines?symbol=${assetSymbol}&timeframe=${timeframe}`)
+        .get(`/api/asset/candles?symbol=${assetSymbol}&timeframe=${timeframe}`)
         .then((res) => res.data),
   });
 
@@ -61,51 +61,51 @@ export const AssetPriceLevelsPage = () => {
   }, [assetPriceLevels, minStrength]);
 
   const supportLevelsOnChart = useMemo(() => {
-    if (!assetKlines) return [];
+    if (!assetCandles) return [];
 
     const minPrice = R.pipe(
-      assetKlines,
-      R.map((kline) => parseFloat(kline.low)),
+      assetCandles,
+      R.map((candle) => parseFloat(candle.low)),
       R.firstBy([R.identity(), 'asc']),
     );
     const maxPrice = R.pipe(
-      assetKlines,
-      R.map((kline) => parseFloat(kline.high)),
+      assetCandles,
+      R.map((candle) => parseFloat(candle.high)),
       R.firstBy([R.identity(), 'desc']),
     );
 
     if (!minPrice || !maxPrice) return [];
 
     return supportLevels.filter((item) => item.price >= minPrice && item.price <= maxPrice);
-  }, [assetKlines, supportLevels]);
+  }, [assetCandles, supportLevels]);
 
   const resistanceLevelsOnChart = useMemo(() => {
-    if (!assetKlines) return [];
+    if (!assetCandles) return [];
 
     const minPrice = R.pipe(
-      assetKlines,
-      R.map((kline) => parseFloat(kline.low)),
+      assetCandles,
+      R.map((candle) => parseFloat(candle.low)),
       R.firstBy([R.identity(), 'asc']),
     );
     const maxPrice = R.pipe(
-      assetKlines,
-      R.map((kline) => parseFloat(kline.high)),
+      assetCandles,
+      R.map((candle) => parseFloat(candle.high)),
       R.firstBy([R.identity(), 'desc']),
     );
 
     if (!minPrice || !maxPrice) return [];
 
     return resistanceLevels.filter((item) => item.price >= minPrice && item.price <= maxPrice);
-  }, [assetKlines, resistanceLevels]);
+  }, [assetCandles, resistanceLevels]);
 
   const currentPrice = useMemo(() => {
-    if (!assetKlines) return 0;
+    if (!assetCandles) return 0;
 
-    const klines = assetKlines;
-    const prices = klines.map((kline) => parseFloat(kline.close));
+    const candles = assetCandles;
+    const prices = candles.map((candle) => parseFloat(candle.close));
 
     return prices[prices.length - 1];
-  }, [assetKlines]);
+  }, [assetCandles]);
 
   return (
     <div>
@@ -121,11 +121,11 @@ export const AssetPriceLevelsPage = () => {
 
       <div className="flex flex-row gap-6 flex-1">
         <div className="flex-grow overflow-auto min-h-[500px]">
-          {assetKlines && assetPriceLevels && asset ? (
+          {assetCandles && assetPriceLevels && asset ? (
             <>
               <div className="h-[500px] mb-6">
                 <Chart
-                  klines={assetKlines}
+                  candles={assetCandles}
                   supportLevels={supportLevelsOnChart}
                   resistanceLevels={resistanceLevelsOnChart}
                   precision={asset.precision}

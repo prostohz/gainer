@@ -7,6 +7,7 @@
     "dashboard:server": "ts-node-dev --respawn src/dashboard/server/index.ts",
     "dashboard:client": "vite",
     "dashboard": "concurrently \"npm run dashboard:server\" \"npm run dashboard:client\"",
+    "refreshDb": "ts-node src/dashboard/server/scripts/refreshDb.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx"
   },
@@ -14,6 +15,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/body-parser": "^1.19.5",
     "@types/cors": "^2.8.18",
     "@types/d3": "^7.4.3",
@@ -23,6 +25,7 @@
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@types/react-window": "^1.8.8",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-react": "^4.4.1",
@@ -49,6 +52,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.76.1",
     "axios": "^1.9.0",
+    "better-sqlite3": "^11.10.0",
     "body-parser": "^2.2.0",
     "classnames": "^2.5.1",
     "cors": "^2.8.5",

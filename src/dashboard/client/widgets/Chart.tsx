@@ -7,7 +7,7 @@ import {
   UTCTimestamp,
 } from 'lightweight-charts';
 
-import { TKline } from '../../server/services/assetService/types';
+import { TCandle } from '../../server/services/assetService/types';
 import { getColorForStrength } from '../pages/AssetPriceLevelsPage/colors';
 
 type Level = {
@@ -16,17 +16,17 @@ type Level = {
 };
 
 type Props = {
-  klines: TKline[];
+  candles: TCandle[];
   precision: number;
   supportLevels?: Level[];
   resistanceLevels?: Level[];
 };
 
-export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Props) => {
+export const Chart = ({ candles, supportLevels, resistanceLevels, precision }: Props) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!chartContainerRef.current || klines.length === 0) {
+    if (!chartContainerRef.current || candles.length === 0) {
       return;
     }
 
@@ -93,19 +93,19 @@ export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Pr
       visible: true,
     });
 
-    const candleData = klines.map((kline) => ({
-      time: (kline.openTime / 1000) as UTCTimestamp,
-      open: parseFloat(kline.open),
-      high: parseFloat(kline.high),
-      low: parseFloat(kline.low),
-      close: parseFloat(kline.close),
+    const candleData = candles.map((candle) => ({
+      time: (candle.openTime / 1000) as UTCTimestamp,
+      open: parseFloat(candle.open),
+      high: parseFloat(candle.high),
+      low: parseFloat(candle.low),
+      close: parseFloat(candle.close),
     }));
 
-    const volumeData = klines.map((kline) => {
-      const isGreen = parseFloat(kline.close) >= parseFloat(kline.open);
+    const volumeData = candles.map((candle) => {
+      const isGreen = parseFloat(candle.close) >= parseFloat(candle.open);
       return {
-        time: (kline.openTime / 1000) as UTCTimestamp,
-        value: parseFloat(kline.volume),
+        time: (candle.openTime / 1000) as UTCTimestamp,
+        value: parseFloat(candle.volume),
         color: isGreen ? 'rgba(80, 250, 123, 0.5)' : 'rgba(255, 85, 85, 0.5)',
       };
     });
@@ -173,7 +173,7 @@ export const Chart = ({ klines, supportLevels, resistanceLevels, precision }: Pr
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [klines, supportLevels, resistanceLevels]);
+  }, [candles, supportLevels, resistanceLevels]);
 
   return (
     <div

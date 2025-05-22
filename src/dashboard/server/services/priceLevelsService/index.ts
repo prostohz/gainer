@@ -1,35 +1,38 @@
 import * as R from 'remeda';
 
-import BinanceHTTPClient from '../../../../trading/providers/Binance/BinanceHTTPClient';
 import PriceLevels from '../../../../trading/indicators/PriceLevels/PriceLevels';
-import { TTimeframe, TKline } from '../../../../trading/types';
-import { getPricePrecision } from '../../../../trading/utils/asset';
-import { fetchCachedHistoricalKlines } from '../assetService';
+import { TTimeframe, TCandle } from '../../../../trading/types';
+import { AssetRepository } from '../../repositories/AssetRepository';
+import { CandleRepository } from '../../repositories/CandleRepository';
 
-const binanceHttpClient = BinanceHTTPClient.getInstance();
+const assetRepository = AssetRepository.getInstance();
+const candleRepository = CandleRepository.getInstance();
 
 export const getAssetPriceLevels = async (symbol: string) => {
   const TIMEFRAMES: TTimeframe[] = ['1m', '15m', '1h', '4h', '1d'];
   const CANDLE_LIMIT = 1000;
 
   try {
-    const asset = await binanceHttpClient.fetchAssetInfo(symbol);
-    const precision = getPricePrecision(asset);
+    const asset = assetRepository.getAsset(symbol);
 
-    const timeframeKlines = await Promise.all(
+    if (!asset) {
+      throw new Error(`Asset ${symbol} not found`);
+    }
+
+    const timeframeCandles = await Promise.all(
       TIMEFRAMES.map((timeframe) =>
-        fetchCachedHistoricalKlines(asset.symbol, timeframe, CANDLE_LIMIT),
+        candleRepository.getCandles(asset.symbol, timeframe, CANDLE_LIMIT),
       ),
     );
 
-    const timeframeKlinesMap = R.fromEntries(R.zip(TIMEFRAMES, timeframeKlines)) as Record<
+    const timeframeCandlesMap = R.fromEntries(R.zip(TIMEFRAMES, timeframeCandles)) as Record<
       TTimeframe,
-      TKline[]
+      TCandle[]
     >;
 
-    const priceLevels = new PriceLevels(asset, precision);
-    const supportLevels = priceLevels.calculateSupportLevels(timeframeKlinesMap);
-    const resistanceLevels = priceLevels.calculateResistanceLevels(timeframeKlinesMap);
+    const priceLevels = new PriceLevels(asset, asset.precision);
+    const supportLevels = priceLevels.calculateSupportLevels(timeframeCandlesMap);
+    const resistanceLevels = priceLevels.calculateResistanceLevels(timeframeCandlesMap);
 
     return {
       supportLevels,

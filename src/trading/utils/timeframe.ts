@@ -1,14 +1,22 @@
 import { TTimeframe } from '../types';
 
 export const timeframeToSeconds = (timeframe: TTimeframe): number => {
-  const [tf, unit] = timeframe.split('');
+  const match = timeframe.match(/(\d+)([smhdwM])/);
+  if (!match) return 0;
 
-  if (unit === 's') return parseInt(tf);
-  if (unit === 'm') return parseInt(tf) * 60;
-  if (unit === 'h') return parseInt(tf) * 60 * 60;
-  if (unit === 'd') return parseInt(tf) * 60 * 60 * 24;
-  if (unit === 'w') return parseInt(tf) * 60 * 60 * 24 * 7;
-  if (unit === 'M') return parseInt(tf) * 60 * 60 * 24 * 30;
+  const [, value, unit] = match;
+  const numValue = parseInt(value);
+
+  if (unit === 's') return numValue;
+  if (unit === 'm') return numValue * 60;
+  if (unit === 'h') return numValue * 60 * 60;
+  if (unit === 'd') return numValue * 60 * 60 * 24;
+  if (unit === 'w') return numValue * 60 * 60 * 24 * 7;
+  if (unit === 'M') return numValue * 60 * 60 * 24 * 30;
 
   return 0;
+};
+
+export const timeframeToMilliseconds = (timeframe: TTimeframe): number => {
+  return timeframeToSeconds(timeframe) * 1000;
 };

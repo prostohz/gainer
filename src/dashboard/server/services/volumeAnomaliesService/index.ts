@@ -7,7 +7,11 @@ import VolumeAnomalies from '../../../../trading/indicators/VolumeAnomalies/Volu
 import { TTradeBuffer } from '../../../../trading/indicators/VolumeAnomalies/types';
 import { TTimeframe } from '../../../../trading/types';
 import { roundTo } from '../../../../trading/utils/math';
-import { getPricePrecision, getVolumePrecision } from '../../../../trading/utils/asset';
+import { AssetRepository } from '../../repositories/AssetRepository';
+import { CandleRepository } from '../../repositories/CandleRepository';
+
+const assetRepository = AssetRepository.getInstance();
+const candleRepository = CandleRepository.getInstance();
 
 (async () => {
   const TICKER = 'OMUSDT';
@@ -17,16 +21,17 @@ import { getPricePrecision, getVolumePrecision } from '../../../../trading/utils
   const binanceStreamClient = BinanceStreamClient.getInstance();
   const binanceHttpClient = BinanceHTTPClient.getInstance();
 
-  const asset = await binanceHttpClient.fetchAssetInfo(TICKER);
-  const assetPrice = await binanceHttpClient.fetchAssetPrice(TICKER);
-  const klines = await binanceHttpClient.fetchHistoricalKlines(
-    asset.symbol,
-    TIMEFRAME,
-    CANDLE_LIMIT,
-  );
+  const asset = assetRepository.getAsset(TICKER);
 
-  const pricePrecision = getPricePrecision(asset);
-  const volumePrecision = getVolumePrecision(asset);
+  if (!asset) {
+    throw new Error(`Asset ${TICKER} not found`);
+  }
+
+  const assetPrice = await binanceHttpClient.fetchAssetPrice(TICKER);
+  const candles = candleRepository.getCandles(asset.symbol, TIMEFRAME, CANDLE_LIMIT);
+
+  const pricePrecision = asset.precision;
+  const volumePrecision = asset.volumePrecision;
 
   let tradeBuffer: TTradeBuffer = {
     trades: [],
@@ -35,7 +40,7 @@ import { getPricePrecision, getVolumePrecision } from '../../../../trading/utils
   };
   let lastTradeTimestamp: number | null = null;
 
-  const volumeAnomalies = new VolumeAnomalies(TIMEFRAME, klines);
+  const volumeAnomalies = new VolumeAnomalies(TIMEFRAME, candles);
 
   binanceStreamClient.on('trade', (trade: TBinanceTrade) => {
     // Получаем временную метку в секундах (округляем до секунд)

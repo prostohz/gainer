@@ -1,6 +1,6 @@
 import * as R from 'remeda';
 
-import { TKline, TTimeframe } from '../../types';
+import { TCandle, TTimeframe } from '../../types';
 
 export type CointegrationResult = {
   isCointegrated: boolean;
@@ -157,15 +157,15 @@ export class EngleGrangerTest {
    * Рассчитывает коинтеграцию для нескольких таймфреймов
    */
   public calculateMultipleTimeframeCointegration(
-    timeframeKlinesMapA: Record<TTimeframe, TKline[]>,
-    timeframeKlinesMapB: Record<TTimeframe, TKline[]>,
+    timeframeCandlesMapA: Record<TTimeframe, TCandle[]>,
+    timeframeCandlesMapB: Record<TTimeframe, TCandle[]>,
   ): Record<TTimeframe, CointegrationResult> {
-    return R.mapValues(timeframeKlinesMapA, (klinesA, timeframe) => {
-      const klinesB = timeframeKlinesMapB[timeframe as TTimeframe];
+    return R.mapValues(timeframeCandlesMapA, (candlesA, timeframe) => {
+      const candlesB = timeframeCandlesMapB[timeframe as TTimeframe];
 
       // Извлекаем цены закрытия
-      const pricesA = klinesA.map((kline) => parseFloat(kline.close));
-      const pricesB = klinesB.map((kline) => parseFloat(kline.close));
+      const pricesA = candlesA.map((candle) => parseFloat(candle.close));
+      const pricesB = candlesB.map((candle) => parseFloat(candle.close));
 
       return this.testCointegration(pricesA, pricesB);
     });

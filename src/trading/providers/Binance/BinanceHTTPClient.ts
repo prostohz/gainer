@@ -1,8 +1,8 @@
 import * as R from 'remeda';
 
-import { TKline, TTimeframe } from '../../types';
+import { TCandle, TTimeframe } from '../../types';
 
-type TBinanceRawKline = [
+type TRawCandle = [
   number, // Open time
   string, // Open
   string, // High
@@ -106,36 +106,49 @@ class BinanceHTTPClient {
    * Получение исторических свечей через REST API
    * @param symbol Символ торговой пары (например, 'BTCUSDT')
    * @param timeframe Интервал свечи ('1m', '5m', '15m', '1h', '1d' и т.д.)
-   * @param limit Количество свечей (максимум 1000)
+   * @param limit Количество свечей
+   * @param startTime Время начала (в миллисекундах)
+   * @param endTime Время конца (в миллисекундах)
    * @returns Массив исторических свечей
    */
-  public async fetchHistoricalKlines(
+  public async fetchAssetCandles(
     symbol: string,
     timeframe: TTimeframe,
     limit: number,
-  ): Promise<TKline[]> {
+    startTime?: number,
+    endTime?: number,
+  ): Promise<TCandle[]> {
     try {
-      const response = await fetch(
-        `${this.baseUrl}/klines?symbol=${symbol}&interval=${timeframe}&limit=${limit}`,
-      );
+      const queryParams = new URLSearchParams();
+      queryParams.set('symbol', symbol);
+      queryParams.set('interval', timeframe);
+      queryParams.set('limit', limit.toString());
+      if (startTime) {
+        queryParams.set('startTime', startTime.toString());
+      }
+      if (endTime) {
+        queryParams.set('endTime', endTime.toString());
+      }
+
+      const response = await fetch(`${this.baseUrl}/klines?${queryParams.toString()}`);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const data = await response.json();
 
-      return data.map((kline: TBinanceRawKline) => ({
-        openTime: kline[0],
-        open: kline[1],
-        high: kline[2],
-        low: kline[3],
-        close: kline[4],
-        volume: kline[5],
-        closeTime: kline[6],
-        quoteAssetVolume: kline[7],
-        numberOfTrades: kline[8],
-        takerBuyBaseAssetVolume: kline[9],
-        takerBuyQuoteAssetVolume: kline[10],
+      return data.map((candle: TRawCandle) => ({
+        openTime: candle[0],
+        open: candle[1],
+        high: candle[2],
+        low: candle[3],
+        close: candle[4],
+        volume: candle[5],
+        closeTime: candle[6],
+        quoteAssetVolume: candle[7],
+        numberOfTrades: candle[8],
+        takerBuyBaseAssetVolume: candle[9],
+        takerBuyQuoteAssetVolume: candle[10],
       }));
     } catch (error) {
       console.error(`Ошибка при получении исторических свечей: ${error}`);
@@ -148,7 +161,7 @@ class BinanceHTTPClient {
    * @param symbol Символ торговой пары (например, 'BTCUSDT')
    * @returns Информация о торговой паре
    */
-  public async fetchAssetInfo(symbol: string): Promise<TExchangeInfoSymbol> {
+  public async fetchAsset(symbol: string): Promise<TExchangeInfoSymbol> {
     try {
       const data = await this.request(`/exchangeInfo?symbol=${symbol}`);
       const foundAsset = data.symbols.find((item: TExchangeInfoSymbol) => item.symbol === symbol);
@@ -184,7 +197,7 @@ class BinanceHTTPClient {
    * Получение списка всех торгуемых активов на Binance
    * @returns Массив объектов с информацией о торговых парах
    */
-  public async fetchAssetsTradable(): Promise<TExchangeInfoSymbol[]> {
+  public async fetchAssets(): Promise<TExchangeInfoSymbol[]> {
     try {
       const data = await this.request('/exchangeInfo');
 
@@ -215,4 +228,4 @@ class BinanceHTTPClient {
 
 export default BinanceHTTPClient;
 
-export { TKline, TExchangeInfoSymbol, TAsset24HrStats, TFilter };
+export { TCandle, TExchangeInfoSymbol, TAsset24HrStats, TFilter };

@@ -5,8 +5,9 @@ import {
 
 export type TAsset = TExchangeInfoSymbol &
   TAsset24HrStats & {
-    precision: number;
+    precision: number; // to pricePrecision
+    volumePrecision: number;
     usdtVolume: number;
   };
 
-export { TTimeframe, TKline } from '../../../../trading/types';
+export { TTimeframe, TCandle } from '../../../../trading/types';

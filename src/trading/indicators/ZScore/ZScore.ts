@@ -1,16 +1,16 @@
 import * as R from 'remeda';
 
-import { TTimeframe, TKline } from '../../types';
+import { TTimeframe, TCandle } from '../../types';
 
 export class ZScore {
-  public calculateZScore(klinesA: TKline[], klinesB: TKline[]): number {
+  public calculateZScore(candlesA: TCandle[], candlesB: TCandle[]): number {
     // Проверяем, что у нас есть данные для расчета
-    if (!klinesA.length || !klinesB.length) {
+    if (!candlesA.length || !candlesB.length) {
       return 0;
     }
 
     // Получаем массив разниц между ценами закрытия
-    const spreadSeries = this.calculateSpread(klinesA, klinesB);
+    const spreadSeries = this.calculateSpread(candlesA, candlesB);
 
     // Рассчитываем среднее значение спреда
     const mean = this.calculateMean(spreadSeries);
@@ -30,14 +30,14 @@ export class ZScore {
     return (currentSpread - mean) / stdDev;
   }
 
-  private calculateSpread(klinesA: TKline[], klinesB: TKline[]): number[] {
+  private calculateSpread(candlesA: TCandle[], candlesB: TCandle[]): number[] {
     // Определяем минимальную длину массивов
-    const minLength = Math.min(klinesA.length, klinesB.length);
+    const minLength = Math.min(candlesA.length, candlesB.length);
     const spreadSeries: number[] = [];
 
     // Рассчитываем разницу между ценами закрытия
     for (let i = 0; i < minLength; i++) {
-      spreadSeries.push(Number(klinesA[i].close) - Number(klinesB[i].close));
+      spreadSeries.push(Number(candlesA[i].close) - Number(candlesB[i].close));
     }
 
     return spreadSeries;
@@ -60,16 +60,16 @@ export class ZScore {
   }
 
   private calculateZScoreHistory(
-    klinesA: TKline[],
-    klinesB: TKline[],
+    candlesA: TCandle[],
+    candlesB: TCandle[],
   ): { timestamp: number; value: number }[] {
     // Проверяем, что у нас есть данные для расчета
-    if (!klinesA.length || !klinesB.length) {
+    if (!candlesA.length || !candlesB.length) {
       return [];
     }
 
     // Получаем массив разниц между ценами закрытия
-    const spreadSeries = this.calculateSpread(klinesA, klinesB);
+    const spreadSeries = this.calculateSpread(candlesA, candlesB);
 
     const result: { timestamp: number; value: number }[] = [];
 
@@ -87,7 +87,7 @@ export class ZScore {
       // Избегаем деления на ноль
       if (stdDev === 0) {
         result.push({
-          timestamp: Number(klinesA[i].openTime),
+          timestamp: Number(candlesA[i].openTime),
           value: 0,
         });
         continue;
@@ -100,7 +100,7 @@ export class ZScore {
       const zScore = (currentSpread - mean) / stdDev;
 
       result.push({
-        timestamp: Number(klinesA[i].openTime),
+        timestamp: Number(candlesA[i].openTime),
         value: zScore,
       });
     }
@@ -109,14 +109,14 @@ export class ZScore {
   }
 
   public calculateMultipleTimeframeZScore(
-    klinesMapA: Record<TTimeframe, TKline[]>,
-    klinesMapB: Record<TTimeframe, TKline[]>,
+    candlesMapA: Record<TTimeframe, TCandle[]>,
+    candlesMapB: Record<TTimeframe, TCandle[]>,
   ) {
     const result: Record<TTimeframe, number> = {} as Record<TTimeframe, number>;
 
-    for (const timeframe of R.keys(klinesMapA)) {
-      if (klinesMapB[timeframe]) {
-        result[timeframe] = this.calculateZScore(klinesMapA[timeframe], klinesMapB[timeframe]);
+    for (const timeframe of R.keys(candlesMapA)) {
+      if (candlesMapB[timeframe]) {
+        result[timeframe] = this.calculateZScore(candlesMapA[timeframe], candlesMapB[timeframe]);
       }
     }
 
@@ -124,19 +124,19 @@ export class ZScore {
   }
 
   public calculateMultipleTimeframeZScoreHistory(
-    klinesMapA: Record<TTimeframe, TKline[]>,
-    klinesMapB: Record<TTimeframe, TKline[]>,
+    candlesMapA: Record<TTimeframe, TCandle[]>,
+    candlesMapB: Record<TTimeframe, TCandle[]>,
   ) {
     const result: Record<TTimeframe, { timestamp: number; value: number }[]> = {} as Record<
       TTimeframe,
       { timestamp: number; value: number }[]
     >;
 
-    for (const timeframe of R.keys(klinesMapA)) {
-      if (klinesMapB[timeframe]) {
+    for (const timeframe of R.keys(candlesMapA)) {
+      if (candlesMapB[timeframe]) {
         result[timeframe] = this.calculateZScoreHistory(
-          klinesMapA[timeframe],
-          klinesMapB[timeframe],
+          candlesMapA[timeframe],
+          candlesMapB[timeframe],
         );
       }
     }

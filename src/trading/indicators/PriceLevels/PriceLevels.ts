@@ -1,7 +1,7 @@
 import * as R from 'remeda';
 
 import { TExchangeInfoSymbol } from '../../providers/Binance/BinanceHTTPClient';
-import { TKline, TTimeframe } from '../../types';
+import { TCandle, TTimeframe } from '../../types';
 import { roundTo } from '../../utils/math';
 
 type TPriceLevelType = 'support' | 'resistance';
@@ -146,8 +146,8 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки и сопротивления на основе исторических свечей
    */
-  private calculatePriceLevels(klinesMap: Record<TTimeframe, TKline[]>): TSupportLevel[] {
-    if (Object.keys(klinesMap).length === 0) {
+  private calculatePriceLevels(candlesMap: Record<TTimeframe, TCandle[]>): TSupportLevel[] {
+    if (Object.keys(candlesMap).length === 0) {
       return [];
     }
 
@@ -160,20 +160,20 @@ export default class PriceLevels {
     let maxPrice = -Infinity;
 
     // Определяем длительность торговой истории на основе дневных свечей
-    const dailyKlines = klinesMap['1d'] || [];
+    const dailyCandles = candlesMap['1d'] || [];
     const tradingHistoryFactor =
-      dailyKlines.length > 0 ? Math.min(1, Math.log(dailyKlines.length) / Math.log(1000)) : 1;
+      dailyCandles.length > 0 ? Math.min(1, Math.log(dailyCandles.length) / Math.log(1000)) : 1;
 
-    for (const [timeframe, klines] of R.entries(klinesMap)) {
-      if (klines.length === 0) continue;
+    for (const [timeframe, candles] of R.entries(candlesMap)) {
+      if (candles.length === 0) continue;
 
-      const prices = klines.map((kline) => ({
-        low: parseFloat(kline.low),
-        high: parseFloat(kline.high),
-        close: parseFloat(kline.close),
-        open: parseFloat(kline.open),
-        volume: parseFloat(kline.volume),
-        timestamp: kline.openTime,
+      const prices = candles.map((candle) => ({
+        low: parseFloat(candle.low),
+        high: parseFloat(candle.high),
+        close: parseFloat(candle.close),
+        open: parseFloat(candle.open),
+        volume: parseFloat(candle.volume),
+        timestamp: candle.openTime,
       }));
 
       // Обновляем минимум и максимум
@@ -206,8 +206,8 @@ export default class PriceLevels {
 
     // Берем последние свечи для определения текущей цены
     // Используем самый короткий таймфрейм для более точного определения текущей цены
-    const latestKlines = klinesMap['1m'];
-    const currentPrice = parseFloat(latestKlines[latestKlines.length - 1].close);
+    const latestCandles = candlesMap['1m'];
+    const currentPrice = parseFloat(latestCandles[latestCandles.length - 1].close);
 
     // Преобразуем кластеры в уровни поддержки/сопротивления
     const levels = clusters.map((cluster) => {
@@ -262,9 +262,9 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни поддержки на основе исторических свечей
    */
-  public calculateSupportLevels(klinesMap: Record<TTimeframe, TKline[]>) {
+  public calculateSupportLevels(candlesMap: Record<TTimeframe, TCandle[]>) {
     return R.pipe(
-      this.calculatePriceLevels(klinesMap),
+      this.calculatePriceLevels(candlesMap),
       R.filter((level) => level.type === 'support'),
       R.map((level) => R.pick(level, ['price', 'strength'])),
     );
@@ -273,9 +273,9 @@ export default class PriceLevels {
   /**
    * Рассчитывает уровни сопротивления на основе исторических свечей
    */
-  public calculateResistanceLevels(klinesMap: Record<TTimeframe, TKline[]>) {
+  public calculateResistanceLevels(candlesMap: Record<TTimeframe, TCandle[]>) {
     return R.pipe(
-      this.calculatePriceLevels(klinesMap),
+      this.calculatePriceLevels(candlesMap),
       R.filter((level) => level.type === 'resistance'),
       R.map((level) => R.pick(level, ['price', 'strength'])),
     );

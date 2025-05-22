@@ -1,6 +1,6 @@
 import * as R from 'remeda';
 
-import { TTimeframe, TKline } from '../../types';
+import { TTimeframe, TCandle } from '../../types';
 
 export class PearsonCorrelation {
   private pearsonCorrelation(x: number[], y: number[]): number {
@@ -34,31 +34,31 @@ export class PearsonCorrelation {
     return numerator / denominator;
   }
 
-  public calculateSingleTimeframeCorrelation(klinesA: TKline[], klinesB: TKline[]): number {
-    if (!klinesA.length || !klinesB.length) {
+  public calculateSingleTimeframeCorrelation(candlesA: TCandle[], candlesB: TCandle[]): number {
+    if (!candlesA.length || !candlesB.length) {
       return 0;
     }
 
-    const minLength = Math.min(klinesA.length, klinesB.length);
+    const minLength = Math.min(candlesA.length, candlesB.length);
 
     // Извлекаем цены закрытия для расчета корреляции
-    const pricesA = klinesA.slice(0, minLength).map((kline) => parseFloat(kline.close));
-    const pricesB = klinesB.slice(0, minLength).map((kline) => parseFloat(kline.close));
+    const pricesA = candlesA.slice(0, minLength).map((candle) => parseFloat(candle.close));
+    const pricesB = candlesB.slice(0, minLength).map((candle) => parseFloat(candle.close));
 
     return this.pearsonCorrelation(pricesA, pricesB);
   }
 
   public calculateMultipleTimeframeCorrelation(
-    klinesMapA: Record<TTimeframe, TKline[]>,
-    klinesMapB: Record<TTimeframe, TKline[]>,
+    candlesMapA: Record<TTimeframe, TCandle[]>,
+    candlesMapB: Record<TTimeframe, TCandle[]>,
   ) {
     const correlations: Record<TTimeframe, number> = {} as Record<TTimeframe, number>;
 
     // Рассчитываем корреляцию для каждого таймфрейма
-    for (const timeframe of R.keys(klinesMapA)) {
+    for (const timeframe of R.keys(candlesMapA)) {
       correlations[timeframe] = this.calculateSingleTimeframeCorrelation(
-        klinesMapA[timeframe],
-        klinesMapB[timeframe],
+        candlesMapA[timeframe],
+        candlesMapB[timeframe],
       );
     }
 

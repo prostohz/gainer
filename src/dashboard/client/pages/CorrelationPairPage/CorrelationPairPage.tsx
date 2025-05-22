@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { TKline, TTimeframe } from '../../../server/services/assetService/types';
+import { TCandle, TTimeframe } from '../../../server/services/assetService/types';
 import http from '../../shared/http';
 import { useQSState } from '../../shared/queryString';
 import { AssetSelector } from '../../widgets/AssetSelector';
@@ -29,20 +29,20 @@ export const CorrelationPairPage = () => {
     enabled: Boolean(symbolA) && Boolean(symbolB),
   });
 
-  const { data: assetAKlines = null } = useQuery<TKline[]>({
+  const { data: assetACandles = null } = useQuery<TCandle[]>({
     queryKey: ['assetA', symbolA, timeframe],
     queryFn: () =>
       http
-        .get(`/api/asset/klines?symbol=${symbolA}&timeframe=${timeframe}`)
+        .get(`/api/asset/candles?symbol=${symbolA}&timeframe=${timeframe}`)
         .then((res) => res.data),
     enabled: Boolean(symbolA) && Boolean(timeframe),
   });
 
-  const { data: assetBKlines = null } = useQuery<TKline[]>({
+  const { data: assetBCandles = null } = useQuery<TCandle[]>({
     queryKey: ['assetB', symbolB, timeframe],
     queryFn: () =>
       http
-        .get(`/api/asset/klines?symbol=${symbolB}&timeframe=${timeframe}`)
+        .get(`/api/asset/candles?symbol=${symbolB}&timeframe=${timeframe}`)
         .then((res) => res.data),
     enabled: Boolean(symbolB) && Boolean(timeframe),
   });
@@ -98,12 +98,14 @@ export const CorrelationPairPage = () => {
             <>
               <div className="p-4 bg-base-200 rounded-lg">
                 <h2 className="text-lg font-bold mb-2">Calculator</h2>
-                {assetAPrice && assetBPrice && assetA && assetB && (
-                  <Calculator
-                    longLastPrice={Number(assetBPrice).toFixed(assetB.precision)}
-                    shortLastPrice={Number(assetAPrice).toFixed(assetA.precision)}
-                  />
-                )}
+                <div className="min-h-[180px]">
+                  {assetAPrice && assetBPrice && assetA && assetB && (
+                    <Calculator
+                      longLastPrice={Number(assetBPrice).toFixed(assetB.precision)}
+                      shortLastPrice={Number(assetAPrice).toFixed(assetA.precision)}
+                    />
+                  )}
+                </div>
               </div>
               <div className="p-4 bg-base-200 rounded-lg">
                 <h2 className="text-lg font-bold">Metrics</h2>
@@ -130,15 +132,15 @@ export const CorrelationPairPage = () => {
               </div>
               <div className="p-4 bg-base-200 rounded-lg">
                 <h2 className="text-lg font-bold mb-2">Asset charts</h2>
-                {assetAKlines && assetBKlines && assetA && assetB && (
+                {assetACandles && assetBCandles && assetA && assetB && (
                   <div className="flex gap-2">
                     <div className="flex-grow h-96 w-full">
                       <div className="font-semibold">{assetA.symbol}</div>
-                      <Chart klines={assetAKlines} precision={assetA.precision} />
+                      <Chart candles={assetACandles} precision={assetA.precision} />
                     </div>
                     <div className="flex-grow h-96 w-full">
                       <div className="font-semibold">{assetB.symbol}</div>
-                      <Chart klines={assetBKlines} precision={assetB.precision} />
+                      <Chart candles={assetBCandles} precision={assetB.precision} />
                     </div>
                   </div>
                 )}

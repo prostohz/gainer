@@ -1,4 +1,4 @@
-import { TKline, TTimeframe } from '../../types';
+import { TCandle, TTimeframe } from '../../types';
 import { mean } from '../../utils/math';
 import { TAnomalyCheck, TTradeBuffer } from './types';
 import { timeframeToSeconds } from '../../utils/timeframe';
@@ -6,15 +6,15 @@ import { timeframeToSeconds } from '../../utils/timeframe';
 export default class VolumeAnomalies {
   private readonly RATIO_THRESHOLD = 10;
 
-  private klines: TKline[];
+  private candles: TCandle[];
   private timeframeSeconds: number;
   private volumePerSecond: number;
 
-  constructor(timeframe: TTimeframe, klines: TKline[]) {
-    this.klines = klines;
+  constructor(timeframe: TTimeframe, candles: TCandle[]) {
+    this.candles = candles;
     this.timeframeSeconds = timeframeToSeconds(timeframe);
     this.volumePerSecond = mean(
-      this.klines.map((kline) => parseFloat(kline.volume) / this.timeframeSeconds),
+      this.candles.map((candle) => parseFloat(candle.volume) / this.timeframeSeconds),
     );
   }
 

@@ -2,14 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import * as R from 'remeda';
 
-import { TTimeframe } from '../../../../trading/types';
-import { TExchangeInfoSymbol } from '../../../../trading/providers/Binance/BinanceHTTPClient';
-import { getAssetList, getAssetKlines } from '../assetService';
-import { TAsset } from '../assetService/types';
+import { PearsonCorrelation } from '../../../../trading/indicators/PearsonCorrelation/PearsonCorrelation';
+import { TCandle, TTimeframe } from '../../../../trading/types';
 import { TCorrelationReport, TCorrelationReportRecord } from './types';
-import { getPairCorrelation } from './pair';
+import { AssetRepository } from '../../repositories/AssetRepository';
+import { CandleRepository } from '../../repositories/CandleRepository';
 
 const reportPath = path.resolve(__dirname, '../../../../../data/correlationReport.json');
+
+const assetRepository = AssetRepository.getInstance();
+const candleRepository = CandleRepository.getInstance();
 
 export const hasCorrelationReport = () => {
   return fs.existsSync(reportPath);
@@ -25,30 +27,27 @@ export const getCorrelationReport = async () => {
 
 const serializePairName = (tickerA: string, tickerB: string) => `${tickerA}-${tickerB}`;
 
+const cache: Record<string, TCandle[]> = {};
+
+const REPORT_CANDLE_LIMIT = 1000;
+
 export const buildCorrelationReport = async () => {
-  const assets: TExchangeInfoSymbol[] = await getAssetList();
+  const assets = assetRepository.getAssets();
   const assetTickers = assets.map((asset) => asset.symbol);
 
-  const timeframe: TTimeframe = '1h';
-  const candleLimit = 1000;
-
+  const timeframe: TTimeframe = '1m';
   const report: TCorrelationReport = {};
 
-  const tickerChunks = R.chunk(assetTickers, 10);
+  for (const tickerA of assetTickers) {
+    const candlesA =
+      cache[tickerA] || candleRepository.getCandles(tickerA, timeframe, REPORT_CANDLE_LIMIT);
+    cache[tickerA] = candlesA;
 
-  const chunkCount = tickerChunks.length;
-  let currentChunk = 0;
+    for (const tickerB of assetTickers) {
+      const candlesB =
+        cache[tickerB] || candleRepository.getCandles(tickerB, timeframe, REPORT_CANDLE_LIMIT);
+      cache[tickerB] = candlesB;
 
-  for await (const chunk of tickerChunks) {
-    currentChunk++;
-
-    await Promise.all(chunk.map((ticker) => getAssetKlines(ticker, timeframe, candleLimit)));
-
-    console.log(`Chunk processed: ${currentChunk}/${chunkCount}`);
-  }
-
-  for await (const tickerA of assetTickers) {
-    for await (const tickerB of assetTickers) {
       if (tickerA === tickerB) {
         report[serializePairName(tickerA, tickerB)] = null;
         continue;
@@ -59,14 +58,14 @@ export const buildCorrelationReport = async () => {
         continue;
       }
 
-      const correlation = await getPairCorrelation(tickerA, tickerB, {
-        timeframes: [timeframe],
-      });
+      const pearsonCorrelation = new PearsonCorrelation();
+      const correlation = pearsonCorrelation.calculateSingleTimeframeCorrelation(
+        candlesA,
+        candlesB,
+      );
 
-      report[serializePairName(tickerA, tickerB)] = correlation.correlation[timeframe];
+      report[serializePairName(tickerA, tickerB)] = correlation;
     }
-
-    console.log(`${tickerA} done`);
   }
 
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
@@ -153,7 +152,7 @@ export const getCorrelationReportClusters = async (
     console.error('Error reading cache file:', error);
   }
 
-  const assetList: TAsset[] = await getAssetList();
+  const assetList = assetRepository.getAssets();
   const report = await getCorrelationReport();
 
   const assetMap = R.indexBy(assetList, (asset) => asset.symbol);
