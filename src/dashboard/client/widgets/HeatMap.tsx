@@ -3,18 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import cn from 'classnames';
 import * as R from 'remeda';
 import { VariableSizeGrid as Grid } from 'react-window';
-import { useQuery } from '@tanstack/react-query';
 
-import http from '../../shared/http';
-import { TCorrelationReport } from '../../../server/services/correlationService/types';
+import { TCorrelationReport } from '../../server/services/correlationService/types';
 
-export const HeatMap = () => {
+type TProps = {
+  report: TCorrelationReport;
+  boundaries: {
+    bad: number;
+    moderate: number;
+    good: number;
+  };
+};
+
+export const HeatMap = ({ report, boundaries }: TProps) => {
   const navigate = useNavigate();
-
-  const { data: report, isLoading } = useQuery<TCorrelationReport>({
-    queryKey: ['correlationReport'],
-    queryFn: () => http.get('/api/correlation/report').then((response) => response.data),
-  });
 
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const gridRef = useRef<Grid>(null);
@@ -69,9 +71,9 @@ export const HeatMap = () => {
     if (value === null) return 'neutral';
 
     const absValue = Math.abs(value);
-    if (absValue > 0.9) return 'bg-green-500';
-    if (absValue > 0.6) return 'bg-yellow-500';
-    if (absValue > 0.3) return 'bg-orange-500';
+    if (absValue > boundaries.good) return 'bg-green-500';
+    if (absValue > boundaries.moderate) return 'bg-yellow-500';
+    if (absValue > boundaries.bad) return 'bg-orange-500';
     return 'bg-red-500';
   };
 
@@ -135,34 +137,24 @@ export const HeatMap = () => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-[500px]">
-        <div className="loading loading-ring loading-lg"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-base-200 rounded-lg p-4 flex-grow" ref={containerRef}>
-      <div className="p-0.5 overflow-hidden">
-        {containerSize.width > 0 && symbols.length > 0 && (
-          <Grid
-            ref={gridRef}
-            columnCount={symbols.length + 1}
-            columnWidth={getColumnWidth}
-            height={containerSize.height}
-            rowCount={symbols.length + 1}
-            rowHeight={getRowHeight}
-            width={containerSize.width}
-            itemData={symbols}
-            overscanRowCount={5}
-            overscanColumnCount={5}
-          >
-            {Cell}
-          </Grid>
-        )}
-      </div>
+    <div className="w-full h-full overflow-hidden" ref={containerRef}>
+      {containerSize.width > 0 && symbols.length > 0 && (
+        <Grid
+          ref={gridRef}
+          columnCount={symbols.length + 1}
+          columnWidth={getColumnWidth}
+          height={containerSize.height}
+          rowCount={symbols.length + 1}
+          rowHeight={getRowHeight}
+          width={containerSize.width}
+          itemData={symbols}
+          overscanRowCount={5}
+          overscanColumnCount={5}
+        >
+          {Cell}
+        </Grid>
+      )}
     </div>
   );
 };

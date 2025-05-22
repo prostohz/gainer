@@ -4,7 +4,7 @@ import cn from 'classnames';
 import http from '../../shared/http';
 import { useLSState } from '../../shared/localStorage';
 import { Clusters } from './Clusters';
-import { HeatMap } from './HeatMap';
+import { CorrelationHeatMap } from './CorrelationHeatMap';
 
 const TABS = [
   {
@@ -66,9 +66,10 @@ export const CorrelationReportPage = () => {
               </a>
             ))}
           </div>
-
-          {activeTab === 'clusters' && <Clusters />}
-          {activeTab === 'heatmap' && <HeatMap />}
+          <div className="flex flex-grow bg-base-200 rounded-lg p-4">
+            {activeTab === 'clusters' && <Clusters />}
+            {activeTab === 'heatmap' && <CorrelationHeatMap />}
+          </div>
         </>
       ) : (
         <div>No report found</div>

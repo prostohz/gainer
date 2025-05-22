@@ -21,14 +21,14 @@ export const Clusters = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-[500px]">
+      <div className="flex justify-center items-center flex-grow">
         <div className="loading loading-ring loading-lg"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-base-200 rounded-lg p-4">
+    <div className="flex flex-col flex-grow">
       <div className="flex flex-row gap-8 items-center mb-4">
         <div className="flex flex-row gap-2 items-center">
           <input
