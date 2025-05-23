@@ -1,13 +1,13 @@
-import * as R from 'remeda';
-
-import { TTimeframe, TCandle } from '../../types';
+import { TCandle } from '../../types';
 
 export class PearsonCorrelation {
-  private pearsonCorrelation(x: number[], y: number[]): number {
+  private calculate(x: number[], y: number[]): number {
     const n = x.length;
 
     // Проверка на достаточное количество данных
-    if (n < 2) return 0;
+    if (n < 2) {
+      return 0;
+    }
 
     // Рассчитываем суммы
     let sumX = 0;
@@ -29,12 +29,14 @@ export class PearsonCorrelation {
     const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
 
     // Избегаем деления на ноль
-    if (denominator === 0) return 0;
+    if (denominator === 0) {
+      return 0;
+    }
 
     return numerator / denominator;
   }
 
-  public calculateSingleTimeframeCorrelation(candlesA: TCandle[], candlesB: TCandle[]): number {
+  public calculateCorrelation(candlesA: TCandle[], candlesB: TCandle[]): number {
     if (!candlesA.length || !candlesB.length) {
       return 0;
     }
@@ -45,23 +47,34 @@ export class PearsonCorrelation {
     const pricesA = candlesA.slice(0, minLength).map((candle) => parseFloat(candle.close));
     const pricesB = candlesB.slice(0, minLength).map((candle) => parseFloat(candle.close));
 
-    return this.pearsonCorrelation(pricesA, pricesB);
+    return this.calculate(pricesA, pricesB);
   }
 
-  public calculateMultipleTimeframeCorrelation(
-    candlesMapA: Record<TTimeframe, TCandle[]>,
-    candlesMapB: Record<TTimeframe, TCandle[]>,
-  ) {
-    const correlations: Record<TTimeframe, number> = {} as Record<TTimeframe, number>;
+  public calculateCorrelationRolling(
+    candlesA: TCandle[],
+    candlesB: TCandle[],
+  ): { timestamp: number; value: number }[] {
+    const ROLLING_WINDOW = 100;
 
-    // Рассчитываем корреляцию для каждого таймфрейма
-    for (const timeframe of R.keys(candlesMapA)) {
-      correlations[timeframe] = this.calculateSingleTimeframeCorrelation(
-        candlesMapA[timeframe],
-        candlesMapB[timeframe],
-      );
+    const minLength = Math.min(candlesA.length, candlesB.length);
+
+    // Если данных меньше чем размер окна - возвращаем пустой массив
+    if (minLength < ROLLING_WINDOW) {
+      return [];
     }
 
-    return correlations;
+    const result: { timestamp: number; value: number }[] = [];
+
+    for (let i = ROLLING_WINDOW; i < minLength; i++) {
+      const seriesA = candlesA.slice(i - ROLLING_WINDOW, i);
+      const seriesB = candlesB.slice(i - ROLLING_WINDOW, i);
+
+      result.push({
+        timestamp: Number(candlesA[i].openTime),
+        value: this.calculateCorrelation(seriesA, seriesB),
+      });
+    }
+
+    return result;
   }
 }

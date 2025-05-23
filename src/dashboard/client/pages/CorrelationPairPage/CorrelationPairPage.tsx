@@ -10,7 +10,7 @@ import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { Chart } from '../../widgets/Chart';
 import { useAssets } from '../../entities/assets';
 import { Metrics } from './Metrics';
-import { ZScoreHistory } from './ZScoreHistory';
+import { MetricRolling } from './MetricRolling';
 import { Calculator } from './Calculator';
 
 export const CorrelationPairPage = () => {
@@ -126,8 +126,38 @@ export const CorrelationPairPage = () => {
               </div>
               <div className="p-4 bg-base-200 rounded-lg">
                 <div className="flex flex-col gap-2">
-                  <h2 className="text-lg font-bold mb-2">Z-Score History</h2>
-                  <ZScoreHistory history={pairCorrelation.zScoreHistory[timeframe] || []} />
+                  <h2 className="text-lg font-bold mb-2">Correlation Rolling</h2>
+                  <MetricRolling
+                    data={pairCorrelation.correlationRolling[timeframe] || []}
+                    colors={{
+                      '-0.9': '#22c55e', // зеленый
+                      '-0.8': '#eab308', // желтый
+                      '0': '#ef4444', // красный
+                      '0.8': '#eab308', // желтый
+                      '0.9': '#22c55e', // зеленый
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="p-4 bg-base-200 rounded-lg">
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-lg font-bold mb-2">Z-Score Rolling</h2>
+                  <MetricRolling
+                    data={pairCorrelation.zScoreRolling[timeframe] || []}
+                    colors={{
+                      '-5': '#a855f7', // фиолетовый
+                      '-4': '#3b82f6', // синий
+                      '-3': '#22c55e', // зеленый
+                      '-2': '#eab308', // желтый
+                      '-1': '#ef4444', // красный
+                      '0': '#ef4444', // красный
+                      '1': '#ef4444', // красный
+                      '2': '#eab308', // желтый
+                      '3': '#22c55e', // зеленый
+                      '4': '#3b82f6', // синий
+                      '5': '#a855f7', // фиолетовый
+                    }}
+                  />
                 </div>
               </div>
               <div className="p-4 bg-base-200 rounded-lg">

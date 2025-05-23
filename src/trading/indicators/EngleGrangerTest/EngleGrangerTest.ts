@@ -1,6 +1,6 @@
 import * as R from 'remeda';
 
-import { TCandle, TTimeframe } from '../../types';
+import { TCandle } from '../../types';
 
 export type CointegrationResult = {
   isCointegrated: boolean;
@@ -13,7 +13,7 @@ export class EngleGrangerTest {
    * @param pricesB Массив цен второго актива
    * @returns Результат теста коинтеграции
    */
-  public testCointegration(pricesA: number[], pricesB: number[]): CointegrationResult {
+  private testCointegration(pricesA: number[], pricesB: number[]): CointegrationResult {
     if (pricesA.length !== pricesB.length) {
       console.warn('Цены двух активов имеют разную длину');
 
@@ -156,18 +156,10 @@ export class EngleGrangerTest {
   /**
    * Рассчитывает коинтеграцию для нескольких таймфреймов
    */
-  public calculateMultipleTimeframeCointegration(
-    timeframeCandlesMapA: Record<TTimeframe, TCandle[]>,
-    timeframeCandlesMapB: Record<TTimeframe, TCandle[]>,
-  ): Record<TTimeframe, CointegrationResult> {
-    return R.mapValues(timeframeCandlesMapA, (candlesA, timeframe) => {
-      const candlesB = timeframeCandlesMapB[timeframe as TTimeframe];
+  public calculateCointegration(candlesA: TCandle[], candlesB: TCandle[]): CointegrationResult {
+    const pricesA = candlesA.map((candle) => parseFloat(candle.close));
+    const pricesB = candlesB.map((candle) => parseFloat(candle.close));
 
-      // Извлекаем цены закрытия
-      const pricesA = candlesA.map((candle) => parseFloat(candle.close));
-      const pricesB = candlesB.map((candle) => parseFloat(candle.close));
-
-      return this.testCointegration(pricesA, pricesB);
-    });
+    return this.testCointegration(pricesA, pricesB);
   }
 }

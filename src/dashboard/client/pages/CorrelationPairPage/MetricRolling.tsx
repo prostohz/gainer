@@ -1,15 +1,21 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import * as R from 'remeda';
 
-type TZScoreHistoryProps = {
-  history: { timestamp: number; value: number }[];
+type TProps = {
+  data: { timestamp: number; value: number }[];
+  colors: Record<string, string>;
 };
 
-export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
+export const MetricRolling = ({ data, colors }: TProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
+  const levels = R.keys(colors).map(Number);
+
   useEffect(() => {
-    if (!history.length || !svgRef.current) return;
+    if (!data.length || !svgRef.current) {
+      return;
+    }
 
     // Очищаем предыдущий график
     d3.select(svgRef.current).selectAll('*').remove();
@@ -30,15 +36,15 @@ export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
     // Шкалы
     const x = d3
       .scaleTime()
-      .domain(d3.extent(history, (d) => new Date(d.timestamp)) as [Date, Date])
+      .domain(d3.extent(data, (d) => new Date(d.timestamp)) as [Date, Date])
       .range([0, width]);
 
     const y = d3
       .scaleLinear()
-      .domain([-6, 6]) // Расширенный диапазон для z-score
+      .domain([Math.min(...levels) * 1.2, Math.max(...levels) * 1.2])
       .range([height, 0]);
 
-    // Линия для z-score
+    // Линия для метрики
     const line = d3
       .line<{ timestamp: number; value: number }>()
       .x((d) => x(new Date(d.timestamp)))
@@ -72,22 +78,6 @@ export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
       .attr('fill', '#1e293b')
       .attr('opacity', 0.3);
 
-    // Горизонтальные линии для уровней
-    const levels = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
-    const colors = {
-      '-5': '#3b82f6', // синий
-      '-4': '#3b82f6', // синий
-      '-3': '#22c55e', // зеленый
-      '-2': '#eab308', // желтый
-      '-1': '#ef4444', // красный
-      '0': '#ef4444', // красный
-      '1': '#ef4444', // красный
-      '2': '#eab308', // желтый
-      '3': '#22c55e', // зеленый
-      '4': '#3b82f6', // синий
-      '5': '#3b82f6', // синий
-    };
-
     levels.forEach((level) => {
       svg
         .append('line')
@@ -95,7 +85,7 @@ export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
         .attr('y1', y(level))
         .attr('x2', width)
         .attr('y2', y(level))
-        .attr('stroke', colors[level as keyof typeof colors] || '#6b7280')
+        .attr('stroke', colors[level.toString()])
         .attr('stroke-dasharray', level === 0 ? '0' : '3,3')
         .attr('stroke-width', level === 0 ? 0.5 : 1);
     });
@@ -103,7 +93,7 @@ export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
     // Добавляем линию z-score с более плавным переходом
     svg
       .append('path')
-      .datum(history)
+      .datum(data)
       .attr('fill', 'none')
       .attr('stroke', '#8884d8')
       .attr('stroke-width', 1.5)
@@ -140,10 +130,13 @@ export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
       .on('mousemove', (event) => {
         const mouseX = d3.pointer(event)[0];
         const x0 = x.invert(mouseX);
-        const i = bisect(history, x0, 1);
-        const d0 = history[i - 1];
-        const d1 = history[i];
-        if (!d0 || !d1) return;
+        const i = bisect(data, x0, 1);
+        const d0 = data[i - 1];
+        const d1 = data[i];
+
+        if (!d0 || !d1) {
+          return;
+        }
 
         const d = x0.getTime() - d0.timestamp > d1.timestamp - x0.getTime() ? d1 : d0;
 
@@ -156,7 +149,7 @@ export const ZScoreHistory = ({ history }: TZScoreHistoryProps) => {
           .style('left', `${event.pageX + 15}px`)
           .style('top', `${event.pageY - 28}px`);
       });
-  }, [history]);
+  }, [data]);
 
   return (
     <div className="h-[300px] w-full">

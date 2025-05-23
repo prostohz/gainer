@@ -5,14 +5,18 @@
   "eslint.enable": true,
   "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
   "cSpell.words": [
-    "Cointegrated",
+    "cointegrated",
     "cointegration",
-    "Engle",
+    "engle",
+    "remeda",
+    "грейнджера",
+    "коинтеграции",
     "таймфрейм",
     "таймфрейма",
     "таймфреймам",
     "таймфреймах",
     "таймфреймов",
-    "таймфрейму"
+    "таймфрейму",
+    "энгла"
   ]
 }

@@ -17,19 +17,13 @@ export const hasCorrelationReport = () => {
   return fs.existsSync(reportPath);
 };
 
-export const getCorrelationReport = async () => {
+export const getCorrelationReport = () => {
   if (fs.existsSync(reportPath)) {
     return JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
   }
 
   return null;
 };
-
-const serializePairName = (tickerA: string, tickerB: string) => `${tickerA}-${tickerB}`;
-
-const cache: Record<string, TCandle[]> = {};
-
-const REPORT_CANDLE_LIMIT = 1000;
 
 export const buildCorrelationReport = async () => {
   const assets = assetRepository.getAssets();
@@ -38,15 +32,25 @@ export const buildCorrelationReport = async () => {
   const timeframe: TTimeframe = '1m';
   const report: TCorrelationReport = {};
 
+  const cache = new Map<string, TCandle[]>();
+
+  const REPORT_CANDLE_LIMIT = 1000;
+
+  const serializePairName = (tickerA: string, tickerB: string) => `${tickerA}-${tickerB}`;
+
+  let counter = 0;
+
+  const startTime = Date.now();
+
   for (const tickerA of assetTickers) {
     const candlesA =
-      cache[tickerA] || candleRepository.getCandles(tickerA, timeframe, REPORT_CANDLE_LIMIT);
-    cache[tickerA] = candlesA;
+      cache.get(tickerA) || candleRepository.getCandles(tickerA, timeframe, REPORT_CANDLE_LIMIT);
+    cache.set(tickerA, candlesA);
 
     for (const tickerB of assetTickers) {
       const candlesB =
-        cache[tickerB] || candleRepository.getCandles(tickerB, timeframe, REPORT_CANDLE_LIMIT);
-      cache[tickerB] = candlesB;
+        cache.get(tickerB) || candleRepository.getCandles(tickerB, timeframe, REPORT_CANDLE_LIMIT);
+      cache.set(tickerB, candlesB);
 
       if (tickerA === tickerB) {
         report[serializePairName(tickerA, tickerB)] = null;
@@ -59,16 +63,19 @@ export const buildCorrelationReport = async () => {
       }
 
       const pearsonCorrelation = new PearsonCorrelation();
-      const correlation = pearsonCorrelation.calculateSingleTimeframeCorrelation(
-        candlesA,
-        candlesB,
-      );
+      const correlation = pearsonCorrelation.calculateCorrelation(candlesA, candlesB);
 
       report[serializePairName(tickerA, tickerB)] = correlation;
     }
+
+    counter++;
+
+    console.log(`${((counter / assetTickers.length) * 100).toFixed(2)}% processed`);
   }
 
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+
+  console.log(`Report built in ${((Date.now() - startTime) / 1000).toFixed(2)} seconds`);
 
   return report;
 };
@@ -129,20 +136,16 @@ const buildCompleteGraphs = (edges: string[]) => {
   return completeGraphs;
 };
 
-const CACHE_DIR = path.resolve(process.cwd(), 'data');
-
-const getCacheFilePath = (cacheKey: string) => {
-  return path.join(CACHE_DIR, `correlationReportClusters_${cacheKey}.json`);
-};
-
 export const getCorrelationReportClusters = async (
   usdtOnly: boolean,
   minCorrelation: number,
   minVolume: number,
 ) => {
   const cacheKey = `${usdtOnly}_${minCorrelation}_${minVolume}`;
-
-  const cacheFilePath = getCacheFilePath(cacheKey);
+  const cacheFilePath = path.join(
+    path.resolve(process.cwd(), 'data'),
+    `correlationReportClusters_${cacheKey}.json`,
+  );
 
   try {
     if (fs.existsSync(cacheFilePath)) {
@@ -153,10 +156,9 @@ export const getCorrelationReportClusters = async (
   }
 
   const assetList = assetRepository.getAssets();
-  const report = await getCorrelationReport();
+  const report = getCorrelationReport();
 
   const assetMap = R.indexBy(assetList, (asset) => asset.symbol);
-
   const processedPairs = new Set<string>();
 
   const correlationEdges = R.pipe(
