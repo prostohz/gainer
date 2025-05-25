@@ -4,12 +4,15 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dashboard:server": "ts-node-dev --respawn src/dashboard/server/index.ts",
+    "dashboard:server": "ts-node-dev --respawn src/server/index.ts",
     "dashboard:client": "vite",
     "dashboard": "concurrently \"npm run dashboard:server\" \"npm run dashboard:client\"",
-    "refreshDb": "ts-node src/dashboard/server/scripts/refreshDb.ts",
+    "loadCandles": "ts-node src/server/scripts/loadCandles.ts",
+    "meanReversion:debug": "ts-node src/server/trading/strategies/MeanReversionStrategy/debug.ts",
+    "meanReversion:backtest": "ts-node src/server/trading/strategies/MeanReversionStrategy/backtest.ts",
     "test": "jest",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",
@@ -64,6 +67,8 @@
     "react-router-dom": "^7.6.0",
     "react-window": "^1.8.11",
     "remeda": "^2.21.4",
+    "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
     "ws": "^8.18.2"
   }
 }
