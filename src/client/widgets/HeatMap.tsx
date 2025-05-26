@@ -8,11 +8,7 @@ import { TCorrelationReport } from '../../shared/types';
 
 type TProps = {
   report: TCorrelationReport;
-  boundaries: {
-    bad: number;
-    moderate: number;
-    good: number;
-  };
+  boundaries: { level: number; color: string }[];
 };
 
 export const HeatMap = ({ report, boundaries }: TProps) => {
@@ -71,10 +67,19 @@ export const HeatMap = ({ report, boundaries }: TProps) => {
     if (value === null) return 'neutral';
 
     const absValue = Math.abs(value);
-    if (absValue > boundaries.good) return 'bg-green-500';
-    if (absValue > boundaries.moderate) return 'bg-yellow-500';
-    if (absValue > boundaries.bad) return 'bg-orange-500';
-    return 'bg-red-500';
+
+    const boundary = R.pipe(
+      boundaries,
+      R.sortBy((boundary) => boundary.level),
+      R.reverse(),
+      R.find((boundary) => absValue >= boundary.level),
+    );
+
+    if (boundary) {
+      return boundary.color;
+    }
+
+    return 'neutral';
   };
 
   const getColumnWidth = (index: number) => (index === 0 ? 100 : 70);

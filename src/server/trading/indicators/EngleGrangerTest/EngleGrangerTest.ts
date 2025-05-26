@@ -4,6 +4,8 @@ import { TIndicatorCandle } from '../types';
 
 export type TCointegrationResult = {
   isCointegrated: boolean;
+  testStatistic: number;
+  pValue: number;
 };
 
 export class EngleGrangerTest {
@@ -19,6 +21,8 @@ export class EngleGrangerTest {
 
       return {
         isCointegrated: false,
+        testStatistic: 0,
+        pValue: 0,
       };
     }
 
@@ -27,6 +31,8 @@ export class EngleGrangerTest {
 
       return {
         isCointegrated: false,
+        testStatistic: 0,
+        pValue: 0,
       };
     }
 
@@ -53,6 +59,8 @@ export class EngleGrangerTest {
 
     return {
       isCointegrated,
+      testStatistic: adfResult.testStatistic,
+      pValue: adfResult.pValue,
     };
   }
 

@@ -22,7 +22,7 @@ type Props = {
   resistanceLevels?: Level[];
 };
 
-export const Chart = ({ candles, supportLevels, resistanceLevels, precision }: Props) => {
+export const CandleChart = ({ candles, supportLevels, resistanceLevels, precision }: Props) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,14 +94,16 @@ export const Chart = ({ candles, supportLevels, resistanceLevels, precision }: P
     });
 
     const candleData = candles.map((candle) => ({
-      time: (candle.openTime / 1000) as UTCTimestamp,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
+      openTime: candle.openTime,
+      time: (Number(candle.openTime) / 1000) as UTCTimestamp,
+      open: Number(candle.open),
+      high: Number(candle.high),
+      low: Number(candle.low),
+      close: Number(candle.close),
+      volume: Number(candle.volume),
     }));
 
-    const volumeData = candles.map((candle) => {
+    const volumeData = candleData.map((candle) => {
       const isGreen = candle.close >= candle.open;
       return {
         time: (candle.openTime / 1000) as UTCTimestamp,

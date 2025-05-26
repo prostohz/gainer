@@ -43,7 +43,15 @@ export const CorrelationClusterPage = () => {
             <div className="loading loading-ring loading-lg" />
           ) : (
             <div className="w-full h-full">
-              <HeatMap report={assetZScore} boundaries={{ bad: 2, moderate: 3, good: 4 }} />
+              <HeatMap
+                report={assetZScore}
+                boundaries={[
+                  { level: 0, color: 'bg-red-500' },
+                  { level: 2, color: 'bg-orange-500' },
+                  { level: 3, color: 'bg-yellow-500' },
+                  { level: 4, color: 'bg-lime-500' },
+                ]}
+              />
             </div>
           )}
         </div>

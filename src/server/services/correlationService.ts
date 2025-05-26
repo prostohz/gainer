@@ -1,17 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-import * as R from 'remeda';
-
-import { buildCompleteGraphs } from '../utils/graph';
-import { TTimeframe, TCorrelationReport, TCorrelationReportRecord } from '../../shared/types';
+import { TTimeframe } from '../../shared/types';
 import { PearsonCorrelation } from '../trading/indicators/PearsonCorrelation/PearsonCorrelation';
+import { TIndicatorCandle } from '../trading/indicators/types';
 import { ZScore } from '../trading/indicators/ZScore/ZScore';
 import {
   TCointegrationResult,
   EngleGrangerTest,
 } from '../trading/indicators/EngleGrangerTest/EngleGrangerTest';
 import { Candle } from '../models/Candle';
-import { Asset } from '../models/Asset';
 
 const CANDLE_LIMIT = 1000;
 
@@ -19,106 +14,109 @@ const PEARSON_CANDLE_LIMIT = 500;
 const Z_SCORE_CANDLE_LIMIT = 100;
 const COINTEGRATION_CANDLE_LIMIT = 500;
 
-const correlationReportPath = path.resolve(process.cwd(), 'data', 'correlationReport.json');
-
-const findCandles = (symbol: string, timeframe: TTimeframe, limit: number) => {
-  return Candle.findAll({
+const findCandles = async (
+  symbol: string,
+  timeframe: TTimeframe,
+  limit: number,
+): Promise<TIndicatorCandle[]> => {
+  const candles = await Candle.findAll({
     where: {
       symbol,
       timeframe,
     },
     limit,
   });
+
+  return candles.map((candle) => ({
+    openTime: candle.openTime,
+    closeTime: candle.closeTime,
+    open: Number(candle.open),
+    high: Number(candle.high),
+    low: Number(candle.low),
+    close: Number(candle.close),
+    volume: Number(candle.volume),
+  }));
 };
 
 export const getPairCorrelation = async (symbolA: string, symbolB: string) => {
   const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
+  const correlationByPrices = {} as Record<TTimeframe, number>;
+  const correlationByReturns = {} as Record<TTimeframe, number>;
+  const rollingCorrelationByPrices = {} as Record<
+    TTimeframe,
+    { timestamp: number; value: number }[]
+  >;
+  const rollingCorrelationByReturns = {} as Record<
+    TTimeframe,
+    { timestamp: number; value: number }[]
+  >;
+  const zScoreByPrices = {} as Record<TTimeframe, number>;
+  const zScoreByReturns = {} as Record<TTimeframe, number>;
+  const rollingZScoreByPrices = {} as Record<TTimeframe, { timestamp: number; value: number }[]>;
+  const rollingZScoreByReturns = {} as Record<TTimeframe, { timestamp: number; value: number }[]>;
+  const cointegration = {} as Record<TTimeframe, TCointegrationResult>;
+
   const pearsonCorrelation = new PearsonCorrelation();
-
-  const multipleTimeframeCorrelation = {} as Record<TTimeframe, number>;
-  for (const timeframe of timeframes) {
-    const [candlesA, candlesB] = await Promise.all([
-      findCandles(symbolA, timeframe, PEARSON_CANDLE_LIMIT),
-      findCandles(symbolB, timeframe, PEARSON_CANDLE_LIMIT),
-    ]);
-
-    multipleTimeframeCorrelation[timeframe] = pearsonCorrelation.calculateCorrelation(
-      candlesA,
-      candlesB,
-    );
-  }
-
-  const multipleTimeframeCorrelationRolling = {} as Record<
-    TTimeframe,
-    { timestamp: number; value: number }[]
-  >;
-  for (const timeframe of timeframes) {
-    const [candlesA, candlesB] = await Promise.all([
-      findCandles(symbolA, timeframe, CANDLE_LIMIT),
-      findCandles(symbolB, timeframe, CANDLE_LIMIT),
-    ]);
-
-    multipleTimeframeCorrelationRolling[timeframe] = pearsonCorrelation.calculateCorrelationRolling(
-      candlesA,
-      candlesB,
-    );
-  }
-
   const zScore = new ZScore();
-
-  const multipleTimeframeZScore = {} as Record<TTimeframe, number>;
-  for (const timeframe of timeframes) {
-    const [candlesA, candlesB] = await Promise.all([
-      findCandles(symbolA, timeframe, Z_SCORE_CANDLE_LIMIT),
-      findCandles(symbolB, timeframe, Z_SCORE_CANDLE_LIMIT),
-    ]);
-
-    multipleTimeframeZScore[timeframe] = zScore.calculateZScore(candlesA, candlesB);
-  }
-
-  const multipleTimeframeZScoreRolling = {} as Record<
-    TTimeframe,
-    { timestamp: number; value: number }[]
-  >;
-  for (const timeframe of timeframes) {
-    const [candlesA, candlesB] = await Promise.all([
-      findCandles(symbolA, timeframe, CANDLE_LIMIT),
-      findCandles(symbolB, timeframe, CANDLE_LIMIT),
-    ]);
-
-    multipleTimeframeZScoreRolling[timeframe] = zScore.calculateZScoreRolling(candlesA, candlesB);
-  }
-
   const engleGrangerTest = new EngleGrangerTest();
 
-  const multipleTimeframeCointegration = {} as Record<TTimeframe, TCointegrationResult>;
   for (const timeframe of timeframes) {
     const [candlesA, candlesB] = await Promise.all([
-      findCandles(symbolA, timeframe, COINTEGRATION_CANDLE_LIMIT),
-      findCandles(symbolB, timeframe, COINTEGRATION_CANDLE_LIMIT),
+      findCandles(symbolA, timeframe, CANDLE_LIMIT),
+      findCandles(symbolB, timeframe, CANDLE_LIMIT),
     ]);
 
-    multipleTimeframeCointegration[timeframe] = engleGrangerTest.calculateCointegration(
+    correlationByPrices[timeframe] = pearsonCorrelation.correlationByPrices(
+      candlesA.slice(0, PEARSON_CANDLE_LIMIT),
+      candlesB.slice(0, PEARSON_CANDLE_LIMIT),
+    );
+    correlationByReturns[timeframe] = pearsonCorrelation.correlationByReturns(
+      candlesA.slice(0, PEARSON_CANDLE_LIMIT),
+      candlesB.slice(0, PEARSON_CANDLE_LIMIT),
+    );
+    zScoreByPrices[timeframe] = zScore.zScoreByPrices(
+      candlesA.slice(0, Z_SCORE_CANDLE_LIMIT),
+      candlesB.slice(0, Z_SCORE_CANDLE_LIMIT),
+    );
+    zScoreByReturns[timeframe] = zScore.zScoreByReturns(
+      candlesA.slice(0, Z_SCORE_CANDLE_LIMIT),
+      candlesB.slice(0, Z_SCORE_CANDLE_LIMIT),
+    );
+    cointegration[timeframe] = engleGrangerTest.calculateCointegration(
+      candlesA.slice(0, COINTEGRATION_CANDLE_LIMIT),
+      candlesB.slice(0, COINTEGRATION_CANDLE_LIMIT),
+    );
+    rollingCorrelationByPrices[timeframe] = pearsonCorrelation.rollingCorrelationByPrices(
       candlesA,
       candlesB,
     );
+    rollingCorrelationByReturns[timeframe] = pearsonCorrelation.rollingCorrelationByReturns(
+      candlesA,
+      candlesB,
+    );
+    rollingZScoreByPrices[timeframe] = zScore.rollingZScoreByPrices(candlesA, candlesB);
+    rollingZScoreByReturns[timeframe] = zScore.rollingZScoreByReturns(candlesA, candlesB);
   }
 
   return {
-    correlation: multipleTimeframeCorrelation,
-    correlationRolling: multipleTimeframeCorrelationRolling,
-    zScore: multipleTimeframeZScore,
-    zScoreRolling: multipleTimeframeZScoreRolling,
-    cointegration: multipleTimeframeCointegration,
+    correlationByPrices,
+    correlationByReturns,
+    zScoreByPrices,
+    zScoreByReturns,
+    rollingCorrelationByPrices,
+    rollingCorrelationByReturns,
+    rollingZScoreByPrices,
+    rollingZScoreByReturns,
+    cointegration,
   };
 };
 
-export const getPairWiseZScore = async (symbols: string[] = [], timeframe: TTimeframe = '1m') => {
+export const getPairWiseZScore = async (symbols: string[] = [], timeframe: TTimeframe) => {
   const result: Record<string, number> = {};
   const zScore = new ZScore();
 
-  const cache = new Map<string, Candle[]>();
+  const cache = new Map<string, TIndicatorCandle[]>();
 
   for (const symbolA of symbols) {
     let candlesA = cache.get(symbolA);
@@ -147,175 +145,8 @@ export const getPairWiseZScore = async (symbols: string[] = [], timeframe: TTime
         continue;
       }
 
-      result[pair] = zScore.calculateZScore(candlesA, candlesB);
+      result[pair] = zScore.zScoreByPrices(candlesA, candlesB);
     }
-  }
-
-  return result;
-};
-
-export const hasCorrelationReport = () => {
-  return fs.existsSync(correlationReportPath);
-};
-
-export const getCorrelationReport = () => {
-  if (fs.existsSync(correlationReportPath)) {
-    return JSON.parse(fs.readFileSync(correlationReportPath, 'utf-8'));
-  }
-
-  return null;
-};
-
-export const buildCorrelationReport = async () => {
-  const assets = await Asset.findAll();
-  const assetTickers = assets.map((asset) => asset.symbol);
-
-  const timeframe: TTimeframe = '1m';
-  const report: TCorrelationReport = {};
-
-  const cache = new Map<string, Candle[]>();
-
-  const REPORT_CANDLE_LIMIT = 1000;
-
-  const serializePairName = (tickerA: string, tickerB: string) => `${tickerA}-${tickerB}`;
-
-  let counter = 0;
-
-  const startTime = Date.now();
-
-  for (const tickerA of assetTickers) {
-    let candlesA = cache.get(tickerA);
-    if (!candlesA) {
-      candlesA = await Candle.findAll({
-        where: {
-          symbol: tickerA,
-          timeframe,
-        },
-        limit: REPORT_CANDLE_LIMIT,
-      });
-
-      cache.set(tickerA, candlesA);
-    }
-
-    for (const tickerB of assetTickers) {
-      if (tickerA === tickerB) {
-        report[serializePairName(tickerA, tickerB)] = null;
-        continue;
-      }
-
-      if (report[serializePairName(tickerB, tickerA)]) {
-        report[serializePairName(tickerA, tickerB)] = report[serializePairName(tickerB, tickerA)];
-        continue;
-      }
-
-      let candlesB = cache.get(tickerB);
-      if (!candlesB) {
-        candlesB = await Candle.findAll({
-          where: {
-            symbol: tickerB,
-            timeframe,
-          },
-          limit: REPORT_CANDLE_LIMIT,
-        });
-        cache.set(tickerB, candlesB);
-      }
-
-      const pearsonCorrelation = new PearsonCorrelation();
-      const correlation = pearsonCorrelation.calculateCorrelation(candlesA, candlesB);
-
-      report[serializePairName(tickerA, tickerB)] = correlation;
-    }
-
-    counter++;
-
-    console.log(`${((counter / assetTickers.length) * 100).toFixed(2)}% processed`);
-  }
-
-  fs.writeFileSync(correlationReportPath, JSON.stringify(report, null, 2));
-
-  console.log(`Report built in ${((Date.now() - startTime) / 1000).toFixed(2)} seconds`);
-
-  return report;
-};
-
-export const getCorrelationReportClusters = async (
-  usdtOnly: boolean,
-  minCorrelation: number,
-  minVolume: number,
-) => {
-  const cacheKey = `${usdtOnly}_${minCorrelation}_${minVolume}`;
-  const cacheFilePath = path.join(
-    path.resolve(process.cwd(), 'data'),
-    `correlationReportClusters_${cacheKey}.json`,
-  );
-
-  try {
-    if (fs.existsSync(cacheFilePath)) {
-      return JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
-    }
-  } catch (error) {
-    console.error('Error reading cache file:', error);
-  }
-
-  const assetList = await Asset.findAll();
-  const report = getCorrelationReport();
-
-  const assetMap = R.indexBy(assetList, (asset) => asset.symbol);
-  const processedPairs = new Set<string>();
-
-  const correlationEdges = R.pipe(
-    report,
-    R.entries,
-    R.filter(
-      (
-        entry: [string, TCorrelationReportRecord],
-      ): entry is [string, NonNullable<TCorrelationReportRecord>] => Boolean(entry[1]),
-    ),
-    R.filter(([key]) => {
-      const [firstPair, secondPair] = key.split('-');
-
-      if (usdtOnly) {
-        return firstPair.endsWith('USDT') && secondPair.endsWith('USDT');
-      }
-
-      return true;
-    }),
-    R.filter(([key, correlationRecord]) => {
-      const [first, second] = key.split('-');
-
-      const firstAsset = assetMap[first];
-      const secondAsset = assetMap[second];
-
-      if (!firstAsset || !secondAsset) {
-        return false;
-      }
-
-      return (
-        (firstAsset.usdtVolume > minVolume || secondAsset.usdtVolume > minVolume) &&
-        correlationRecord > minCorrelation
-      );
-    }),
-    R.sort(([, a], [, b]) => b - a),
-    R.filter(([key]) => {
-      const [first, second] = key.split('-');
-      const reversePair = `${second}-${first}`;
-
-      if (processedPairs.has(reversePair)) {
-        return false;
-      }
-
-      processedPairs.add(key);
-      return true;
-    }),
-    R.map(([key]) => key),
-  );
-
-  const result = buildCompleteGraphs(correlationEdges);
-
-  try {
-    fs.writeFileSync(cacheFilePath, JSON.stringify(result), 'utf-8');
-  } catch (error) {
-    console.error('Error writing cache file:', error);
   }
 
   return result;

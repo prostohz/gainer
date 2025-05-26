@@ -60,7 +60,7 @@ const CANDLES_LIMIT = 1000;
 
     const usdtVolume = (() => {
       if (asset.baseAsset === 'USDT') {
-        return Number(assetStats.quoteVolume);
+        return assetStats.quoteVolume;
       }
 
       const baseToUsdtAsset = binanceAssets24HrStats.find(
@@ -79,7 +79,7 @@ const CANDLES_LIMIT = 1000;
       ...assetStats,
       pricePrecision,
       volumePrecision,
-      usdtVolume,
+      usdtVolume: String(usdtVolume),
     };
   });
 
@@ -87,7 +87,7 @@ const CANDLES_LIMIT = 1000;
 
   const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
-  const symbolChunks = R.chunk(binanceAssetsSymbols, 3);
+  const symbolChunks = R.chunk(binanceAssetsSymbols, 4);
 
   try {
     for (const [chunkIndex, symbolsChunk] of symbolChunks.entries()) {

@@ -82,32 +82,32 @@ type TAsset = {
 
 type TAsset24HrStats = {
   symbol: string;
-  lastPrice: number;
-  priceChange: number;
-  priceChangePercent: number;
-  volume: number;
-  quoteVolume: number;
+  lastPrice: string;
+  priceChange: string;
+  priceChangePercent: string;
+  volume: string;
+  quoteVolume: string;
 };
 
 type TCandle = {
   openTime: number;
   closeTime: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
   numberOfTrades: number;
-  volume: number;
-  quoteAssetVolume: number;
-  takerBuyBaseAssetVolume: number;
-  takerBuyQuoteAssetVolume: number;
+  volume: string;
+  quoteAssetVolume: string;
+  takerBuyBaseAssetVolume: string;
+  takerBuyQuoteAssetVolume: string;
 };
 
 type TTrade = {
   symbol: string;
   tradeId: number;
-  price: number;
-  quantity: number;
+  price: string;
+  quantity: string;
   firstTradeId: number;
   lastTradeId: number;
   timestamp: number;
@@ -151,11 +151,11 @@ class BinanceHTTPClient {
   private format24HrStats(stats: TRawAsset24HrStats): TAsset24HrStats {
     return {
       symbol: stats.symbol,
-      lastPrice: parseFloat(stats.lastPrice),
-      priceChange: parseFloat(stats.priceChange),
-      priceChangePercent: parseFloat(stats.priceChangePercent),
-      volume: parseFloat(stats.volume),
-      quoteVolume: parseFloat(stats.quoteVolume),
+      lastPrice: stats.lastPrice,
+      priceChange: stats.priceChange,
+      priceChangePercent: stats.priceChangePercent,
+      volume: stats.volume,
+      quoteVolume: stats.quoteVolume,
     };
   }
 
@@ -167,16 +167,16 @@ class BinanceHTTPClient {
   private formatCandle(candle: TRawCandle): TCandle {
     return {
       openTime: candle[0],
-      open: parseFloat(candle[1]),
-      high: parseFloat(candle[2]),
-      low: parseFloat(candle[3]),
-      close: parseFloat(candle[4]),
-      volume: parseFloat(candle[5]),
+      open: candle[1],
+      high: candle[2],
+      low: candle[3],
+      close: candle[4],
+      volume: candle[5],
       closeTime: candle[6],
-      quoteAssetVolume: parseFloat(candle[7]),
+      quoteAssetVolume: candle[7],
       numberOfTrades: candle[8],
-      takerBuyBaseAssetVolume: parseFloat(candle[9]),
-      takerBuyQuoteAssetVolume: parseFloat(candle[10]),
+      takerBuyBaseAssetVolume: candle[9],
+      takerBuyQuoteAssetVolume: candle[10],
     };
   }
 
@@ -190,8 +190,8 @@ class BinanceHTTPClient {
     return {
       symbol,
       tradeId: trade.a,
-      price: parseFloat(trade.p),
-      quantity: parseFloat(trade.q),
+      price: trade.p,
+      quantity: trade.q,
       firstTradeId: trade.f,
       lastTradeId: trade.l,
       timestamp: trade.T,
@@ -206,27 +206,42 @@ class BinanceHTTPClient {
    * @returns Данные ответа
    */
   private async request(url: string) {
-    const response = await fetch(`${this.baseUrl}${url}`);
-    if (!response.ok) {
-      let errorMessage = `HTTP error! Status: ${response.status}, ${response.statusText}`;
-      try {
-        const text = await response.text();
+    try {
+      const response = await fetch(`${this.baseUrl}${url}`);
+      if (!response.ok) {
+        let errorMessage = `HTTP error! Status: ${response.status}, ${response.statusText}`;
         try {
-          const json = JSON.parse(text);
+          const text = await response.text();
+          console.log('text', text);
+          try {
+            const json = JSON.parse(text);
 
-          if (json.code && json.msg) {
-            errorMessage = `${errorMessage}, code: ${json.code}, msg: ${json.msg}`;
-          } else {
+            if (json.code && json.msg) {
+              errorMessage = `${errorMessage}, code: ${json.code}, msg: ${json.msg}`;
+            } else {
+              errorMessage = `${errorMessage}, body: ${text}`;
+            }
+          } catch {
             errorMessage = `${errorMessage}, body: ${text}`;
           }
-        } catch {
-          errorMessage = `${errorMessage}, body: ${text}`;
-        }
-      } catch {}
-      throw new Error(errorMessage);
-    }
+        } catch {}
+        throw new Error(errorMessage);
+      }
 
-    return response.json();
+      return response.json();
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'UND_ERR_CONNECT_TIMEOUT'
+      ) {
+        throw new Error(
+          'Ошибка таймаута соединения с Binance API. Проверьте интернет-соединение или попробуйте позже.',
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -296,13 +311,13 @@ class BinanceHTTPClient {
   /**
    * Получает текущую цену для указанного символа
    * @param symbol Символ торговой пары (например, 'BTCUSDT')
-   * @returns Текущая цена в виде числа
+   * @returns Текущая цена в виде строки
    */
-  public async fetchAssetPrice(symbol: string): Promise<number> {
+  public async fetchAssetPrice(symbol: string): Promise<string> {
     try {
       const data = await this.request(`/ticker/price?symbol=${symbol}`);
 
-      return parseFloat(data.price);
+      return data.price;
     } catch (error) {
       console.error(`Ошибка при получении текущей цены для ${symbol}:`, error);
       throw error;

@@ -20,14 +20,14 @@ interface AssetAttributes {
   quoteCommissionPrecision: number;
   isSpotTradingAllowed: boolean;
   isMarginTradingAllowed: boolean;
-  lastPrice: number;
-  priceChange: number;
-  priceChangePercent: number;
+  lastPrice: string;
+  priceChange: string;
+  priceChangePercent: string;
   pricePrecision: number;
   volumePrecision: number;
-  volume: number;
-  quoteVolume: number;
-  usdtVolume: number;
+  volume: string;
+  quoteVolume: string;
+  usdtVolume: string;
 }
 
 type AssetCreationAttributes = Optional<AssetAttributes, 'id'>;
@@ -47,14 +47,14 @@ export class Asset
   public quoteCommissionPrecision!: number;
   public isSpotTradingAllowed!: boolean;
   public isMarginTradingAllowed!: boolean;
-  public lastPrice!: number;
-  public priceChange!: number;
-  public priceChangePercent!: number;
+  public lastPrice!: string;
+  public priceChange!: string;
+  public priceChangePercent!: string;
   public pricePrecision!: number;
   public volumePrecision!: number;
-  public volume!: number;
-  public quoteVolume!: number;
-  public usdtVolume!: number;
+  public volume!: string;
+  public quoteVolume!: string;
+  public usdtVolume!: string;
 }
 
 Asset.init(
@@ -106,15 +106,15 @@ Asset.init(
       allowNull: false,
     },
     lastPrice: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     priceChange: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     priceChangePercent: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     pricePrecision: {
@@ -126,15 +126,15 @@ Asset.init(
       allowNull: false,
     },
     volume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     quoteVolume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     usdtVolume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
   },

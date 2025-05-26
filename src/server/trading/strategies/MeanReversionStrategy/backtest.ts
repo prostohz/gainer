@@ -2,36 +2,65 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Op } from 'sequelize';
 import * as R from 'remeda';
+import dayjs from 'dayjs';
 
+import { TTimeframe } from '../../../../shared/types';
 import {
   OPEN_POSITION_COMMISSION_RATE,
   MARGIN_HOUR_COMMISSION_RATE,
 } from '../../../configs/trading';
 import { Asset } from '../../../models/Asset';
+import { Candle } from '../../../models/Candle';
 import { Trade } from '../../../models/Trade';
-import BinanceHTTPClient, { TTrade } from '../../providers/Binance/BinanceHTTPClient';
+import { measureTime } from '../../../utils/performance';
+import BinanceHTTPClient, { TTrade, TCandle } from '../../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
 import { TTimeEnvironment } from '../types';
-import { FakeDataProvider, FakeDateTimeProvider, FakeStreamDataProvider } from '../fakes';
-import { MeanReversionStrategy, TSignal } from './strategy';
+import { FakeDataProvider, FakeStreamDataProvider } from '../fakes';
+import { MeanReversionStrategy, TPositionDirection, TSignal } from './strategy';
 
-const backtestTimeStart = new Date('2025-05-26T00:00:00Z').getTime();
-const backtestTimeEnd = new Date('2025-05-26T04:00:00Z').getTime();
+type TOpenTrade = {
+  direction: TPositionDirection;
+  openPriceA: number;
+  openPriceB: number;
+  openTime: number;
+};
 
-export const loadTrades = async (symbols: string[]) => {
+type TCompleteTrade = {
+  direction: TPositionDirection;
+  assetA: Asset;
+  assetB: Asset;
+  openPriceA: number;
+  closePriceA: number;
+  openPriceB: number;
+  closePriceB: number;
+  openTime: number;
+  closeTime: number;
+  profitPercent: number;
+  reason: string;
+};
+
+const backtestTimeStart = dayjs('2025-05-31T00:00:00Z');
+const backtestTimeEnd = backtestTimeStart.add(12, 'hour');
+
+const backtestTimeStartTimestamp = backtestTimeStart.valueOf();
+const backtestTimeEndTimestamp = backtestTimeEnd.valueOf();
+
+const TIMEFRAME = '1m';
+const SYMBOLS = ['ARUSDT', 'LUNCUSDT', 'MTLUSDT', 'REDUSDT', 'BTTCUSDT'];
+
+const loadTrades = measureTime('Загрузка сделок из Binance', async (symbols: string[]) => {
+  await Trade.sync();
+
   const BATCH_SIZE = 1000;
 
   const binanceHttpClient = BinanceHTTPClient.getInstance();
-
-  await Trade.sync();
 
   await Promise.all(
     symbols.map(async (symbol) => {
       let lastTradeId: number | undefined;
       let symbolTrades: TTrade[] = [];
 
-      // Проверяем, есть ли уже сделки для этого символа в базе за нужный период (окрестности обеих границ)
-      // Считаем, что сделки есть, если есть хотя бы одна сделка в пределах 1 минуты от начала и конца периода
       const BORDER_WINDOW_MS = 60 * 1000; // 1 минута
 
       const [startBorderTrade, endBorderTrade] = await Promise.all([
@@ -39,8 +68,8 @@ export const loadTrades = async (symbols: string[]) => {
           where: {
             symbol,
             timestamp: {
-              [Op.gte]: backtestTimeStart,
-              [Op.lte]: backtestTimeStart + BORDER_WINDOW_MS,
+              [Op.gte]: backtestTimeStartTimestamp,
+              [Op.lte]: backtestTimeStartTimestamp + BORDER_WINDOW_MS,
             },
           },
         }),
@@ -48,15 +77,14 @@ export const loadTrades = async (symbols: string[]) => {
           where: {
             symbol,
             timestamp: {
-              [Op.gte]: backtestTimeEnd - BORDER_WINDOW_MS,
-              [Op.lte]: backtestTimeEnd,
+              [Op.gte]: backtestTimeEndTimestamp - BORDER_WINDOW_MS,
+              [Op.lte]: backtestTimeEndTimestamp,
             },
           },
         }),
       ]);
 
       if (startBorderTrade && endBorderTrade) {
-        console.log(`Сделки для ${symbol} есть в базе`);
         return;
       }
 
@@ -65,11 +93,11 @@ export const loadTrades = async (symbols: string[]) => {
         if (lastTradeId) {
           params.fromId = lastTradeId;
         } else {
-          params.startTime = backtestTimeStart;
+          params.startTime = backtestTimeStartTimestamp;
         }
         const batchTrades = await binanceHttpClient.fetchAssetTrades(symbol, BATCH_SIZE, params);
         const batchTradesFiltered = batchTrades.filter(
-          (trade) => trade.timestamp <= backtestTimeEnd,
+          (trade) => trade.timestamp <= backtestTimeEndTimestamp,
         );
 
         symbolTrades = [...symbolTrades, ...batchTradesFiltered];
@@ -81,47 +109,132 @@ export const loadTrades = async (symbols: string[]) => {
         lastTradeId = batchTradesFiltered[batchTradesFiltered.length - 1].tradeId;
       }
 
-      console.log(`Загружено сделок для ${symbol}: ${symbolTrades.length}`);
-
       return Trade.bulkCreate(symbolTrades, { ignoreDuplicates: true });
     }),
   );
+});
+
+const loadCandles = measureTime(
+  'Загрузка свечей из Binance',
+  async (symbols: string[], timeframe: TTimeframe) => {
+    await Candle.sync();
+
+    const binanceHttpClient = BinanceHTTPClient.getInstance();
+
+    await Promise.all(
+      symbols.map(async (symbol) => {
+        const candles = await binanceHttpClient.fetchAssetCandles(
+          symbol,
+          timeframe,
+          1000,
+          undefined,
+          backtestTimeStartTimestamp,
+        );
+
+        const candlesWithMetadata: (TCandle & { symbol: string; timeframe: string })[] =
+          candles.map((candle) => ({
+            ...candle,
+            symbol,
+            timeframe,
+          }));
+
+        return Candle.bulkCreate(candlesWithMetadata, { ignoreDuplicates: true });
+      }),
+    );
+  },
+);
+
+const buildAssetsCache = measureTime('Построение кеша активов', async () => {
+  const cache = new Map<string, Asset>();
+  const assets = await Asset.findAll({
+    where: { symbol: { [Op.in]: SYMBOLS } },
+  });
+  assets.forEach((asset) => cache.set(asset.symbol, asset));
+
+  return cache;
+});
+
+const buildTradesCache = measureTime('Построение кеша сделок', async () => {
+  const cache = new Map<string, Trade[]>();
+  const symbolTrades = await Promise.all(
+    SYMBOLS.map(async (symbol) => ({
+      symbol,
+      trades: await Trade.findAll({
+        where: {
+          symbol,
+          timestamp: {
+            [Op.gte]: backtestTimeStartTimestamp,
+            [Op.lte]: backtestTimeEndTimestamp,
+          },
+        },
+        order: [['timestamp', 'ASC']],
+      }),
+    })),
+  );
+
+  symbolTrades.forEach(({ symbol, trades }) => cache.set(symbol, trades));
+
+  return cache;
+});
+
+const saveCompleteTrades = measureTime(
+  'Сохранение сделок',
+  async (completeTrades: TCompleteTrade[]) => {
+    const dataDir = path.resolve(process.cwd(), 'data', 'backtest');
+    const fileName = `report_${backtestTimeStart.toISOString()}_${backtestTimeEnd.toISOString()}.json`;
+    const filePath = path.join(dataDir, fileName);
+
+    const sortedTrades = R.pipe(
+      completeTrades,
+      R.map((trade) => ({
+        ...trade,
+        assetA: trade.assetA.symbol,
+        assetB: trade.assetB.symbol,
+      })),
+      R.sortBy(R.prop('profitPercent')),
+    );
+
+    await fs.writeFile(filePath, JSON.stringify(sortedTrades, null, 2), 'utf8');
+
+    return filePath;
+  },
+);
+
+const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
+  const trades: Trade[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < assetATrades.length && j < assetBTrades.length) {
+    if (assetATrades[i].timestamp <= assetBTrades[j].timestamp) {
+      trades.push(assetATrades[i]);
+      i++;
+    } else {
+      trades.push(assetBTrades[j]);
+      j++;
+    }
+  }
+  while (i < assetATrades.length) {
+    trades.push(assetATrades[i]);
+    i++;
+  }
+  while (j < assetBTrades.length) {
+    trades.push(assetBTrades[j]);
+    j++;
+  }
+
+  return trades;
 };
 
 (async () => {
   const timeEnvironment: TTimeEnvironment = {
-    currentTime: backtestTimeStart,
+    currentTime: backtestTimeStartTimestamp,
   };
 
-  const SYMBOLS = [
-    'WOOUSDT',
-    'ACHUSDT',
-    '1INCHUSDT',
-    'STRKUSDT',
-    'UNIUSDT',
-    'INJUSDT',
-    'GALAUSDT',
-    'XAIUSDT',
-    'RAREUSDT',
-    'PORTALUSDT',
-    'GRTUSDT',
-    'VELODROMEUSDT',
-    'ETCUSDT',
-    'AXSUSDT',
-    'APTUSDT',
-    'ZROUSDT',
-    'ARBUSDT',
-    'AEVOUSDT',
-    'DOGEUSDT',
-    'BONKUSDT',
-    'ALPHAUSDT',
-    'ACTUSDT',
-    'SEIUSDT',
-    'CKBUSDT',
-    'ALGOUSDT',
-    'MKRUSDT',
-    'JUPUSDT',
-  ];
+  await loadTrades(SYMBOLS);
+  await loadCandles(SYMBOLS, TIMEFRAME);
+
+  const assetsCache = await buildAssetsCache();
+  const tradesCache = await buildTradesCache();
 
   const processedPairs = {
     pairsMap: new Map<string, number>(),
@@ -144,221 +257,161 @@ export const loadTrades = async (symbols: string[]) => {
     },
   };
 
-  await loadTrades(SYMBOLS);
+  const backtestCompleteTrades = await measureTime('Расчёт сделок', async () => {
+    const completeTrades: TCompleteTrade[] = [];
 
-  const tradesReport: Array<{
-    position: 'long-short' | 'short-long';
-    assetA: Asset;
-    assetB: Asset;
-    openPriceA: number;
-    closePriceA: number;
-    openPriceB: number;
-    closePriceB: number;
-    openTime: number;
-    closeTime: number;
-  }> = [];
+    for (const symbolA of SYMBOLS) {
+      const assetA = assetsCache.get(symbolA)!;
+      const assetATrades = tradesCache.get(symbolA) ?? [];
 
-  for (const symbolA of SYMBOLS) {
-    const assetA = await Asset.findOne({ where: { symbol: symbolA } });
+      for (const symbolB of SYMBOLS) {
+        const assetB = assetsCache.get(symbolB)!;
 
-    if (!assetA) {
-      console.log(`Актив ${symbolA} не найден`);
-      continue;
-    }
+        if (symbolA === symbolB) continue;
+        if (!processedPairs.checkPair(symbolA, symbolB)) continue;
 
-    for (const symbolB of SYMBOLS) {
-      const assetB = await Asset.findOne({ where: { symbol: symbolB } });
+        processedPairs.setPairProcessed(symbolA, symbolB);
 
-      if (!assetB) {
-        console.log(`Актив ${symbolB} не найден`);
-        continue;
-      }
+        timeEnvironment.currentTime = backtestTimeStartTimestamp;
 
-      if (symbolA === symbolB) {
-        continue;
-      }
+        const dataProvider = new FakeDataProvider(timeEnvironment);
+        const streamDataProvider = new FakeStreamDataProvider();
 
-      if (!processedPairs.checkPair(symbolA, symbolB)) {
-        continue;
-      }
+        const strategy = new MeanReversionStrategy(symbolA, symbolB, TIMEFRAME, {
+          dataProvider,
+          streamDataProvider,
+        });
 
-      processedPairs.setPairProcessed(symbolA, symbolB);
+        let openTrade: TOpenTrade | null = null;
 
-      timeEnvironment.currentTime = backtestTimeStart;
-
-      const dateTimeProvider = new FakeDateTimeProvider(timeEnvironment);
-      const dataProvider = new FakeDataProvider(timeEnvironment);
-      const streamDataProvider = new FakeStreamDataProvider();
-
-      const strategy = new MeanReversionStrategy(symbolA, symbolB, '1m', {
-        dateTimeProvider,
-        dataProvider,
-        streamDataProvider,
-      });
-
-      let openTradeInfo: null | {
-        position: 'long-short' | 'short-long';
-        openPriceA: number;
-        openPriceB: number;
-        openTime: number;
-      } = null;
-
-      strategy.on('signal', (signal: TSignal) => {
-        switch (signal.type) {
-          case 'open':
-            openTradeInfo = {
-              position: signal.position,
-              openTime: timeEnvironment.currentTime,
-              openPriceA: signal.symbolA.price,
-              openPriceB: signal.symbolB.price,
-            };
-            strategy.positionEnterAccepted(signal.position);
-            break;
-          case 'close':
-            if (openTradeInfo) {
-              if (timeEnvironment.currentTime - openTradeInfo.openTime < 5 * 1000) {
+        strategy.on('signal', (signal: TSignal) => {
+          switch (signal.type) {
+            case 'open':
+              openTrade = {
+                direction: signal.direction,
+                openTime: timeEnvironment.currentTime,
+                openPriceA: signal.symbolA.price,
+                openPriceB: signal.symbolB.price,
+              };
+              strategy.positionEnterAccepted(signal);
+              break;
+            case 'close':
+            case 'stopLoss':
+              if (!openTrade) {
                 strategy.positionExitRejected();
                 return;
               }
 
-              tradesReport.push({
+              if (timeEnvironment.currentTime - openTrade.openTime < 5 * 1000) {
+                strategy.positionExitRejected();
+                return;
+              }
+
+              let profit = 0;
+              if (openTrade.direction === 'buy-sell') {
+                profit =
+                  signal.symbolA.price -
+                  openTrade.openPriceA +
+                  (openTrade.openPriceB - signal.symbolB.price);
+              } else {
+                profit =
+                  openTrade.openPriceA -
+                  signal.symbolA.price +
+                  (signal.symbolB.price - openTrade.openPriceB);
+              }
+
+              const tradesCount = 4;
+              const positionDurationInHours = Math.ceil(
+                (timeEnvironment.currentTime - openTrade.openTime) / 3600,
+              );
+
+              const base = Math.abs(openTrade.openPriceA) + Math.abs(openTrade.openPriceB);
+              const profitPercent =
+                (profit / base -
+                  tradesCount * OPEN_POSITION_COMMISSION_RATE -
+                  positionDurationInHours * MARGIN_HOUR_COMMISSION_RATE) *
+                100;
+
+              completeTrades.push({
                 assetA,
                 assetB,
-                position: openTradeInfo.position,
-                openTime: openTradeInfo.openTime,
+                direction: openTrade.direction,
+                openTime: openTrade.openTime,
                 closeTime: timeEnvironment.currentTime,
-                openPriceA: openTradeInfo.openPriceA,
+                openPriceA: openTrade.openPriceA,
                 closePriceA: signal.symbolA.price,
-                openPriceB: openTradeInfo.openPriceB,
+                openPriceB: openTrade.openPriceB,
                 closePriceB: signal.symbolB.price,
+                profitPercent,
+                reason: signal.reason,
               });
-            }
-            openTradeInfo = null;
-            strategy.positionExitAccepted();
-            break;
+              openTrade = null;
+              strategy.positionExitAccepted();
+              break;
+          }
+        });
+
+        const assetBTrades = tradesCache.get(symbolB) ?? [];
+
+        await strategy.start();
+
+        const allTrades = mergeTrades(assetATrades, assetBTrades);
+
+        for (const trade of allTrades) {
+          if (trade.timestamp >= timeEnvironment.currentTime) {
+            timeEnvironment.currentTime = trade.timestamp;
+
+            const binanceTrade: TBinanceTrade = {
+              e: 'trade',
+              E: trade.timestamp,
+              s: trade.symbol,
+              t: trade.tradeId,
+              p: trade.price.toString(),
+              q: trade.quantity.toString(),
+              b: trade.firstTradeId,
+              a: trade.lastTradeId,
+              T: trade.timestamp,
+              m: trade.isBuyerMaker,
+              M: false,
+            };
+
+            streamDataProvider.emit('trade', binanceTrade);
+          }
         }
-      });
 
-      const allTrades = await Trade.findAll({
-        where: {
-          symbol: { [Op.in]: [symbolA, symbolB] },
-          timestamp: { [Op.gte]: backtestTimeStart },
-        },
-        order: [['timestamp', 'ASC']],
-      });
+        // Не открывать сделку на последнем трейде
+        // Закрыть сделку если она открыта
 
-      await strategy.start();
-
-      for (const trade of allTrades) {
-        if (trade.timestamp >= timeEnvironment.currentTime) {
-          timeEnvironment.currentTime = trade.timestamp;
-
-          const binanceTrade: TBinanceTrade = {
-            e: 'trade',
-            E: trade.timestamp,
-            s: trade.symbol,
-            t: trade.tradeId,
-            p: trade.price.toString(),
-            q: trade.quantity.toString(),
-            b: trade.firstTradeId,
-            a: trade.lastTradeId,
-            T: trade.timestamp,
-            m: trade.isBuyerMaker,
-            M: false,
-          };
-
-          streamDataProvider.emit('trade', binanceTrade);
-        }
+        strategy.stop();
       }
 
-      strategy.stop();
+      console.log(`Обработан актив ${symbolA}`);
     }
-  }
 
-  const allCsvRows = [
-    [
-      'Пара',
-      '№',
-      'Позиция',
-      'A (открытие → закрытие)',
-      'B (открытие → закрытие)',
-      'Открытие',
-      'Закрытие',
-      'Прибыль %',
-    ].join(','),
-  ];
+    return completeTrades;
+  })();
 
-  if (tradesReport.length > 1) {
-    const dataDir = path.resolve(process.cwd(), 'data');
-    const fileName = `backtest-report-all-pairs.csv`;
-    const filePath = path.join(dataDir, fileName);
-
-    const tradesReportWithProfit = R.pipe(
-      tradesReport,
-      R.map((trade) => {
-        let profit = 0;
-
-        if (trade.position === 'long-short') {
-          profit = trade.closePriceA - trade.openPriceA + (trade.openPriceB - trade.closePriceB);
-        } else {
-          profit = trade.openPriceA - trade.closePriceA + (trade.closePriceB - trade.openPriceB);
-        }
-
-        const tradesCount = 4;
-        const positionDurationInHours = Math.ceil((trade.closeTime - trade.openTime) / 3600);
-
-        const base = Math.abs(trade.openPriceA) + Math.abs(trade.openPriceB);
-        const profitPercent =
-          (profit / base -
-            tradesCount * OPEN_POSITION_COMMISSION_RATE -
-            positionDurationInHours * MARGIN_HOUR_COMMISSION_RATE) *
-          100;
-
-        return {
-          ...trade,
-          profitPercent,
-        };
-      }),
-      R.sortBy(R.prop('profitPercent')),
+  if (backtestCompleteTrades.length > 0) {
+    const tradesCount = backtestCompleteTrades.length;
+    const totalProfitPercent = backtestCompleteTrades.reduce(
+      (acc, trade) => acc + trade.profitPercent,
+      0,
     );
+    const averageProfitPercent = totalProfitPercent / tradesCount;
+    const averageTradesDurationInMinutes =
+      backtestCompleteTrades.reduce(
+        (acc, trade) => acc + (trade.closeTime - trade.openTime) / 60000,
+        0,
+      ) / tradesCount;
 
-    R.pipe(
-      tradesReportWithProfit,
-      R.forEach((trade, idx) => {
-        const openTimeStr = new Date(trade.openTime).toISOString();
-        const closeTimeStr = new Date(trade.closeTime).toISOString();
+    console.log(`
+        Отчёт за период ${backtestTimeStart.toISOString()} → ${backtestTimeEnd.toISOString()}:
+        Общее количество сделок: ${tradesCount}. 
+        Средняя прибыль: ${averageProfitPercent.toFixed(2)}%. 
+        Средняя продолжительность: ${averageTradesDurationInMinutes.toFixed(2)} минут.\n`);
 
-        allCsvRows.push(
-          [
-            `${trade.assetA.symbol}/${trade.assetB.symbol}`,
-            idx + 1,
-            trade.position,
-            `${trade.openPriceA.toFixed(trade.assetA.pricePrecision)} → ${trade.closePriceA.toFixed(trade.assetA.pricePrecision)}`,
-            `${trade.openPriceB.toFixed(trade.assetB.pricePrecision)} → ${trade.closePriceB.toFixed(trade.assetB.pricePrecision)}`,
-            openTimeStr,
-            closeTimeStr,
-            trade.profitPercent.toFixed(3),
-          ].join(','),
-        );
-      }),
-    );
-
-    const totalProfitPercent = R.pipe(
-      tradesReportWithProfit,
-      R.reduce((acc, item) => acc + item.profitPercent, 0),
-    );
-
-    console.log(
-      `Сделки: ${tradesReportWithProfit.length}, Среднее время сделки: ${R.pipe(
-        tradesReportWithProfit,
-        R.map((trade) => (trade.closeTime - trade.openTime) / 1000 / 60),
-        R.meanBy((x) => x),
-        R.round(2),
-      )}m, Средняя прибыль: ${(totalProfitPercent / tradesReportWithProfit.length).toFixed(3)}%`,
-    );
-
-    await fs.writeFile(filePath, allCsvRows.join('\n'), 'utf8');
-    console.log(`CSV-отчёт по всем парам сохранён: ${filePath}`);
+    const reportFilePath = await saveCompleteTrades(backtestCompleteTrades);
+    console.log(`Сделки сохранены в ${reportFilePath}`);
   } else {
     console.log('Нет сделок ни по одной паре');
   }

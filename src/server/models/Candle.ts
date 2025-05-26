@@ -14,15 +14,15 @@ interface CandleAttributes {
   timeframe: string;
   openTime: number;
   closeTime: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
   numberOfTrades: number;
-  volume: number;
-  quoteAssetVolume: number;
-  takerBuyBaseAssetVolume: number;
-  takerBuyQuoteAssetVolume: number;
+  volume: string;
+  quoteAssetVolume: string;
+  takerBuyBaseAssetVolume: string;
+  takerBuyQuoteAssetVolume: string;
 }
 
 type CandleCreationAttributes = Optional<CandleAttributes, 'id'>;
@@ -36,15 +36,15 @@ export class Candle
   public timeframe!: string;
   public openTime!: number;
   public closeTime!: number;
-  public open!: number;
-  public high!: number;
-  public low!: number;
-  public close!: number;
+  public open!: string;
+  public high!: string;
+  public low!: string;
+  public close!: string;
   public numberOfTrades!: number;
-  public volume!: number;
-  public quoteAssetVolume!: number;
-  public takerBuyBaseAssetVolume!: number;
-  public takerBuyQuoteAssetVolume!: number;
+  public volume!: string;
+  public quoteAssetVolume!: string;
+  public takerBuyBaseAssetVolume!: string;
+  public takerBuyQuoteAssetVolume!: string;
 }
 
 Candle.init(
@@ -71,19 +71,19 @@ Candle.init(
       allowNull: false,
     },
     open: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     high: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     low: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     close: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     numberOfTrades: {
@@ -91,19 +91,19 @@ Candle.init(
       allowNull: false,
     },
     volume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     quoteAssetVolume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     takerBuyBaseAssetVolume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     takerBuyQuoteAssetVolume: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
   },

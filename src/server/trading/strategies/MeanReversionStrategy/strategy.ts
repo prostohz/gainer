@@ -1,17 +1,19 @@
 import EventEmitter from 'events';
+import * as R from 'remeda';
 
 import { TTimeframe } from '../../../../shared/types';
 import { timeframeToMilliseconds } from '../../../utils/timeframe';
 import { TCandle } from '../../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
-import { ZScore } from '../../indicators/ZScore/ZScore';
 import { PearsonCorrelation } from '../../indicators/PearsonCorrelation/PearsonCorrelation';
-import { Sma } from '../../indicators/Sma/Sma';
-import { TEnvironment, TDateTimeProvider, TDataProvider, TStreamDataProvider } from '../types';
+import { ZScore } from '../../indicators/ZScore/ZScore';
+import { ADX } from '../../indicators/ADX/ADX';
+import { TEnvironment, TDataProvider, TStreamDataProvider } from '../types';
+import { TIndicatorCandle } from '../../indicators/types';
 
-type TSignalType = 'open' | 'close' | 'invalidateEntry' | 'stopLoss';
-type TPositionType = 'long-short' | 'short-long';
+export type TPositionDirection = 'buy-sell' | 'sell-buy';
 type TActionType = 'buy' | 'sell';
+type TSignalType = 'open' | 'close' | 'stopLoss';
 
 type TSignalSymbol = {
   symbol: string;
@@ -26,31 +28,34 @@ type TBaseSignal = {
 
 type TOpenSignal = TBaseSignal & {
   type: 'open';
-  position: TPositionType;
+  direction: TPositionDirection;
   symbolA: TSignalSymbol;
   symbolB: TSignalSymbol;
 };
 
 type TCloseSignal = TBaseSignal & {
   type: 'close';
-  position: TPositionType;
+  direction: TPositionDirection;
   symbolA: TSignalSymbol;
   symbolB: TSignalSymbol;
 };
 
-export type TSignal = TOpenSignal | TCloseSignal;
+type TStopLossSignal = TBaseSignal & {
+  type: 'stopLoss';
+  direction: TPositionDirection;
+  symbolA: TSignalSymbol;
+  symbolB: TSignalSymbol;
+};
 
-type TPositionState =
+export type TSignal = TOpenSignal | TCloseSignal | TStopLossSignal;
+
+type TState =
   | 'scanningForEntry' // Сканирование для возможности выставить прямую сделку
   | 'waitingForEntry' // Ожидание выставления прямой сделки
   | 'scanningForExit' // Сканирование для возможности выставить обратную сделку
   | 'waitingForExit'; // Ожидание выставления обратной сделки
 
 export class MeanReversionStrategy extends EventEmitter {
-  private readonly zScore: ZScore;
-  private readonly pearsonCorrelation: PearsonCorrelation;
-  private readonly sma: Sma;
-  private readonly dateTimeProvider: TDateTimeProvider;
   private readonly dataProvider: TDataProvider;
   private readonly streamDataProvider: TStreamDataProvider;
 
@@ -59,16 +64,32 @@ export class MeanReversionStrategy extends EventEmitter {
   private readonly symbolB: string;
   private readonly timeframe: TTimeframe;
 
+  private readonly pearsonCorrelation: PearsonCorrelation;
+  private readonly zScore: ZScore;
+  private readonly adx: ADX;
+
   // Параметры стратегии
   private readonly CANDLES_COUNT = 100;
-  private readonly Z_SCORE_ENTRY = 3.0;
+  private readonly Z_SCORE_ENTRY = 2.0;
   private readonly Z_SCORE_EXIT = 0.5;
+  private readonly Z_SCORE_STOP_LOSS = 4.0;
+  private readonly STOP_LOSS_RATE = 0.01;
 
-  private currentPosition: TPositionType | null = null;
-  private positionState: TPositionState = 'scanningForEntry';
+  private readonly CORRELATION_THRESHOLD = 0.9;
 
-  private candlesA: TCandle[] = [];
-  private candlesB: TCandle[] = [];
+  // Параметры ADX для защиты от трендов
+  private readonly ADX_TREND_THRESHOLD = 25; // Минимальный ADX для определения тренда
+  private readonly ADX_STRONG_TREND_THRESHOLD = 40; // Сильный тренд - не входим в сделку
+
+  private state: TState = 'scanningForEntry';
+
+  private candlesA: TIndicatorCandle[] = [];
+  private candlesB: TIndicatorCandle[] = [];
+
+  private position: TOpenSignal | null = null;
+
+  private readonly ANALYSIS_THROTTLE_MS = 1_000; // Анализ раз в секунду
+  private lastAnalysisTime = 0;
 
   constructor(symbolA: string, symbolB: string, timeframe: TTimeframe, environment: TEnvironment) {
     super();
@@ -76,13 +97,24 @@ export class MeanReversionStrategy extends EventEmitter {
     this.symbolB = symbolB;
     this.timeframe = timeframe;
 
-    this.zScore = new ZScore();
     this.pearsonCorrelation = new PearsonCorrelation();
-    this.sma = new Sma();
+    this.zScore = new ZScore();
+    this.adx = new ADX();
 
-    this.dateTimeProvider = environment.dateTimeProvider;
     this.dataProvider = environment.dataProvider;
     this.streamDataProvider = environment.streamDataProvider;
+  }
+
+  private formatCandle(candles: TCandle[]): TIndicatorCandle[] {
+    return candles.map((candle) => ({
+      openTime: candle.openTime,
+      closeTime: candle.closeTime,
+      open: Number(candle.open),
+      high: Number(candle.high),
+      low: Number(candle.low),
+      close: Number(candle.close),
+      volume: Number(candle.volume),
+    }));
   }
 
   private async updateHistoricalCandles(): Promise<void> {
@@ -96,8 +128,8 @@ export class MeanReversionStrategy extends EventEmitter {
         throw new Error('Нет свечей для стратегии');
       }
 
-      this.candlesA = newCandlesA;
-      this.candlesB = newCandlesB;
+      this.candlesA = this.formatCandle(newCandlesA);
+      this.candlesB = this.formatCandle(newCandlesB);
     } catch (error) {
       console.error('Ошибка при обновлении исторических данных:', error);
     }
@@ -111,13 +143,14 @@ export class MeanReversionStrategy extends EventEmitter {
     }
 
     const lastCandle = candles[candles.length - 1];
-    const price = Number(trade.p);
+    const price = trade.p;
+    const priceNumber = Number(price);
 
     // Если trade попадает в текущую свечу — обновляем её
     if (trade.T <= lastCandle.closeTime) {
-      lastCandle.close = price;
-      lastCandle.high = Math.max(lastCandle.high, price);
-      lastCandle.low = Math.min(lastCandle.low, price);
+      lastCandle.close = priceNumber;
+      lastCandle.high = Math.max(lastCandle.high, priceNumber);
+      lastCandle.low = Math.min(lastCandle.low, priceNumber);
     } else {
       // Если trade относится к новому бару — создаём новую свечу
       // Предполагаем, что openTime следующей свечи = lastCandle.closeTime + 1
@@ -125,18 +158,14 @@ export class MeanReversionStrategy extends EventEmitter {
       const newOpenTime = lastCandle.closeTime + 1;
       const newCloseTime = newOpenTime + timeframeMs - 1;
 
-      const newCandle: TCandle = {
+      const newCandle: TIndicatorCandle = {
         openTime: newOpenTime,
         closeTime: newCloseTime,
-        open: price,
-        high: price,
-        low: price,
-        close: price,
-        numberOfTrades: 1,
+        open: priceNumber,
+        high: priceNumber,
+        low: priceNumber,
+        close: priceNumber,
         volume: 0,
-        quoteAssetVolume: 0,
-        takerBuyBaseAssetVolume: 0,
-        takerBuyQuoteAssetVolume: 0,
       };
 
       candles.push(newCandle);
@@ -156,32 +185,95 @@ export class MeanReversionStrategy extends EventEmitter {
 
       this.updateLastCandle(trade);
 
-      // Анализируем сигналы в зависимости от состояния
-      switch (this.positionState) {
-        case 'scanningForEntry':
-          this.analyzeScanningForEntry();
-          break;
-        case 'waitingForEntry':
-          this.analyzeWaitingForEntry();
-          break;
-        case 'scanningForExit':
-          this.analyzeScanningForExit();
-          break;
-        case 'waitingForExit':
-          this.analyzeWaitingForExit();
-          break;
+      // Throttling анализа
+      const tradeTime = trade.T;
+      if (tradeTime - this.lastAnalysisTime >= this.ANALYSIS_THROTTLE_MS) {
+        this.performAnalysis();
+        this.lastAnalysisTime = tradeTime;
       }
     } catch (error) {
       console.error('Ошибка при обработке обновления цены:', error);
     }
   };
 
-  private analyzeScanningForEntry(): void {
-    const correlation = this.pearsonCorrelation.calculateCorrelation(this.candlesA, this.candlesB);
-    if (correlation < 0.8) {
-      return;
+  private performAnalysis(): void {
+    switch (this.state) {
+      case 'scanningForEntry':
+        this.analyzeScanningForEntry();
+        break;
+      case 'waitingForEntry':
+        this.analyzeWaitingForEntry();
+        break;
+      case 'scanningForExit':
+        this.analyzeScanningForExit();
+        break;
+      case 'waitingForExit':
+        this.analyzeWaitingForExit();
+        break;
+    }
+  }
+
+  /**
+   * Проверяет наличие подходящего тренда с помощью ADX
+   * Возвращает true, если тренд подходит для входа в mean reversion сделку
+   */
+  private hasAcceptableTrend(): boolean {
+    if (this.candlesA.length < 30 || this.candlesB.length < 30) {
+      return true; // Недостаточно данных для ADX - разрешаем торговлю
     }
 
+    // Конвертируем свечи в формат для ADX
+    const convertToIndicatorCandles = (candles: TIndicatorCandle[]) =>
+      R.pipe(
+        candles,
+        R.map(R.pick(['openTime', 'closeTime', 'open', 'close', 'high', 'low', 'volume'])),
+      );
+
+    const adxDataA = this.adx.calculateFullADX(convertToIndicatorCandles(this.candlesA));
+    const adxDataB = this.adx.calculateFullADX(convertToIndicatorCandles(this.candlesB));
+
+    // Если не можем рассчитать ADX, разрешаем торговлю
+    if (!adxDataA.adx || !adxDataB.adx) {
+      return true;
+    }
+
+    // Проверяем силу тренда на обоих активах
+    const strongTrendA = adxDataA.adx > this.ADX_STRONG_TREND_THRESHOLD;
+    const strongTrendB = adxDataB.adx > this.ADX_STRONG_TREND_THRESHOLD;
+
+    // Если на любом из активов сильный тренд, не входим в сделку
+    if (strongTrendA || strongTrendB) {
+      return false;
+    }
+
+    // Дополнительная проверка: если тренды умеренные, проверяем направление
+    if (
+      (adxDataA.adx > this.ADX_TREND_THRESHOLD || adxDataB.adx > this.ADX_TREND_THRESHOLD) &&
+      typeof adxDataA.diPlus === 'number' &&
+      typeof adxDataA.diMinus === 'number' &&
+      typeof adxDataB.diPlus === 'number' &&
+      typeof adxDataB.diMinus === 'number'
+    ) {
+      const trendDirectionA = this.adx.getTrendDirection(adxDataA.diPlus, adxDataA.diMinus);
+      const trendDirectionB = this.adx.getTrendDirection(adxDataB.diPlus, adxDataB.diMinus);
+
+      // Не торгуем если тренды в одном направлении и не боковые
+      if (trendDirectionA === trendDirectionB && trendDirectionA !== 'sideways') {
+        return false;
+      }
+    }
+
+    // Если дошли до сюда - тренд подходит для mean reversion
+    return true;
+  }
+
+  private hasAcceptableCorrelation(): boolean {
+    const correlation = this.pearsonCorrelation.correlationByPrices(this.candlesA, this.candlesB);
+
+    return correlation > this.CORRELATION_THRESHOLD;
+  }
+
+  private analyzeScanningForEntry(): void {
     const lastCandleA = this.candlesA.at(-1);
     const lastCandleB = this.candlesB.at(-1);
 
@@ -192,122 +284,180 @@ export class MeanReversionStrategy extends EventEmitter {
     const lastCloseA = lastCandleA.close;
     const lastCloseB = lastCandleB.close;
 
-    const zScore = this.zScore.calculateZScore(this.candlesA, this.candlesB);
-
-    // Проверяем наличие тренда на одном из активов с помощью SMA
-    // Если на одном из активов выраженный тренд, не входим в сделку
-
-    // Определяем длину окна для SMA (например, 20 последних свечей)
-    const SMA_WINDOW = 20;
-    if (this.candlesA.length >= SMA_WINDOW && this.candlesB.length >= SMA_WINDOW) {
-      const smaA = this.sma.calculateSMA(this.candlesA.slice(-SMA_WINDOW));
-      const smaB = this.sma.calculateSMA(this.candlesB.slice(-SMA_WINDOW));
-
-      // Проверяем, насколько сильно отличается цена закрытия от SMA
-      // Если разница больше 1% — считаем, что есть тренд
-      const trendThreshold = 0.01;
-
-      const deviationA = Math.abs(lastCloseA - (smaA ?? lastCloseA)) / (smaA ?? 1);
-      const deviationB = Math.abs(lastCloseB - (smaB ?? lastCloseB)) / (smaB ?? 1);
-
-      if (deviationA > trendThreshold || deviationB > trendThreshold) {
-        // Есть тренд на одном из активов — не входим
-        return;
-      }
+    // Проверяем наличие подходящего тренда с помощью ADX
+    if (!this.hasAcceptableTrend()) {
+      return; // Не входим в сделку при не подходящем тренде
     }
+
+    if (!this.hasAcceptableCorrelation()) {
+      return; // Не входим в сделку при не подходящей корреляции
+    }
+
+    const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
 
     if (zScore >= this.Z_SCORE_ENTRY) {
       // Сигнал на открытие: Short A / Long B
       this.emit('signal', {
         type: 'open',
-        position: 'short-long',
+        direction: 'sell-buy',
         symbolA: { symbol: this.symbolA, action: 'sell', price: lastCloseA },
         symbolB: { symbol: this.symbolB, action: 'buy', price: lastCloseB },
         reason: `High Z-score: ${zScore.toFixed(2)}`,
       } as TOpenSignal);
 
-      this.positionState = 'waitingForEntry';
+      this.state = 'waitingForEntry';
     } else if (zScore <= -this.Z_SCORE_ENTRY) {
       // Сигнал на открытие: Long A / Short B
       this.emit('signal', {
         type: 'open',
-        position: 'long-short',
+        direction: 'buy-sell',
         symbolA: { symbol: this.symbolA, action: 'buy', price: lastCloseA },
         symbolB: { symbol: this.symbolB, action: 'sell', price: lastCloseB },
         reason: `Low Z-score: ${zScore.toFixed(2)}`,
       } as TOpenSignal);
 
-      this.positionState = 'waitingForEntry';
+      this.state = 'waitingForEntry';
     }
   }
 
   private analyzeWaitingForEntry(): void {
-    if (this.currentPosition) {
-      this.positionState = 'scanningForExit';
+    if (this.position) {
+      this.state = 'scanningForExit';
     }
   }
 
   private analyzeScanningForExit(): void {
-    const zScore = this.zScore.calculateZScore(this.candlesA, this.candlesB);
+    if (!this.position) {
+      throw new Error('No position');
+    }
 
     const lastCandleA = this.candlesA.at(-1);
     const lastCandleB = this.candlesB.at(-1);
-
     if (!lastCandleA || !lastCandleB) {
       return;
     }
-
     const priceA = lastCandleA.close;
     const priceB = lastCandleB.close;
 
-    const shouldClose =
-      // Закрытие по возврату к среднему
-      (this.currentPosition === 'short-long' && zScore <= this.Z_SCORE_EXIT) ||
-      (this.currentPosition === 'long-short' && zScore >= -this.Z_SCORE_EXIT);
+    const { direction } = this.position;
 
-    if (shouldClose && this.currentPosition) {
+    // Проверка на выход по стоп-лоссу по цене (STOP_LOSS_RATE)
+    const entryPriceA = this.position.symbolA.price;
+    const entryPriceB = this.position.symbolB.price;
+
+    let pnl = 0;
+    if (direction === 'sell-buy') {
+      // Short A, Long B
+      pnl = entryPriceA - priceA + (priceB - entryPriceB);
+    } else {
+      // Long A, Short B
+      pnl = priceA - entryPriceA + (entryPriceB - priceB);
+    }
+
+    const base = Math.abs(entryPriceA) + Math.abs(entryPriceB);
+    const pnlRate = pnl / base;
+
+    if (pnlRate <= -this.STOP_LOSS_RATE) {
       this.emit('signal', {
-        type: 'close',
-        position: this.currentPosition,
+        type: 'stopLoss',
+        direction: direction,
         symbolA: {
           symbol: this.symbolA,
-          action: this.currentPosition === 'short-long' ? 'buy' : 'sell',
+          action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
           symbol: this.symbolB,
-          action: this.currentPosition === 'short-long' ? 'sell' : 'buy',
+          action: direction === 'sell-buy' ? 'sell' : 'buy',
+          price: priceB,
+        },
+        reason: `Stop-loss triggered by price loss: ${(pnlRate * 100).toFixed(2)}%`,
+      } as TStopLossSignal);
+
+      this.state = 'waitingForExit';
+
+      return;
+    }
+
+    const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
+
+    // Проверка на выход по стоп-лоссу
+    const shouldZScoreStopLoss =
+      (direction === 'sell-buy' && zScore >= this.Z_SCORE_STOP_LOSS) ||
+      (direction === 'buy-sell' && zScore <= -this.Z_SCORE_STOP_LOSS);
+
+    if (shouldZScoreStopLoss) {
+      this.emit('signal', {
+        type: 'stopLoss',
+        direction: direction,
+        symbolA: {
+          symbol: this.symbolA,
+          action: direction === 'sell-buy' ? 'buy' : 'sell',
+          price: priceA,
+        },
+        symbolB: {
+          symbol: this.symbolB,
+          action: direction === 'sell-buy' ? 'sell' : 'buy',
+          price: priceB,
+        },
+        reason: `Stop-loss triggered at Z-score: ${zScore.toFixed(2)}`,
+      } as TStopLossSignal);
+
+      this.state = 'waitingForExit';
+
+      return;
+    }
+
+    // Проверка обычного выхода по возврату к среднему
+    const shouldClose =
+      (direction === 'sell-buy' && zScore <= this.Z_SCORE_EXIT) ||
+      (direction === 'buy-sell' && zScore >= -this.Z_SCORE_EXIT);
+
+    if (shouldClose) {
+      this.emit('signal', {
+        type: 'close',
+        direction: direction,
+        symbolA: {
+          symbol: this.symbolA,
+          action: direction === 'sell-buy' ? 'buy' : 'sell',
+          price: priceA,
+        },
+        symbolB: {
+          symbol: this.symbolB,
+          action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
         reason: `Z-score mean reversion: ${zScore.toFixed(2)}`,
       } as TCloseSignal);
 
-      this.positionState = 'waitingForExit';
+      this.state = 'waitingForExit';
+
+      return;
     }
   }
 
   private analyzeWaitingForExit(): void {
-    if (!this.currentPosition) {
-      this.positionState = 'scanningForEntry';
+    if (!this.position) {
+      this.state = 'scanningForEntry';
     }
   }
 
-  public positionEnterAccepted(position: TPositionType): void {
-    this.currentPosition = position;
-    this.positionState = 'scanningForExit';
+  public positionEnterAccepted(signal: TOpenSignal): void {
+    this.position = signal;
+    this.state = 'scanningForExit';
   }
 
   public positionEnterRejected(): void {
-    this.positionState = 'scanningForEntry';
+    this.state = 'scanningForEntry';
   }
 
   public positionExitAccepted(): void {
-    this.currentPosition = null;
-    this.positionState = 'scanningForEntry';
+    this.position = null;
+    this.state = 'scanningForEntry';
   }
 
   public positionExitRejected(): void {
-    this.positionState = 'scanningForExit';
+    this.state = 'scanningForExit';
   }
 
   public async start(): Promise<void> {

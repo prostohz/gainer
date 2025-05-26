@@ -1,7 +1,7 @@
 import * as R from 'remeda';
 
 import { TTimeframe } from '../../shared/types';
-import { TCandle } from '../trading/providers/Binance/BinanceHTTPClient';
+import { TIndicatorCandle } from '../trading/indicators/types';
 import { PriceLevels } from '../trading/indicators/PriceLevels/PriceLevels';
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
@@ -22,20 +22,30 @@ export const getAssetPriceLevels = async (symbol: string) => {
     }
 
     const timeframeCandles = await Promise.all(
-      TIMEFRAMES.map((timeframe) =>
-        Candle.findAll({
+      TIMEFRAMES.map(async (timeframe) => {
+        const candles = await Candle.findAll({
           where: {
             symbol: asset.symbol,
             timeframe,
           },
           limit: CANDLE_LIMIT,
-        }),
-      ),
+        });
+
+        return candles.map((candle) => ({
+          openTime: candle.openTime,
+          closeTime: candle.closeTime,
+          open: Number(candle.open),
+          high: Number(candle.high),
+          low: Number(candle.low),
+          close: Number(candle.close),
+          volume: Number(candle.volume),
+        }));
+      }),
     );
 
     const timeframeCandlesMap = R.fromEntries(R.zip(TIMEFRAMES, timeframeCandles)) as Record<
       TTimeframe,
-      TCandle[]
+      TIndicatorCandle[]
     >;
 
     const priceLevels = new PriceLevels(asset.pricePrecision);

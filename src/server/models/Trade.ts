@@ -11,8 +11,8 @@ const sequelize = new Sequelize({
 interface TradeAttributes {
   symbol: string;
   tradeId: number;
-  price: number;
-  quantity: number;
+  price: string;
+  quantity: string;
   firstTradeId: number;
   lastTradeId: number;
   timestamp: number;
@@ -28,8 +28,8 @@ export class Trade
 {
   public symbol!: string;
   public tradeId!: number;
-  public price!: number;
-  public quantity!: number;
+  public price!: string;
+  public quantity!: string;
   public firstTradeId!: number;
   public lastTradeId!: number;
   public timestamp!: number;
@@ -48,11 +48,11 @@ Trade.init(
       allowNull: false,
     },
     price: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     quantity: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     firstTradeId: {

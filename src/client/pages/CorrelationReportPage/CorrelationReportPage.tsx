@@ -1,12 +1,19 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import cn from 'classnames';
 
+import { TTimeframe } from '../../../shared/types';
 import { http } from '../../shared/http';
 import { useLSState } from '../../shared/localStorage';
-import { Clusters } from './Clusters';
+import { TimeframeSelector } from '../../widgets/TimeframeSelector';
+import { CorrelationClusters } from './CorrelationClusters';
+import { CorrelationList } from './CorrelationList';
 import { CorrelationHeatMap } from './CorrelationHeatMap';
 
 const TABS = [
+  {
+    id: 'list',
+    label: 'List',
+  },
   {
     id: 'clusters',
     label: 'Clusters',
@@ -18,15 +25,25 @@ const TABS = [
 ] as const;
 
 export const CorrelationReportPage = () => {
-  const [activeTab, setActiveTab] = useLSState<(typeof TABS)[number]['id']>('activeTab', 'heatmap');
+  const [activeTab, setActiveTab] = useLSState<(typeof TABS)[number]['id']>('activeTab', 'list');
+  const [selectedTimeFrame, setSelectedTimeFrame] = useLSState<TTimeframe>(
+    'selectedTimeFrame',
+    '1m',
+  );
 
   const { data: hasReport, isLoading } = useQuery({
-    queryKey: ['hasCorrelationReport'],
-    queryFn: () => http.get('/api/correlation/report/has').then((response) => response.data),
+    queryKey: ['hasCorrelationReport', selectedTimeFrame],
+    queryFn: () =>
+      http
+        .get('/api/correlationReport/has', { params: { timeframe: selectedTimeFrame } })
+        .then((response) => response.data),
   });
 
   const { mutate: buildReport } = useMutation({
-    mutationFn: () => http.post('/api/correlation/report/build'),
+    mutationFn: () =>
+      http.post('/api/correlationReport/build', null, {
+        params: { timeframe: selectedTimeFrame },
+      }),
   });
 
   if (isLoading) {
@@ -42,9 +59,15 @@ export const CorrelationReportPage = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Correlation Report</h1>
 
-        <button className="btn btn-sm btn-primary" onClick={() => buildReport()}>
-          {hasReport ? 'Rebuild report' : 'Build report'}
-        </button>
+        <div className="flex items-center gap-2">
+          <TimeframeSelector
+            selectedTimeFrame={selectedTimeFrame}
+            setSelectedTimeFrame={setSelectedTimeFrame}
+          />
+          <button className="btn btn-sm btn-primary" onClick={() => buildReport()}>
+            {hasReport ? 'Rebuild report' : 'Build report'}
+          </button>
+        </div>
       </div>
 
       {hasReport ? (
@@ -66,9 +89,11 @@ export const CorrelationReportPage = () => {
               </a>
             ))}
           </div>
+
           <div className="flex flex-grow bg-base-200 rounded-lg p-4">
-            {activeTab === 'clusters' && <Clusters />}
-            {activeTab === 'heatmap' && <CorrelationHeatMap />}
+            {activeTab === 'list' && <CorrelationList timeframe={selectedTimeFrame} />}
+            {activeTab === 'clusters' && <CorrelationClusters timeframe={selectedTimeFrame} />}
+            {activeTab === 'heatmap' && <CorrelationHeatMap timeframe={selectedTimeFrame} />}
           </div>
         </>
       ) : (

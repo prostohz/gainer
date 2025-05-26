@@ -1,14 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
-
-import { TCorrelationReport } from '../../../shared/types';
-import { http } from '../../shared/http';
+import { TTimeframe } from '../../../shared/types';
 import { HeatMap } from '../../widgets/HeatMap';
+import { useCorrelationReport } from '../../entities/correlationReport';
 
-export const CorrelationHeatMap = () => {
-  const { data: report, isLoading } = useQuery<TCorrelationReport>({
-    queryKey: ['correlationReport'],
-    queryFn: () => http.get('/api/correlation/report').then((response) => response.data),
-  });
+export const CorrelationHeatMap = ({ timeframe }: { timeframe: TTimeframe }) => {
+  const { report, isLoading } = useCorrelationReport(timeframe);
 
   const renderContent = () => {
     if (isLoading) {
@@ -19,7 +14,18 @@ export const CorrelationHeatMap = () => {
       return <div>No report found</div>;
     }
 
-    return <HeatMap report={report} boundaries={{ bad: 0.3, moderate: 0.6, good: 0.9 }} />;
+    return (
+      <HeatMap
+        report={report}
+        boundaries={[
+          { level: 0, color: 'bg-green-500' },
+          { level: 0.01, color: 'bg-lime-500' },
+          { level: 0.05, color: 'bg-yellow-500' },
+          { level: 0.1, color: 'bg-orange-500' },
+          { level: 0.2, color: 'bg-red-500' },
+        ]}
+      />
+    );
   };
 
   return (

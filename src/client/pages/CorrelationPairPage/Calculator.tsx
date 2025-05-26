@@ -46,11 +46,11 @@ export const Calculator = ({
 
   return (
     <div className="flex gap-2">
-      <div className="flex flex-col gap-2 flex-grow">
+      <div className="flex flex-col gap-2 flex-1">
         <FormInput label="Long Open Price" value={longOpenPrice} onChange={setLongOpenPrice} />
         <FormInput label="Long Close Price" value={longClosePrice} onChange={setLongClosePrice} />
       </div>
-      <div className="flex flex-col gap-2 flex-grow">
+      <div className="flex flex-col gap-2 flex-1">
         <FormInput label="Short Open Price" value={shortOpenPrice} onChange={setShortOpenPrice} />
         <FormInput
           label="Short Close Price"
@@ -58,7 +58,7 @@ export const Calculator = ({
           onChange={setShortClosePrice}
         />
       </div>
-      <div className="flex flex-col gap-2 self-center flex-grow">
+      <div className="flex flex-col gap-2 self-center flex-1">
         <div>Long profit: {longProfit.toFixed(2)}%</div>
         <div>Short profit: {shortProfit.toFixed(2)}%</div>
         <div>Total profit: {(longProfit + shortProfit - commission).toFixed(2)}%</div>

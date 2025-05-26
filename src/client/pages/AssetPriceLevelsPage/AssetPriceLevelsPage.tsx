@@ -5,7 +5,7 @@ import * as R from 'remeda';
 import { TTimeframe, TPriceLevels } from '../../../shared/types';
 import { Candle } from '../../../server/models/Candle';
 import { http } from '../../shared/http';
-import { Chart } from '../../widgets/Chart';
+import { CandleChart } from '../../widgets/CandleChart';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { AssetSelector } from '../../widgets/AssetSelector';
 import { useAssets } from '../../entities/assets';
@@ -65,12 +65,12 @@ export const AssetPriceLevelsPage = () => {
 
     const minPrice = R.pipe(
       assetCandles,
-      R.map((candle) => candle.low),
+      R.map((candle) => Number(candle.low)),
       R.firstBy([R.identity(), 'asc']),
     );
     const maxPrice = R.pipe(
       assetCandles,
-      R.map((candle) => candle.high),
+      R.map((candle) => Number(candle.high)),
       R.firstBy([R.identity(), 'desc']),
     );
 
@@ -84,12 +84,12 @@ export const AssetPriceLevelsPage = () => {
 
     const minPrice = R.pipe(
       assetCandles,
-      R.map((candle) => candle.low),
+      R.map((candle) => Number(candle.low)),
       R.firstBy([R.identity(), 'asc']),
     );
     const maxPrice = R.pipe(
       assetCandles,
-      R.map((candle) => candle.high),
+      R.map((candle) => Number(candle.high)),
       R.firstBy([R.identity(), 'desc']),
     );
 
@@ -124,7 +124,7 @@ export const AssetPriceLevelsPage = () => {
           {assetCandles && assetPriceLevels && asset ? (
             <>
               <div className="h-[500px] mb-6">
-                <Chart
+                <CandleChart
                   candles={assetCandles}
                   supportLevels={supportLevelsOnChart}
                   resistanceLevels={resistanceLevelsOnChart}

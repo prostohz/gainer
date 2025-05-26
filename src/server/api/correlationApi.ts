@@ -1,48 +1,9 @@
 import express, { Request, Response } from 'express';
 
 import { TTimeframe, TCorrelation } from '../../shared/types';
-import {
-  hasCorrelationReport,
-  getCorrelationReport,
-  buildCorrelationReport,
-  getCorrelationReportClusters,
-  getPairCorrelation,
-  getPairWiseZScore,
-} from '../services/correlationService';
+import { getPairCorrelation, getPairWiseZScore } from '../services/correlationService';
 
 const router = express.Router();
-
-router.get('/report/has', async (req: Request, res: Response) => {
-  const hasReport = await hasCorrelationReport();
-
-  res.json(hasReport);
-});
-
-router.get('/report', async (req: Request, res: Response) => {
-  const report = await getCorrelationReport();
-
-  res.json(report);
-});
-
-router.post('/report/build', async (req: Request, res: Response) => {
-  await buildCorrelationReport();
-
-  res.json({ message: 'Report built' });
-});
-
-router.get('/clusters', async (req: Request, res: Response) => {
-  const usdtOnly = req.query.usdtOnly === 'true';
-  const minCorrelation = Number(req.query.minCorrelation);
-  const minVolume = Number(req.query.minVolume);
-
-  const correlationReportClusters = await getCorrelationReportClusters(
-    usdtOnly,
-    minCorrelation,
-    minVolume,
-  );
-
-  res.json(correlationReportClusters);
-});
 
 router.get('/pair', async (req: Request, res: Response<TCorrelation>) => {
   const symbolA = req.query.symbolA as string;

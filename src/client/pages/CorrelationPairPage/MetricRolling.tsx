@@ -3,11 +3,11 @@ import * as d3 from 'd3';
 import * as R from 'remeda';
 
 type TProps = {
-  data: { timestamp: number; value: number }[];
+  data?: { timestamp: number; value: number }[];
   colors: Record<string, string>;
 };
 
-export const MetricRolling = ({ data, colors }: TProps) => {
+export const MetricRolling = ({ data = [], colors }: TProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const levels = R.keys(colors).map(Number);

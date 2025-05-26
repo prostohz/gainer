@@ -6,21 +6,14 @@ import { TTimeframe } from '../../../shared/types';
 import { TCandle } from '../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade, TStreamSubscription } from '../providers/Binance/BinanceStreamClient';
 import { Candle } from '../../models/Candle';
-import { TDateTimeProvider, TDataProvider, TStreamDataProvider, TTimeEnvironment } from './types';
-
-export class FakeDateTimeProvider implements TDateTimeProvider {
-  constructor(private readonly timeEnvironment: TTimeEnvironment) {
-    this.timeEnvironment = timeEnvironment;
-  }
-
-  now(): number {
-    return this.timeEnvironment.currentTime;
-  }
-}
+import { TDataProvider, TStreamDataProvider, TTimeEnvironment } from './types';
 
 export class FakeDataProvider implements TDataProvider {
+  private candleCache: Map<string, TCandle[]>;
+
   constructor(private readonly timeEnvironment: TTimeEnvironment) {
     this.timeEnvironment = timeEnvironment;
+    this.candleCache = new Map<string, TCandle[]>();
   }
 
   async fetchAssetCandles(
@@ -28,6 +21,11 @@ export class FakeDataProvider implements TDataProvider {
     timeframe: TTimeframe,
     limit: number,
   ): Promise<TCandle[]> {
+    const key = `${symbol}-${timeframe}-${limit}`;
+    if (this.candleCache.has(key)) {
+      return this.candleCache.get(key)!;
+    }
+
     const candles = await Candle.findAll({
       where: {
         symbol,
@@ -41,7 +39,9 @@ export class FakeDataProvider implements TDataProvider {
       order: [['openTime', 'DESC']],
     });
 
-    return Promise.resolve(candles.reverse());
+    this.candleCache.set(key, candles.reverse());
+
+    return this.candleCache.get(key)!;
   }
 }
 

@@ -1,21 +1,23 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { TCorrelationClusters } from '../../../shared/types';
+import { TTimeframe, TCorrelationReportClusters } from '../../../shared/types';
 import { http } from '../../shared/http';
 import { useLSState } from '../../shared/localStorage';
 import { setFavorites } from '../../widgets/AssetSelector';
 
-export const Clusters = () => {
+export const CorrelationClusters = ({ timeframe }: { timeframe: TTimeframe }) => {
   const [usdtOnly, setUsdtOnly] = useLSState('usdtOnly', false);
-  const [minCorrelation, setMinCorrelation] = useLSState('minCorrelation', 0.9);
+  const [maxPValue, setMaxPValue] = useLSState('maxPValue', 0.9);
   const [minVolume, setMinVolume] = useLSState('minVolume', 10_000_000);
 
-  const { data: clusters, isLoading } = useQuery<TCorrelationClusters>({
-    queryKey: ['correlationClusters', usdtOnly, minCorrelation, minVolume],
+  const { data: clusters, isLoading } = useQuery<TCorrelationReportClusters>({
+    queryKey: ['correlationClusters', timeframe, usdtOnly, maxPValue, minVolume],
     queryFn: () =>
       http
-        .get('/api/correlation/clusters', { params: { usdtOnly, minCorrelation, minVolume } })
+        .get('/api/correlationReport/clusters', {
+          params: { timeframe, usdtOnly, maxPValue, minVolume },
+        })
         .then((response) => response.data),
   });
 
@@ -50,13 +52,13 @@ export const Clusters = () => {
             max="1"
             step="0.1"
             className="input input-sm input-primary w-24"
-            id="minCorrelation"
-            value={minCorrelation}
-            onChange={(e) => setMinCorrelation(Number(e.target.value))}
+            id="maxPValue"
+            value={maxPValue}
+            onChange={(e) => setMaxPValue(Number(e.target.value))}
           />
 
-          <label className="text-sm" htmlFor="minCorrelation">
-            Min correlation
+          <label className="text-sm" htmlFor="maxPValue">
+            Max P-value
           </label>
         </div>
 
