@@ -4,14 +4,13 @@ import cn from 'classnames';
 import * as R from 'remeda';
 import { VariableSizeGrid as Grid } from 'react-window';
 
-import { TCorrelationReport } from '../../shared/types';
-
-type TProps = {
-  report: TCorrelationReport;
+type TProps<T extends string = string> = {
+  report: Record<string, { [key in T]: number } | null>;
   boundaries: { level: number; color: string }[];
+  field: T;
 };
 
-export const HeatMap = ({ report, boundaries }: TProps) => {
+export const HeatMap = ({ report, boundaries, field }: TProps) => {
   const navigate = useNavigate();
 
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -60,8 +59,15 @@ export const HeatMap = ({ report, boundaries }: TProps) => {
     }
   }, [symbols, containerSize]);
 
-  const getCorrelationValue = (symbolA: string, symbolB: string) =>
-    report?.[`${symbolA}-${symbolB}`] || null;
+  const getCorrelationValue = (symbolA: string, symbolB: string) => {
+    const pairData = report?.[`${symbolA}-${symbolB}`];
+
+    if (!pairData) {
+      return null;
+    }
+
+    return pairData[field];
+  };
 
   const getCorrelationColor = (value: number | null) => {
     if (value === null) return 'neutral';
@@ -132,7 +138,7 @@ export const HeatMap = ({ report, boundaries }: TProps) => {
           })}
           onClick={() => {
             if (value !== null) {
-              navigate(`/correlationPair?tickerA=${rowSymbol}&tickerB=${colSymbol}`);
+              navigate(`/pair?tickerA=${rowSymbol}&tickerB=${colSymbol}`);
             }
           }}
         >

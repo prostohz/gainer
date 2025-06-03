@@ -1,1 +1,9 @@
-- визуализировать сделки
+- OpenSource-библитеки hummingbot, freqtrade
+- Zignaly, 3Commas, Cryptohopper
+- Варианты стратегий
+-- Spot Grid
+-- Spot/Spot delta-neutral
+-- Spot/Futures delta-neutral
+- Поиграться с hummingbot
+- https://www.botcamp.xyz/ + https://hummingbot.org/guides/#youtube-playlists
+- переключиься на cctx

@@ -1,0 +1,18 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Project Description
+
+The aim of the project is to develop, test, and optimize arbitrage trading algorithms on the Binance cryptocurrency exchange. The primary focus is on identifying inefficiencies between different trading pairs (for example, spot and futures, cross pairs) and exploiting them to generate profit.
+
+## Objectives
+
+✅ Research market data and liquidity sources (Binance API).
+✅ Implement basic arbitrage strategies (such as spot arbitrage, cross-arbitrage, futures arbitrage).
+✅ Develop tools for monitoring market conditions (prices, spreads, liquidity).
+✅ Automate trading (develop trading bots) taking into account execution speed, market latency, and transaction costs.
+✅ Optimize and stress-test strategies in historical and simulated market environments (backtesting, paper trading).
+✅ Implement risk management: position sizing control, stop-loss orders, capital management.

@@ -1,13 +1,19 @@
-import { TTimeframe } from '../../../shared/types';
+import { TCorrelationReportFilters, TTimeframe } from '../../../shared/types';
+import { Loader } from '../../shared/ui/Loader';
 import { HeatMap } from '../../widgets/HeatMap';
-import { useCorrelationReport } from '../../entities/correlationReport';
+import { useCorrelationReportMap } from '../../entities/correlationReport';
 
-export const CorrelationHeatMap = ({ timeframe }: { timeframe: TTimeframe }) => {
-  const { report, isLoading } = useCorrelationReport(timeframe);
+type TProps = {
+  timeframe: TTimeframe;
+  filters: TCorrelationReportFilters;
+};
+
+export const CorrelationHeatMap = ({ timeframe, filters }: TProps) => {
+  const { report, isLoading } = useCorrelationReportMap(timeframe, filters);
 
   const renderContent = () => {
     if (isLoading) {
-      return <div className="loading loading-ring loading-lg" />;
+      return <Loader />;
     }
 
     if (!report) {
@@ -17,6 +23,7 @@ export const CorrelationHeatMap = ({ timeframe }: { timeframe: TTimeframe }) => 
     return (
       <HeatMap
         report={report}
+        field="pValue"
         boundaries={[
           { level: 0, color: 'bg-green-500' },
           { level: 0.01, color: 'bg-lime-500' },

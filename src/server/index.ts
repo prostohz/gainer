@@ -3,6 +3,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 
 import api from './api';
+import { errorHandler } from './utils/apiHandler';
 
 const app = express();
 const PORT = 3001;
@@ -13,13 +14,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use('/api', api);
 
-app.use((err: Error, req: express.Request, res: express.Response) => {
-  console.error(err.stack);
-  res.status(500).json({
-    status: 'error',
-    message: 'Something went wrong!',
-  });
-});
+// Общий обработчик ошибок
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {

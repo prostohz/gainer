@@ -1,13 +1,11 @@
 import * as R from 'remeda';
 
-import { TTimeframe } from '../../shared/types';
-import { TIndicatorCandle } from '../trading/indicators/types';
 import { PriceLevels } from '../trading/indicators/PriceLevels/PriceLevels';
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
 
 export const getAssetPriceLevels = async (symbol: string) => {
-  const TIMEFRAMES: TTimeframe[] = ['1m', '15m', '1h', '4h', '1d'];
+  const TIMEFRAMES = ['1m', '15m', '1h', '4h', '1d'] as const;
   const CANDLE_LIMIT = 1000;
 
   try {
@@ -43,10 +41,7 @@ export const getAssetPriceLevels = async (symbol: string) => {
       }),
     );
 
-    const timeframeCandlesMap = R.fromEntries(R.zip(TIMEFRAMES, timeframeCandles)) as Record<
-      TTimeframe,
-      TIndicatorCandle[]
-    >;
+    const timeframeCandlesMap = R.fromEntries(R.zip(TIMEFRAMES, timeframeCandles));
 
     const priceLevels = new PriceLevels(asset.pricePrecision);
     const supportLevels = priceLevels.calculateSupportLevels(timeframeCandlesMap);

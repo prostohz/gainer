@@ -3,48 +3,125 @@ import express, { Request, Response } from 'express';
 import { TTimeframe } from '../../shared/types';
 import {
   hasReport,
-  getReport,
+  getReportList,
+  getReportMap,
   buildReport,
   getReportClusters,
 } from '../services/correlationReportService';
+import { asyncHandler, sendResponse, validateParams } from '../utils/apiHandler';
 
 const router = express.Router();
 
-router.get('/has', async (req: Request, res: Response) => {
-  const timeframe = req.query.timeframe as TTimeframe;
-  const reportExists = await hasReport(timeframe);
+router.get(
+  '/has',
+  validateParams(['timeframe']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const timeframe = req.query.timeframe as TTimeframe;
 
-  res.json(reportExists);
-});
+    const reportExists = await hasReport(timeframe);
+    sendResponse(res, reportExists);
+  }),
+);
 
-router.get('/', async (req: Request, res: Response) => {
-  const timeframe = req.query.timeframe as TTimeframe;
-  const report = await getReport(timeframe);
+router.get(
+  '/list',
+  validateParams([
+    'timeframe',
+    'usdtOnly',
+    'ignoreUsdtUsdc',
+    'maxPValue',
+    'maxHalfLife',
+    'minVolume',
+  ]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const timeframe = req.query.timeframe as TTimeframe;
+    const usdtOnly = req.query.usdtOnly === 'true';
+    const ignoreUsdtUsdc = req.query.ignoreUsdtUsdc === 'true';
+    const maxPValue = Number(req.query.maxPValue);
+    const maxHalfLife = Number(req.query.maxHalfLife);
+    const minVolume = Number(req.query.minVolume);
 
-  res.json(report);
-});
+    const report = await getReportList(timeframe, {
+      usdtOnly,
+      ignoreUsdtUsdc,
+      maxPValue,
+      maxHalfLife,
+      minVolume,
+    });
 
-router.post('/build', async (req: Request, res: Response) => {
-  const timeframe = req.query.timeframe as TTimeframe;
-  await buildReport(timeframe);
+    sendResponse(res, report);
+  }),
+);
 
-  res.json({ message: 'Report built' });
-});
+router.get(
+  '/map',
+  validateParams([
+    'timeframe',
+    'usdtOnly',
+    'ignoreUsdtUsdc',
+    'maxPValue',
+    'maxHalfLife',
+    'minVolume',
+  ]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const timeframe = req.query.timeframe as TTimeframe;
+    const usdtOnly = req.query.usdtOnly === 'true';
+    const ignoreUsdtUsdc = req.query.ignoreUsdtUsdc === 'true';
+    const maxPValue = Number(req.query.maxPValue);
+    const maxHalfLife = Number(req.query.maxHalfLife);
+    const minVolume = Number(req.query.minVolume);
 
-router.get('/clusters', async (req: Request, res: Response) => {
-  const timeframe = req.query.timeframe as TTimeframe;
-  const usdtOnly = req.query.usdtOnly === 'true';
-  const maxPValue = Number(req.query.maxPValue);
-  const minVolume = Number(req.query.minVolume);
+    const report = await getReportMap(timeframe, {
+      usdtOnly,
+      ignoreUsdtUsdc,
+      maxPValue,
+      maxHalfLife,
+      minVolume,
+    });
 
-  const correlationReportClusters = await getReportClusters(
-    timeframe,
-    usdtOnly,
-    maxPValue,
-    minVolume,
-  );
+    sendResponse(res, report);
+  }),
+);
 
-  res.json(correlationReportClusters);
-});
+router.post(
+  '/build',
+  validateParams(['timeframe']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const timeframe = req.query.timeframe as TTimeframe;
+
+    await buildReport(timeframe);
+    sendResponse(res, { message: 'Report built' });
+  }),
+);
+
+router.get(
+  '/clusters',
+  validateParams([
+    'timeframe',
+    'usdtOnly',
+    'ignoreUsdtUsdc',
+    'maxPValue',
+    'maxHalfLife',
+    'minVolume',
+  ]),
+  asyncHandler(async (req: Request, res: Response) => {
+    const timeframe = req.query.timeframe as TTimeframe;
+    const usdtOnly = req.query.usdtOnly === 'true';
+    const ignoreUsdtUsdc = req.query.ignoreUsdtUsdc === 'true';
+    const maxPValue = Number(req.query.maxPValue);
+    const maxHalfLife = Number(req.query.maxHalfLife);
+    const minVolume = Number(req.query.minVolume);
+
+    const correlationReportClusters = await getReportClusters(timeframe, {
+      usdtOnly,
+      ignoreUsdtUsdc,
+      maxPValue,
+      maxHalfLife,
+      minVolume,
+    });
+
+    sendResponse(res, correlationReportClusters);
+  }),
+);
 
 export default router;

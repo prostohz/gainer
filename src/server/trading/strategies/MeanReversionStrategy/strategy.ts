@@ -69,10 +69,12 @@ export class MeanReversionStrategy extends EventEmitter {
   private readonly adx: ADX;
 
   // Параметры стратегии
-  private readonly CANDLES_COUNT = 100;
+  private readonly CANDLES_COUNT = 30;
+
   private readonly Z_SCORE_ENTRY = 2.0;
-  private readonly Z_SCORE_EXIT = 0.5;
-  private readonly Z_SCORE_STOP_LOSS = 4.0;
+  private readonly Z_SCORE_EXIT = 0.0;
+  private readonly Z_SCORE_STOP_LOSS = 5.0;
+
   private readonly STOP_LOSS_RATE = 0.01;
 
   private readonly CORRELATION_THRESHOLD = 0.9;

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { FixedSizeList as List } from 'react-window';
+import * as R from 'remeda';
 
 import { Asset } from '../../server/models/Asset';
 import { useLSState } from '../shared/localStorage';
+import { useAvailableHeight } from '../shared/dom';
 
 type AssetSelectorProps = {
   assets: Asset[];
@@ -27,6 +29,9 @@ export const AssetSelector = ({
     false,
   );
 
+  const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
+  const containerHeight = useAvailableHeight(containerElement);
+
   const toggleFavorite = (symbol: string) => {
     let newFavorites: string[];
 
@@ -46,18 +51,24 @@ export const AssetSelector = ({
   const filteredAssets = useMemo(() => {
     if (!assets.length) return [];
 
-    let filtered = assets;
+    const filtered = R.pipe(
+      assets,
+      R.filter((asset) => {
+        if (showOnlyFavorites) {
+          return favorites.includes(asset.symbol) || asset.symbol === selectedAssetSymbol;
+        }
 
-    if (showOnlyFavorites) {
-      filtered = filtered.filter(
-        (asset) => favorites.includes(asset.symbol) || asset.symbol === selectedAssetSymbol,
-      );
-    }
+        return true;
+      }),
+      R.filter((asset) => {
+        if (assetFilter) {
+          return asset.symbol.toLowerCase().includes(assetFilter.toLowerCase());
+        }
 
-    if (assetFilter) {
-      const searchTerm = assetFilter.toLowerCase();
-      filtered = filtered.filter((asset) => asset.symbol.toLowerCase().includes(searchTerm));
-    }
+        return true;
+      }),
+      R.sortBy((asset) => (asset.symbol === selectedAssetSymbol ? 0 : 1)),
+    );
 
     return filtered;
   }, [assets, assetFilter, favorites, showOnlyFavorites, selectedAssetSymbol]);
@@ -101,8 +112,30 @@ export const AssetSelector = ({
     );
   };
 
+  const renderAssetList = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-full min-h-full">
+          <div className="text-center">
+            <p className="text-sm text-neutral-content">Loading assets...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (filteredAssets.length === 0) {
+      return <div className="text-center text-md text-neutral-content py-4">No assets found</div>;
+    }
+
+    return (
+      <List height={containerHeight} width="100%" itemCount={filteredAssets.length} itemSize={40}>
+        {renderAssetItem}
+      </List>
+    );
+  };
+
   return (
-    <div className="flex flex-col flex-grow">
+    <div className="flex flex-col h-full">
       <div className="mb-3">
         <input
           type="text"
@@ -123,23 +156,9 @@ export const AssetSelector = ({
           <span className="text-sm">Show favorites only</span>
         </label>
       </div>
-      {isLoading ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-sm text-neutral-content">Loading assets...</p>
-          </div>
-        </div>
-      ) : (
-        <div className="overflow-y-auto flex-grow">
-          {filteredAssets.length > 0 ? (
-            <List height={400} width="100%" itemCount={filteredAssets.length} itemSize={40}>
-              {renderAssetItem}
-            </List>
-          ) : (
-            <div className="text-center text-md text-neutral-content py-4">No assets found</div>
-          )}
-        </div>
-      )}
+      <div className="overflow-y-auto h-full" ref={setContainerElement}>
+        {renderAssetList()}
+      </div>
     </div>
   );
 };

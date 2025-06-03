@@ -1,4 +1,5 @@
 import { TTimeframe } from '../../../../shared/types';
+import { BinanceHTTPRateLimitManager } from './BinanceHTTPRateLimitManager';
 
 type TAssetFilter =
   | {
@@ -115,17 +116,18 @@ type TTrade = {
   isBestPriceMatch: boolean;
 };
 
+type TBinanceAPIResponse = Record<string, unknown>;
+
 class BinanceHTTPClient {
   private static instance: BinanceHTTPClient;
 
   private readonly baseUrl = 'https://api.binance.com/api/v3';
+  private readonly rateLimitManager = new BinanceHTTPRateLimitManager();
 
   private constructor() {}
 
   /**
    * Форматирование данных о торговой паре
-   * @param asset Данные о торговой паре
-   * @returns Форматированные данные о торговой паре
    */
   private formatAsset(asset: TRawAsset): TAsset {
     return {
@@ -145,8 +147,6 @@ class BinanceHTTPClient {
 
   /**
    * Форматирование данных о статистике 24 часов для торговой пары
-   * @param stats Данные о статистике 24 часов
-   * @returns Форматированные данные о статистике 24 часов
    */
   private format24HrStats(stats: TRawAsset24HrStats): TAsset24HrStats {
     return {
@@ -161,8 +161,6 @@ class BinanceHTTPClient {
 
   /**
    * Форматирование данных о свече
-   * @param candle Данные о свече
-   * @returns Форматированные данные о свече
    */
   private formatCandle(candle: TRawCandle): TCandle {
     return {
@@ -182,9 +180,6 @@ class BinanceHTTPClient {
 
   /**
    * Форматирование данных о сделке
-   * @param symbol Символ торговой пары
-   * @param trade Данные о сделке
-   * @returns Форматированные данные о сделке
    */
   private formatTrade(symbol: string, trade: TRawTrade): TTrade {
     return {
@@ -201,14 +196,39 @@ class BinanceHTTPClient {
   }
 
   /**
-   * Запрос к API Binance
-   * @param url URL запроса
-   * @returns Данные ответа
+   * Запрос к API Binance с учётом лимитов
    */
-  private async request(url: string) {
+  private async request(url: string, weight: number): Promise<TBinanceAPIResponse> {
+    await this.rateLimitManager.waitIfNeeded(weight);
+
     try {
       const response = await fetch(`${this.baseUrl}${url}`);
+
+      this.rateLimitManager.updateFromHeaders(response.headers);
+
       if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const waitTime = parseInt(retryAfter ?? '0', 10) * 1_000;
+
+          console.warn(
+            `Превышен лимит API (HTTP 429). Ожидание ${waitTime}мс перед повторной попыткой.`,
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+
+          return this.request(url, weight);
+        }
+
+        if (response.status === 418) {
+          const retryAfter = response.headers.get('retry-after');
+          const waitTime = parseInt(retryAfter ?? '0', 10);
+
+          throw new Error(
+            `IP заблокирован Binance API (HTTP 418). Необходимо ждать ${Math.round(waitTime)} секунд перед следующим запросом.`,
+          );
+        }
+
         let errorMessage = `HTTP error! Status: ${response.status}, ${response.statusText}`;
         try {
           const text = await response.text();
@@ -246,7 +266,6 @@ class BinanceHTTPClient {
 
   /**
    * Получение экземпляра BinanceHTTPClient
-   * @returns Экземпляр BinanceHTTPClient
    */
   public static getInstance(): BinanceHTTPClient {
     if (!BinanceHTTPClient.instance) {
@@ -257,14 +276,15 @@ class BinanceHTTPClient {
 
   /**
    * Получение списка всех торгуемых активов на Binance
-   * @returns Массив объектов с информацией о торговых парах
    */
   public async fetchAssets(): Promise<TAsset[]> {
     try {
-      const data = await this.request('/exchangeInfo');
+      const data = await this.request('/exchangeInfo', 20);
 
-      return data.symbols
-        .filter((symbol: TAsset) => symbol.status === 'TRADING')
+      console.log('data', data.rateLimits);
+
+      return (data as { symbols: TRawAsset[] }).symbols
+        .filter((symbol: TRawAsset) => symbol.status === 'TRADING')
         .map(this.formatAsset);
     } catch (error) {
       console.error(`Ошибка при получении списка торгуемых активов: ${error}`);
@@ -274,13 +294,12 @@ class BinanceHTTPClient {
 
   /**
    * Получение статистики 24 часов для всех торгуемых активов
-   * @returns Массив объектов с информацией о торговых парах
    */
   public async getAssets24HrStats(): Promise<TAsset24HrStats[]> {
     try {
-      const data = await this.request('/ticker/24hr');
+      const data = await this.request('/ticker/24hr', 80);
 
-      return data.map(this.format24HrStats);
+      return (data as unknown as TRawAsset24HrStats[]).map(this.format24HrStats);
     } catch (error) {
       console.error(`Ошибка при получении статистики 24 часов: ${error}`);
       throw error;
@@ -289,13 +308,13 @@ class BinanceHTTPClient {
 
   /**
    * Получение информации о торговой паре
-   * @param symbol Символ торговой пары (например, 'BTCUSDT')
-   * @returns Информация о торговой паре
    */
   public async fetchAsset(symbol: string): Promise<TAsset> {
     try {
-      const data = await this.request(`/exchangeInfo?symbol=${symbol}`);
-      const foundAsset = data.symbols.find((item: TAsset) => item.symbol === symbol);
+      const data = await this.request(`/exchangeInfo?symbol=${symbol}`, 10);
+      const foundAsset = (data as { symbols: TRawAsset[] }).symbols.find(
+        (item: TRawAsset) => item.symbol === symbol,
+      );
 
       if (!foundAsset) {
         throw new Error(`Asset ${symbol} not found`);
@@ -310,14 +329,12 @@ class BinanceHTTPClient {
 
   /**
    * Получает текущую цену для указанного символа
-   * @param symbol Символ торговой пары (например, 'BTCUSDT')
-   * @returns Текущая цена в виде строки
    */
   public async fetchAssetPrice(symbol: string): Promise<string> {
     try {
-      const data = await this.request(`/ticker/price?symbol=${symbol}`);
+      const data = await this.request(`/ticker/price?symbol=${symbol}`, 1);
 
-      return data.price;
+      return (data as { price: string }).price;
     } catch (error) {
       console.error(`Ошибка при получении текущей цены для ${symbol}:`, error);
       throw error;
@@ -326,12 +343,6 @@ class BinanceHTTPClient {
 
   /**
    * Получение исторических свечей через REST API
-   * @param symbol Символ торговой пары (например, 'BTCUSDT')
-   * @param timeframe Интервал свечи ('1m', '5m', '15m', '1h', '1d' и т.д.)
-   * @param limit Количество свечей
-   * @param startTime Время начала (в миллисекундах)
-   * @param endTime Время конца (в миллисекундах)
-   * @returns Массив исторических свечей
    */
   public async fetchAssetCandles(
     symbol: string,
@@ -352,9 +363,9 @@ class BinanceHTTPClient {
         queryParams.set('endTime', endTime.toString());
       }
 
-      const data = await this.request(`/klines?${queryParams.toString()}`);
+      const data = await this.request(`/klines?${queryParams.toString()}`, 2);
 
-      return data.map(this.formatCandle);
+      return (data as unknown as TRawCandle[]).map(this.formatCandle);
     } catch (error) {
       console.error(`Ошибка при получении исторических свечей: ${error}`);
       throw error;
@@ -363,12 +374,6 @@ class BinanceHTTPClient {
 
   /**
    * Получение исторических сделок для указанного символа
-   * @param symbol Символ торговой пары (например, 'BTCUSDT')
-   * @param limit Количество сделок
-   * @param fromId Идентификатор сделки, с которой начинать получение
-   * @param startTime Время начала (в миллисекундах)
-   * @param endTime Время конца (в миллисекундах)
-   * @returns Массив исторических сделок
    */
   public async fetchAssetTrades(
     symbol: string,
@@ -389,9 +394,11 @@ class BinanceHTTPClient {
         queryParams.set('endTime', endTime.toString());
       }
 
-      const data = await this.request(`/aggTrades?${queryParams.toString()}`);
+      const data = await this.request(`/aggTrades?${queryParams.toString()}`, 4);
 
-      return data.map((trade: TRawTrade) => this.formatTrade(symbol, trade));
+      return (data as unknown as TRawTrade[]).map((trade: TRawTrade) =>
+        this.formatTrade(symbol, trade),
+      );
     } catch (error) {
       console.error(`Ошибка при получении исторических сделок: ${error}`);
       throw error;

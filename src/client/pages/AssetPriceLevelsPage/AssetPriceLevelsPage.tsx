@@ -5,6 +5,7 @@ import * as R from 'remeda';
 import { TTimeframe, TPriceLevels } from '../../../shared/types';
 import { Candle } from '../../../server/models/Candle';
 import { http } from '../../shared/http';
+import { Loader } from '../../shared/ui/Loader';
 import { CandleChart } from '../../widgets/CandleChart';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { AssetSelector } from '../../widgets/AssetSelector';
@@ -99,16 +100,16 @@ export const AssetPriceLevelsPage = () => {
   }, [assetCandles, resistanceLevels]);
 
   const currentPrice = useMemo(() => {
-    if (!assetCandles) return 0;
+    if (!asset || !assetCandles) return 0;
 
     const candles = assetCandles;
     const prices = candles.map((candle) => candle.close);
 
-    return prices[prices.length - 1];
+    return Number(prices[prices.length - 1]).toFixed(asset.pricePrecision);
   }, [assetCandles]);
 
   return (
-    <div>
+    <div className="flex-1 flex flex-col">
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold">
           <span className="text-primary">{asset?.symbol}</span> Price Chart with Levels ({timeframe}
@@ -119,8 +120,8 @@ export const AssetPriceLevelsPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-row gap-6 flex-1">
-        <div className="flex-grow overflow-auto min-h-[500px]">
+      <div className="flex flex-row gap-4 flex-1">
+        <div className="flex-grow overflow-auto">
           {assetCandles && assetPriceLevels && asset ? (
             <>
               <div className="h-[500px] mb-6">
@@ -134,52 +135,38 @@ export const AssetPriceLevelsPage = () => {
               <PriceLevels asset={asset} priceLevels={assetPriceLevels} />
             </>
           ) : (
-            <div className="flex justify-center items-center h-[500px]">
-              <div className="loading loading-ring loading-lg"></div>
-            </div>
+            <Loader />
           )}
         </div>
 
-        <div className="w-80 flex-shrink-0 flex flex-col overflow-hidden">
-          <div className="p-4 bg-base-200 rounded-lg">
-            <div className="flex flex-col gap-6">
-              <div>
-                <label className="font-medium block mb-2" htmlFor="timeFrameSelector">
-                  Timeframe:
-                </label>
-                <TimeframeSelector
-                  selectedTimeFrame={timeframe}
-                  setSelectedTimeFrame={setTimeframe}
-                />
-              </div>
-
-              <div>
-                <label className="font-medium block mb-2" htmlFor="minStrength">
-                  Minimum strength:
-                </label>
-                <input
-                  type="number"
-                  className="input input-bordered input-sm w-full"
-                  min="0"
-                  step="1"
-                  value={minStrength}
-                  onChange={(e) => setMinStrength(parseInt(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <label className="font-medium block mb-2">Select Asset:</label>
-                <div className="overflow-auto">
-                  <AssetSelector
-                    assets={assetList}
-                    selectedAssetSymbol={assetSymbol}
-                    onAssetSelect={setAssetSymbol}
-                    isLoading={isAssetsLoading}
-                  />
-                </div>
-              </div>
-            </div>
+        <div className="flex flex-col gap-4 w-80 p-4 bg-base-200 rounded-lg">
+          <div>
+            <label className="font-medium block mb-2" htmlFor="timeFrameSelector">
+              Timeframe:
+            </label>
+            <TimeframeSelector selectedTimeFrame={timeframe} setSelectedTimeFrame={setTimeframe} />
           </div>
+
+          <div>
+            <label className="font-medium block mb-2" htmlFor="minStrength">
+              Minimum strength:
+            </label>
+            <input
+              type="number"
+              className="input input-bordered input-sm w-full"
+              min="0"
+              step="1"
+              value={minStrength}
+              onChange={(e) => setMinStrength(parseInt(e.target.value))}
+            />
+          </div>
+
+          <AssetSelector
+            assets={assetList}
+            selectedAssetSymbol={assetSymbol}
+            onAssetSelect={setAssetSymbol}
+            isLoading={isAssetsLoading}
+          />
         </div>
       </div>
     </div>

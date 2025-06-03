@@ -40,14 +40,14 @@ type TCompleteTrade = {
   reason: string;
 };
 
-const backtestTimeStart = dayjs('2025-05-31T00:00:00Z');
-const backtestTimeEnd = backtestTimeStart.add(12, 'hour');
+const backtestTimeStart = dayjs('2025-05-30T00:00:00Z');
+const backtestTimeEnd = backtestTimeStart.add(96, 'hour');
 
 const backtestTimeStartTimestamp = backtestTimeStart.valueOf();
 const backtestTimeEndTimestamp = backtestTimeEnd.valueOf();
 
 const TIMEFRAME = '1m';
-const SYMBOLS = ['ARUSDT', 'LUNCUSDT', 'MTLUSDT', 'REDUSDT', 'BTTCUSDT'];
+const SYMBOLS = ['AMPUSDT', 'COWUSDT'];
 
 const loadTrades = measureTime('Загрузка сделок из Binance', async (symbols: string[]) => {
   await Trade.sync();

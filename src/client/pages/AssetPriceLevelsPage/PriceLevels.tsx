@@ -34,7 +34,7 @@ export const PriceLevels = ({ asset, priceLevels }: PriceLevelsProps) => {
   const { pricePrecision } = asset;
 
   return (
-    <div className="flex bg-base-200 rounded-lg mb-6">
+    <div className="flex bg-base-200 rounded-lg">
       <div className="p-4 flex-1">
         <h3 className="text-lg font-semibold mb-4">Support Levels</h3>
         <div className="space-y-4">

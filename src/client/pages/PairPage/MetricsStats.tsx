@@ -10,7 +10,7 @@ type TProps = {
   cointegration: Record<string, TCointegration>;
 };
 
-export const Metrics = ({
+export const MetricsStats = ({
   correlationByPrices,
   correlationByReturns,
   zScoreByPrices,

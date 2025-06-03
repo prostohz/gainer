@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import { CorrelationReportPage } from '../pages/CorrelationReportPage/CorrelationReportPage';
-import { CorrelationClusterPage } from '../pages/CorrelationClusterPage/CorrelationClusterPage';
-import { CorrelationPairPage } from '../pages/CorrelationPairPage/CorrelationPairPage';
+import { PairPage } from '../pages/PairPage/PairPage';
 import { AssetPriceLevelsPage } from '../pages/AssetPriceLevelsPage/AssetPriceLevelsPage';
+import { SystemPage } from '../pages/SystemPage/SystemPage';
 import { Navigation } from './Navigation/Navigation';
 import { AssetsProvider } from '../entities/assets';
 
@@ -13,13 +13,13 @@ export const App = () => {
       <AssetsProvider>
         <main className="flex flex-col h-screen">
           <Navigation />
-          <div className="container mx-auto px-4 py-6 flex flex-col flex-grow">
+          <div className="container mx-auto p-4 flex-1 flex flex-col">
             <Routes>
               <Route path="/correlationReport" element={<CorrelationReportPage />} />
-              <Route path="/correlationCluster" element={<CorrelationClusterPage />} />
-              <Route path="/correlationPair" element={<CorrelationPairPage />} />
+              <Route path="/pair" element={<PairPage />} />
               <Route path="/assetPriceLevels" element={<AssetPriceLevelsPage />} />
-              <Route path="/" element={<Navigate to="/correlationPair" />} />
+              <Route path="/system" element={<SystemPage />} />
+              <Route path="/" element={<Navigate to="/pair" />} />
             </Routes>
           </div>
         </main>

@@ -3,15 +3,23 @@ import path from 'path';
 import * as R from 'remeda';
 
 import { buildCompleteGraphs } from '../utils/graph';
-import { TTimeframe, TCorrelationReport, TCorrelationReportRecord } from '../../shared/types';
+import {
+  TTimeframe,
+  TCorrelationReportMapEntry,
+  TCorrelationReportFilters,
+  TCorrelationReportMap,
+} from '../../shared/types';
 import { EngleGrangerTest } from '../trading/indicators/EngleGrangerTest/EngleGrangerTest';
 import { TIndicatorCandle } from '../trading/indicators/types';
 import { Candle } from '../models/Candle';
 import { Asset } from '../models/Asset';
-
-const correlationReportFolder = path.resolve(process.cwd(), 'data', 'correlationReport');
+import { HalfLife } from '../trading/indicators/HalfLife/HalfLife';
 
 const CANDLE_LIMIT = 500;
+
+const correlationReportFolder = path.resolve(process.cwd(), 'data', 'correlationReport');
+const correlationReportFilePath = (timeframe: TTimeframe) =>
+  path.join(correlationReportFolder, `report_${timeframe}.json`);
 
 const findCandles = async (
   symbol: string,
@@ -38,24 +46,158 @@ const findCandles = async (
 };
 
 export const hasReport = (timeframe: TTimeframe) => {
-  return fs.existsSync(path.join(correlationReportFolder, `report_${timeframe}.json`));
+  return fs.existsSync(correlationReportFilePath(timeframe));
 };
 
-export const getReport = (timeframe: TTimeframe): TCorrelationReport | null => {
-  if (fs.existsSync(path.join(correlationReportFolder, `report_${timeframe}.json`))) {
-    return JSON.parse(
-      fs.readFileSync(path.join(correlationReportFolder, `report_${timeframe}.json`), 'utf-8'),
-    );
+const getReport = async (timeframe: TTimeframe) => {
+  if (!fs.existsSync(correlationReportFilePath(timeframe))) {
+    return null;
   }
 
-  return null;
+  const reportContent = fs.readFileSync(correlationReportFilePath(timeframe), 'utf-8');
+
+  return JSON.parse(reportContent) as TCorrelationReportMap;
+};
+
+const filterReport = async (report: TCorrelationReportMap, filters: TCorrelationReportFilters) => {
+  const assetList = await Asset.findAll();
+  const assetMap = R.indexBy(assetList, (asset) => asset.symbol);
+
+  const { usdtOnly, ignoreUsdtUsdc, maxPValue, maxHalfLife, minVolume } = filters;
+
+  const filteredReport = R.pipe(
+    R.entries<TCorrelationReportMap>(report),
+    R.filter(
+      (entry): entry is [string, NonNullable<TCorrelationReportMapEntry>] => entry[1] !== null,
+    ),
+    R.map(([pair, correlation]) => ({
+      pair,
+      pValue: correlation.pValue,
+      halfLife: correlation.halfLife,
+    })),
+    R.filter((item) => {
+      const [firstPair, secondPair] = item.pair.split('-');
+      if (usdtOnly) {
+        return firstPair.endsWith('USDT') && secondPair.endsWith('USDT');
+      }
+      return true;
+    }),
+    R.filter((item) => {
+      const [firstPair, secondPair] = item.pair.split('-');
+
+      if (ignoreUsdtUsdc) {
+        if (
+          (firstPair.endsWith('USDT') && secondPair.endsWith('USDC')) ||
+          (firstPair.endsWith('USDC') && secondPair.endsWith('USDT'))
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    }),
+    R.filter((item) => item.pValue <= maxPValue),
+    R.filter((item) => {
+      if (item.halfLife) {
+        return item.halfLife <= maxHalfLife;
+      }
+      return false;
+    }),
+    R.filter((item) => {
+      const [symbolA, symbolB] = item.pair.split('-');
+      const assetA = assetMap[symbolA];
+      const assetB = assetMap[symbolB];
+
+      return Number(assetA.usdtVolume) >= minVolume && Number(assetB.usdtVolume) >= minVolume;
+    }),
+  );
+
+  return R.fromEntries(
+    filteredReport.map(
+      (item) =>
+        [item.pair, R.pick(item, ['pValue', 'halfLife'])] as [string, TCorrelationReportMapEntry],
+    ),
+  );
+};
+
+export const getReportList = async (timeframe: TTimeframe, filters: TCorrelationReportFilters) => {
+  const report = await getReport(timeframe);
+
+  if (!report) {
+    return null;
+  }
+
+  const { usdtOnly, ignoreUsdtUsdc, maxPValue, maxHalfLife, minVolume } = filters;
+
+  const cacheKey = `${usdtOnly}_${ignoreUsdtUsdc}_${maxPValue}_${maxHalfLife}_${minVolume}`;
+  const cacheFilePath = path.join(
+    path.resolve(correlationReportFolder, `report_${timeframe}_list_${cacheKey}.json`),
+  );
+
+  try {
+    if (fs.existsSync(cacheFilePath)) {
+      return JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
+    }
+  } catch (error) {
+    console.error('Error reading cache file:', error);
+  }
+
+  const filteredReport = await filterReport(report, filters);
+
+  const result = R.pipe(
+    R.entries<TCorrelationReportMap>(filteredReport),
+    R.filter(
+      (entry): entry is [string, NonNullable<TCorrelationReportMapEntry>] => entry[1] !== null,
+    ),
+    R.map(([pair, correlation]) => ({
+      pair,
+      pValue: correlation.pValue,
+      halfLife: correlation.halfLife,
+    })),
+    R.sort((a, b) => {
+      // Первый приоритет: halfLife (по возрастанию)
+      if (a.halfLife === null && b.halfLife === null) {
+        // Если оба Infinity, сортируем по pValue
+        return Math.abs(a.pValue) - Math.abs(b.pValue);
+      }
+      if (a.halfLife === null) return 1;
+      if (b.halfLife === null) return -1;
+
+      // Если halfLife одинаковые (или очень близкие), сортируем по pValue
+      const halfLifeDiff = a.halfLife - b.halfLife;
+      if (Math.abs(halfLifeDiff) < 0.01) {
+        // считаем одинаковыми если разница < 0.01
+        return Math.abs(a.pValue) - Math.abs(b.pValue);
+      }
+
+      return halfLifeDiff;
+    }),
+  );
+
+  try {
+    fs.writeFileSync(cacheFilePath, JSON.stringify(result), 'utf-8');
+  } catch (error) {
+    console.error('Error writing cache file:', error);
+  }
+
+  return result;
+};
+
+export const getReportMap = async (timeframe: TTimeframe, filters: TCorrelationReportFilters) => {
+  const report = await getReport(timeframe);
+
+  if (!report) {
+    return null;
+  }
+
+  return filterReport(report, filters);
 };
 
 export const buildReport = async (timeframe: TTimeframe) => {
   const assets = await Asset.findAll();
   const assetTickers = assets.map((asset) => asset.symbol);
 
-  const report: Map<string, number> = new Map();
+  const report: Map<string, TCorrelationReportMapEntry> = new Map();
 
   const candlesCache = new Map<string, TIndicatorCandle[]>();
 
@@ -76,10 +218,6 @@ export const buildReport = async (timeframe: TTimeframe) => {
         continue;
       }
 
-      if (tickerA === tickerB) {
-        continue;
-      }
-
       if (report.has(serializePairName(tickerB, tickerA))) {
         continue;
       }
@@ -94,7 +232,16 @@ export const buildReport = async (timeframe: TTimeframe) => {
       const engleGrangerTest = new EngleGrangerTest();
       const cointegration = engleGrangerTest.calculateCointegration(candlesA, candlesB);
 
-      report.set(serializePairName(tickerA, tickerB), cointegration.pValue);
+      const pricesA = candlesA.map((candle) => candle.close);
+      const pricesB = candlesB.map((candle) => candle.close);
+
+      const halfLife = new HalfLife();
+      const halfLifeValue = halfLife.calculate(pricesA, pricesB);
+
+      report.set(serializePairName(tickerA, tickerB), {
+        pValue: cointegration.pValue,
+        halfLife: halfLifeValue,
+      });
     }
 
     counter++;
@@ -103,7 +250,7 @@ export const buildReport = async (timeframe: TTimeframe) => {
   }
 
   fs.writeFileSync(
-    path.join(correlationReportFolder, `report_${timeframe}.json`),
+    correlationReportFilePath(timeframe),
     JSON.stringify(Object.fromEntries(report), null, 2),
   );
 
@@ -114,11 +261,11 @@ export const buildReport = async (timeframe: TTimeframe) => {
 
 export const getReportClusters = async (
   timeframe: TTimeframe,
-  usdtOnly: boolean,
-  maxPValue: number,
-  minVolume: number,
+  filters: TCorrelationReportFilters,
 ) => {
-  const cacheKey = `${usdtOnly}_${maxPValue}_${minVolume}`;
+  const { usdtOnly, ignoreUsdtUsdc, maxPValue, maxHalfLife, minVolume } = filters;
+
+  const cacheKey = `${usdtOnly}_${ignoreUsdtUsdc}_${maxPValue}_${maxHalfLife}_${minVolume}`;
   const cacheFilePath = path.join(
     path.resolve(correlationReportFolder, `report_${timeframe}_clusters_${cacheKey}.json`),
   );
@@ -132,7 +279,7 @@ export const getReportClusters = async (
   }
 
   const assetList = await Asset.findAll();
-  const report = getReport(timeframe);
+  const report = await getReport(timeframe);
 
   if (!report) {
     return null;
@@ -145,12 +292,11 @@ export const getReportClusters = async (
   const processedPairs = new Set<string>();
 
   const correlationEdges = R.pipe(
-    fullReport,
-    R.entries,
+    R.entries<TCorrelationReportMap>(fullReport),
     R.filter(
       (
-        entry: [string, TCorrelationReportRecord],
-      ): entry is [string, NonNullable<TCorrelationReportRecord>] => Boolean(entry[1]),
+        entry: [string, TCorrelationReportMapEntry],
+      ): entry is [string, NonNullable<TCorrelationReportMapEntry>] => Boolean(entry[1]),
     ),
     R.filter(([key]) => {
       const [firstPair, secondPair] = key.split('-');
@@ -161,7 +307,21 @@ export const getReportClusters = async (
 
       return true;
     }),
-    R.filter(([key, correlationRecord]) => {
+    R.filter(([key]) => {
+      const [firstPair, secondPair] = key.split('-');
+
+      if (ignoreUsdtUsdc) {
+        if (
+          (firstPair.endsWith('USDT') && secondPair.endsWith('USDC')) ||
+          (firstPair.endsWith('USDC') && secondPair.endsWith('USDT'))
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    }),
+    R.filter(([key]) => {
       const [first, second] = key.split('-');
 
       const firstAsset = assetMap[first];
@@ -172,11 +332,23 @@ export const getReportClusters = async (
       }
 
       return (
-        (Number(firstAsset.usdtVolume) > minVolume || Number(secondAsset.usdtVolume) > minVolume) &&
-        correlationRecord <= maxPValue
+        Number(firstAsset.usdtVolume) > minVolume || Number(secondAsset.usdtVolume) > minVolume
       );
     }),
-    R.sort(([, a], [, b]) => b - a),
+    R.filter(([, { pValue }]) => pValue <= maxPValue),
+    R.filter(([key, { halfLife }]) => {
+      const [first, second] = key.split('-');
+
+      const firstAsset = assetMap[first];
+      const secondAsset = assetMap[second];
+
+      if (!firstAsset || !secondAsset) {
+        return false;
+      }
+
+      return halfLife <= maxHalfLife;
+    }),
+    R.sort(([, a], [, b]) => b.pValue - a.pValue),
     R.filter(([key]) => {
       const [first, second] = key.split('-');
       const reversePair = `${second}-${first}`;

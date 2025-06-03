@@ -33,6 +33,8 @@ type TCluster = {
   timestamps: number[];
 };
 
+type TPriceLevelsTimeframe = Extract<TTimeframe, '1m' | '15m' | '1h' | '4h' | '1d'>;
+
 export class PriceLevels {
   private readonly MIN_WINDOW_SIZE = 3;
   // Размер окна при поиске экстремумов
@@ -41,7 +43,7 @@ export class PriceLevels {
   // чтобы считаться одним уровнем поддержки/сопротивления (в % от ценового диапазона)
   private readonly CLUSTER_SENSITIVITY = 0.01;
   // Веса для разных таймфреймов при расчете уровней
-  private readonly TIMEFRAME_WEIGHTS: Partial<Record<TTimeframe, number>> = {
+  private readonly TIMEFRAME_WEIGHTS: Record<TPriceLevelsTimeframe, number> = {
     '1m': 0.5,
     '15m': 0.8,
     '1h': 1.0,
@@ -145,7 +147,7 @@ export class PriceLevels {
    * Рассчитывает уровни поддержки и сопротивления на основе исторических свечей
    */
   private calculatePriceLevels(
-    candlesMap: Record<TTimeframe, TIndicatorCandle[]>,
+    candlesMap: Record<TPriceLevelsTimeframe, TIndicatorCandle[]>,
   ): TSupportLevel[] {
     if (Object.keys(candlesMap).length === 0) {
       return [];
@@ -262,7 +264,7 @@ export class PriceLevels {
   /**
    * Рассчитывает уровни поддержки на основе исторических свечей
    */
-  public calculateSupportLevels(candlesMap: Record<TTimeframe, TIndicatorCandle[]>) {
+  public calculateSupportLevels(candlesMap: Record<TPriceLevelsTimeframe, TIndicatorCandle[]>) {
     return R.pipe(
       this.calculatePriceLevels(candlesMap),
       R.filter((level) => level.type === 'support'),
@@ -273,7 +275,7 @@ export class PriceLevels {
   /**
    * Рассчитывает уровни сопротивления на основе исторических свечей
    */
-  public calculateResistanceLevels(candlesMap: Record<TTimeframe, TIndicatorCandle[]>) {
+  public calculateResistanceLevels(candlesMap: Record<TPriceLevelsTimeframe, TIndicatorCandle[]>) {
     return R.pipe(
       this.calculatePriceLevels(candlesMap),
       R.filter((level) => level.type === 'resistance'),

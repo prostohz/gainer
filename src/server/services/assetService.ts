@@ -9,11 +9,7 @@ export const getAssetList = () => {
   return Asset.findAll();
 };
 
-export const getAssetCandles = async (
-  symbol: string,
-  timeframe: TTimeframe,
-  limit: number = 1000,
-) => {
+export const getAssetCandles = async (symbol: string, timeframe: TTimeframe, limit: number) => {
   const asset = await Asset.findOne({
     where: {
       symbol,

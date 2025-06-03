@@ -1,13 +1,15 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import cn from 'classnames';
 
-import { TTimeframe } from '../../../shared/types';
+import { TCorrelationReportFilters, TTimeframe } from '../../../shared/types';
 import { http } from '../../shared/http';
 import { useLSState } from '../../shared/localStorage';
+import { Loader } from '../../shared/ui/Loader';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { CorrelationClusters } from './CorrelationClusters';
 import { CorrelationList } from './CorrelationList';
 import { CorrelationHeatMap } from './CorrelationHeatMap';
+import { Filters } from './Filters';
 
 const TABS = [
   {
@@ -31,6 +33,14 @@ export const CorrelationReportPage = () => {
     '1m',
   );
 
+  const [filters, setFilters] = useLSState<TCorrelationReportFilters>('filters', {
+    usdtOnly: false,
+    ignoreUsdtUsdc: false,
+    maxPValue: 0.9,
+    maxHalfLife: 100,
+    minVolume: 10_000_000,
+  });
+
   const { data: hasReport, isLoading } = useQuery({
     queryKey: ['hasCorrelationReport', selectedTimeFrame],
     queryFn: () =>
@@ -47,11 +57,7 @@ export const CorrelationReportPage = () => {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-[500px]">
-        <div className="loading loading-ring loading-lg"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
@@ -80,7 +86,7 @@ export const CorrelationReportPage = () => {
                 className={cn(
                   'rounded-md font-medium transition-colors flex-grow flex items-center justify-center cursor-pointer h-8',
                   activeTab === tab.id
-                    ? 'bg-secondary text-secondary-content shadow-sm'
+                    ? 'bg-primary text-primary-content shadow-sm'
                     : 'hover:bg-base-300',
                 )}
                 onClick={() => setActiveTab(tab.id)}
@@ -90,10 +96,20 @@ export const CorrelationReportPage = () => {
             ))}
           </div>
 
+          <div className="mb-4">
+            <Filters values={filters} onChange={setFilters} />
+          </div>
+
           <div className="flex flex-grow bg-base-200 rounded-lg p-4">
-            {activeTab === 'list' && <CorrelationList timeframe={selectedTimeFrame} />}
-            {activeTab === 'clusters' && <CorrelationClusters timeframe={selectedTimeFrame} />}
-            {activeTab === 'heatmap' && <CorrelationHeatMap timeframe={selectedTimeFrame} />}
+            {activeTab === 'list' && (
+              <CorrelationList timeframe={selectedTimeFrame} filters={filters} />
+            )}
+            {activeTab === 'clusters' && (
+              <CorrelationClusters timeframe={selectedTimeFrame} filters={filters} />
+            )}
+            {activeTab === 'heatmap' && (
+              <CorrelationHeatMap timeframe={selectedTimeFrame} filters={filters} />
+            )}
           </div>
         </>
       ) : (
