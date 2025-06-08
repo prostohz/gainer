@@ -11,7 +11,7 @@ export const TimeframeSelector = ({
 
   return (
     <select
-      className="select select-bordered select-sm w-full"
+      className="select select-bordered w-full"
       value={selectedTimeFrame}
       onChange={(e) => setSelectedTimeFrame(e.target.value as TTimeframe)}
     >

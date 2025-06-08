@@ -140,7 +140,7 @@ export const AssetSelector = ({
         <input
           type="text"
           placeholder="Filter assets..."
-          className="input input-bordered input-sm w-full"
+          className="input input-bordered w-full"
           value={assetFilter}
           onChange={(e) => setAssetFilter(e.target.value)}
         />
@@ -149,7 +149,7 @@ export const AssetSelector = ({
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            className="checkbox checkbox-sm"
+            className="checkbox"
             checked={showOnlyFavorites}
             onChange={toggleShowOnlyFavorites}
           />

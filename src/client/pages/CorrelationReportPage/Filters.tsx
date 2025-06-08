@@ -58,7 +58,7 @@ export const Filters = ({ values, onChange }: TProps) => {
           min="0"
           max="1"
           step="0.01"
-          className="input input-sm input-primary w-24"
+          className="input input-primary w-24"
           id="maxPValue"
           value={maxPValue}
           onChange={(e) => setMaxPValue(Number(e.target.value))}
@@ -74,7 +74,7 @@ export const Filters = ({ values, onChange }: TProps) => {
           type="number"
           min="0"
           step="1"
-          className="input input-sm input-primary w-24"
+          className="input input-primary w-24"
           id="maxHalfLife"
           value={maxHalfLife}
           onChange={(e) => setMaxHalfLife(Number(e.target.value))}
@@ -90,7 +90,7 @@ export const Filters = ({ values, onChange }: TProps) => {
           type="number"
           min="0"
           step="1"
-          className="input input-sm input-primary w-48"
+          className="input input-primary w-48"
           id="minVolume"
           value={minVolume}
           onChange={(e) => setMinVolume(Number(e.target.value))}

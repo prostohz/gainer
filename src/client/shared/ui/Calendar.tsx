@@ -69,7 +69,7 @@ const CustomInput = forwardRef<HTMLInputElement, CustomInputProps>(
       readOnly
       disabled={disabled}
       className={classNames(
-        'input input-bordered input-sm w-full',
+        'input input-bordered w-full',
         {
           'input-disabled': disabled,
         },

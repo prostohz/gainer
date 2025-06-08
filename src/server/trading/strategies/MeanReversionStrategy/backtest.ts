@@ -1,8 +1,4 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { Op } from 'sequelize';
-import * as R from 'remeda';
-import dayjs from 'dayjs';
 
 import { TTimeframe } from '../../../../shared/types';
 import {
@@ -40,83 +36,77 @@ type TCompleteTrade = {
   reason: string;
 };
 
-const backtestTimeStart = dayjs('2025-05-30T00:00:00Z');
-const backtestTimeEnd = backtestTimeStart.add(96, 'hour');
+const loadTrades = measureTime(
+  'Загрузка сделок из Binance',
+  async (symbols: string[], startTimestamp: number, endTimestamp: number) => {
+    await Trade.sync();
 
-const backtestTimeStartTimestamp = backtestTimeStart.valueOf();
-const backtestTimeEndTimestamp = backtestTimeEnd.valueOf();
+    const BATCH_SIZE = 1000;
 
-const TIMEFRAME = '1m';
-const SYMBOLS = ['AMPUSDT', 'COWUSDT'];
+    const binanceHttpClient = BinanceHTTPClient.getInstance();
 
-const loadTrades = measureTime('Загрузка сделок из Binance', async (symbols: string[]) => {
-  await Trade.sync();
+    await Promise.all(
+      symbols.map(async (symbol) => {
+        let lastTradeId: number | undefined;
+        let symbolTrades: TTrade[] = [];
 
-  const BATCH_SIZE = 1000;
+        const BORDER_WINDOW_MS = 60 * 1000; // 1 минута
 
-  const binanceHttpClient = BinanceHTTPClient.getInstance();
-
-  await Promise.all(
-    symbols.map(async (symbol) => {
-      let lastTradeId: number | undefined;
-      let symbolTrades: TTrade[] = [];
-
-      const BORDER_WINDOW_MS = 60 * 1000; // 1 минута
-
-      const [startBorderTrade, endBorderTrade] = await Promise.all([
-        Trade.findOne({
-          where: {
-            symbol,
-            timestamp: {
-              [Op.gte]: backtestTimeStartTimestamp,
-              [Op.lte]: backtestTimeStartTimestamp + BORDER_WINDOW_MS,
+        const [startBorderTrade, endBorderTrade] = await Promise.all([
+          Trade.findOne({
+            where: {
+              symbol,
+              timestamp: {
+                [Op.gte]: startTimestamp,
+                [Op.lte]: startTimestamp + BORDER_WINDOW_MS,
+              },
             },
-          },
-        }),
-        Trade.findOne({
-          where: {
-            symbol,
-            timestamp: {
-              [Op.gte]: backtestTimeEndTimestamp - BORDER_WINDOW_MS,
-              [Op.lte]: backtestTimeEndTimestamp,
+          }),
+          Trade.findOne({
+            where: {
+              symbol,
+              timestamp: {
+                [Op.gte]: endTimestamp - BORDER_WINDOW_MS,
+                [Op.lte]: endTimestamp,
+              },
             },
-          },
-        }),
-      ]);
+          }),
+        ]);
 
-      if (startBorderTrade && endBorderTrade) {
-        return;
-      }
-
-      while (true) {
-        const params: { startTime?: number; fromId?: number } = {};
-        if (lastTradeId) {
-          params.fromId = lastTradeId;
-        } else {
-          params.startTime = backtestTimeStartTimestamp;
-        }
-        const batchTrades = await binanceHttpClient.fetchAssetTrades(symbol, BATCH_SIZE, params);
-        const batchTradesFiltered = batchTrades.filter(
-          (trade) => trade.timestamp <= backtestTimeEndTimestamp,
-        );
-
-        symbolTrades = [...symbolTrades, ...batchTradesFiltered];
-
-        if (batchTradesFiltered.length < BATCH_SIZE) {
-          break;
+        if (startBorderTrade && endBorderTrade) {
+          return;
         }
 
-        lastTradeId = batchTradesFiltered[batchTradesFiltered.length - 1].tradeId;
-      }
+        while (true) {
+          const params: { startTime?: number; fromId?: number } = {};
+          if (lastTradeId) {
+            params.fromId = lastTradeId;
+          } else {
+            params.startTime = startTimestamp;
+          }
+          const batchTrades = await binanceHttpClient.fetchAssetTrades(symbol, BATCH_SIZE, params);
+          const batchTradesFiltered = batchTrades.filter(
+            (trade) => trade.timestamp <= endTimestamp,
+          );
 
-      return Trade.bulkCreate(symbolTrades, { ignoreDuplicates: true });
-    }),
-  );
-});
+          symbolTrades = [...symbolTrades, ...batchTradesFiltered];
+
+          if (batchTradesFiltered.length < BATCH_SIZE) {
+            break;
+          }
+
+          lastTradeId = batchTradesFiltered[batchTradesFiltered.length - 1].tradeId;
+        }
+
+        return Trade.bulkCreate(symbolTrades, { ignoreDuplicates: true });
+      }),
+    );
+  },
+);
 
 const loadCandles = measureTime(
   'Загрузка свечей из Binance',
-  async (symbols: string[], timeframe: TTimeframe) => {
+  async (symbols: string[], timeframe: TTimeframe, startTimestamp: number) => {
     await Candle.sync();
 
     const binanceHttpClient = BinanceHTTPClient.getInstance();
@@ -128,7 +118,7 @@ const loadCandles = measureTime(
           timeframe,
           1000,
           undefined,
-          backtestTimeStartTimestamp,
+          startTimestamp,
         );
 
         const candlesWithMetadata: (TCandle & { symbol: string; timeframe: string })[] =
@@ -144,59 +134,39 @@ const loadCandles = measureTime(
   },
 );
 
-const buildAssetsCache = measureTime('Построение кеша активов', async () => {
+const buildAssetsCache = measureTime('Построение кеша активов', async (symbols: string[]) => {
   const cache = new Map<string, Asset>();
   const assets = await Asset.findAll({
-    where: { symbol: { [Op.in]: SYMBOLS } },
+    where: { symbol: { [Op.in]: symbols } },
   });
   assets.forEach((asset) => cache.set(asset.symbol, asset));
 
   return cache;
 });
 
-const buildTradesCache = measureTime('Построение кеша сделок', async () => {
-  const cache = new Map<string, Trade[]>();
-  const symbolTrades = await Promise.all(
-    SYMBOLS.map(async (symbol) => ({
-      symbol,
-      trades: await Trade.findAll({
-        where: {
-          symbol,
-          timestamp: {
-            [Op.gte]: backtestTimeStartTimestamp,
-            [Op.lte]: backtestTimeEndTimestamp,
+const buildTradesCache = measureTime(
+  'Построение кеша сделок',
+  async (symbols: string[], startTimestamp: number, endTimestamp: number) => {
+    const cache = new Map<string, Trade[]>();
+    const symbolTrades = await Promise.all(
+      symbols.map(async (symbol) => ({
+        symbol,
+        trades: await Trade.findAll({
+          where: {
+            symbol,
+            timestamp: {
+              [Op.gte]: startTimestamp,
+              [Op.lte]: endTimestamp,
+            },
           },
-        },
-        order: [['timestamp', 'ASC']],
-      }),
-    })),
-  );
-
-  symbolTrades.forEach(({ symbol, trades }) => cache.set(symbol, trades));
-
-  return cache;
-});
-
-const saveCompleteTrades = measureTime(
-  'Сохранение сделок',
-  async (completeTrades: TCompleteTrade[]) => {
-    const dataDir = path.resolve(process.cwd(), 'data', 'backtest');
-    const fileName = `report_${backtestTimeStart.toISOString()}_${backtestTimeEnd.toISOString()}.json`;
-    const filePath = path.join(dataDir, fileName);
-
-    const sortedTrades = R.pipe(
-      completeTrades,
-      R.map((trade) => ({
-        ...trade,
-        assetA: trade.assetA.symbol,
-        assetB: trade.assetB.symbol,
+          order: [['timestamp', 'ASC']],
+        }),
       })),
-      R.sortBy(R.prop('profitPercent')),
     );
 
-    await fs.writeFile(filePath, JSON.stringify(sortedTrades, null, 2), 'utf8');
+    symbolTrades.forEach(({ symbol, trades }) => cache.set(symbol, trades));
 
-    return filePath;
+    return cache;
   },
 );
 
@@ -225,16 +195,24 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
   return trades;
 };
 
-(async () => {
+export const run = async (
+  symbolA: string,
+  symbolB: string,
+  timeframe: TTimeframe,
+  startTimestamp: number,
+  endTimestamp: number,
+) => {
+  const symbols = [symbolA, symbolB];
+
   const timeEnvironment: TTimeEnvironment = {
-    currentTime: backtestTimeStartTimestamp,
+    currentTime: startTimestamp,
   };
 
-  await loadTrades(SYMBOLS);
-  await loadCandles(SYMBOLS, TIMEFRAME);
+  await loadTrades(symbols, startTimestamp, endTimestamp);
+  await loadCandles(symbols, timeframe, startTimestamp);
 
-  const assetsCache = await buildAssetsCache();
-  const tradesCache = await buildTradesCache();
+  const assetsCache = await buildAssetsCache(symbols);
+  const tradesCache = await buildTradesCache(symbols, startTimestamp, endTimestamp);
 
   const processedPairs = {
     pairsMap: new Map<string, number>(),
@@ -260,11 +238,11 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
   const backtestCompleteTrades = await measureTime('Расчёт сделок', async () => {
     const completeTrades: TCompleteTrade[] = [];
 
-    for (const symbolA of SYMBOLS) {
+    for (const symbolA of symbols) {
       const assetA = assetsCache.get(symbolA)!;
       const assetATrades = tradesCache.get(symbolA) ?? [];
 
-      for (const symbolB of SYMBOLS) {
+      for (const symbolB of symbols) {
         const assetB = assetsCache.get(symbolB)!;
 
         if (symbolA === symbolB) continue;
@@ -272,12 +250,12 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
 
         processedPairs.setPairProcessed(symbolA, symbolB);
 
-        timeEnvironment.currentTime = backtestTimeStartTimestamp;
+        timeEnvironment.currentTime = startTimestamp;
 
         const dataProvider = new FakeDataProvider(timeEnvironment);
         const streamDataProvider = new FakeStreamDataProvider();
 
-        const strategy = new MeanReversionStrategy(symbolA, symbolB, TIMEFRAME, {
+        const strategy = new MeanReversionStrategy(symbolA, symbolB, timeframe, {
           dataProvider,
           streamDataProvider,
         });
@@ -391,28 +369,5 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
     return completeTrades;
   })();
 
-  if (backtestCompleteTrades.length > 0) {
-    const tradesCount = backtestCompleteTrades.length;
-    const totalProfitPercent = backtestCompleteTrades.reduce(
-      (acc, trade) => acc + trade.profitPercent,
-      0,
-    );
-    const averageProfitPercent = totalProfitPercent / tradesCount;
-    const averageTradesDurationInMinutes =
-      backtestCompleteTrades.reduce(
-        (acc, trade) => acc + (trade.closeTime - trade.openTime) / 60000,
-        0,
-      ) / tradesCount;
-
-    console.log(`
-        Отчёт за период ${backtestTimeStart.toISOString()} → ${backtestTimeEnd.toISOString()}:
-        Общее количество сделок: ${tradesCount}. 
-        Средняя прибыль: ${averageProfitPercent.toFixed(2)}%. 
-        Средняя продолжительность: ${averageTradesDurationInMinutes.toFixed(2)} минут.\n`);
-
-    const reportFilePath = await saveCompleteTrades(backtestCompleteTrades);
-    console.log(`Сделки сохранены в ${reportFilePath}`);
-  } else {
-    console.log('Нет сделок ни по одной паре');
-  }
-})();
+  return backtestCompleteTrades;
+};

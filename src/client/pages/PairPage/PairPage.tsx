@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import cn from 'classnames';
 
 import { useQSState } from '../../shared/queryString';
+import { useLSState } from '../../shared/localStorage';
 import { AssetSelector } from '../../widgets/AssetSelector';
 import { useAssets } from '../../entities/assets';
 import { MetricsPane } from './MetricsPane';
@@ -9,17 +9,20 @@ import { BacktestPane } from './BacktestPane';
 
 const TABS = [
   {
-    id: 'Metrics',
+    id: 'metrics',
     label: 'Metrics',
   },
   {
-    id: 'Backtest',
+    id: 'backtest',
     label: 'Backtest',
   },
 ] as const;
 
 export const PairPage = () => {
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('Metrics');
+  const [activeTab, setActiveTab] = useLSState<(typeof TABS)[number]['id']>(
+    'pairActiveTab',
+    'metrics',
+  );
   const { assetList, isLoading: isAssetsLoading } = useAssets();
 
   const [symbolA, setSymbolA] = useQSState<string | null>('tickerA', null);
@@ -73,8 +76,8 @@ export const PairPage = () => {
             ))}
           </div>
 
-          {activeTab === 'Metrics' && <MetricsPane symbolA={symbolA} symbolB={symbolB} />}
-          {activeTab === 'Backtest' && <BacktestPane symbolA={symbolA} symbolB={symbolB} />}
+          {activeTab === 'metrics' && <MetricsPane symbolA={symbolA} symbolB={symbolB} />}
+          {activeTab === 'backtest' && <BacktestPane symbolA={symbolA} symbolB={symbolB} />}
         </div>
       </div>
     </div>

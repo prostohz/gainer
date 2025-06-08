@@ -11,23 +11,17 @@ import { useAssets } from '../../entities/assets';
 import { CandleChart } from '../../widgets/CandleChart';
 
 const rollingCorrelationColors = {
-  '-0.9': '#84cc16', // лаймовый
+  '-0.9': '#22c55e', // зеленый
   '-0.8': '#eab308', // желтый
-  '0': '#ef4444', // красный
   '0.8': '#eab308', // желтый
-  '0.9': '#84cc16', // лаймовый
+  '0.9': '#22c55e', // зеленый
 };
 
 const rollingZScoreColors = {
-  '-4': '#22c55e', // зеленый
-  '-3': '#84cc16', // лаймовый
+  '-3': '#22c55e', // зеленый
   '-2': '#eab308', // желтый
-  '-1': '#ef4444', // красный
-  '0': '#ef4444', // красный
-  '1': '#ef4444', // красный
   '2': '#eab308', // желтый
-  '3': '#84cc16', // лаймовый
-  '4': '#22c55e', // зеленый
+  '3': '#22c55e', // зеленый
 };
 
 type TProps = {
@@ -107,23 +101,23 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
       </div>
       <div className="p-4 bg-base-200 rounded-lg flex flex-row gap-4">
         <div className="flex flex-1 flex-col gap-2">
-          <h2 className="text-lg font-bold mb-2">Rolling Correlation by Prices</h2>
+          <h2 className="text-lg font-bold">Rolling Correlation by Prices</h2>
           <MetricRolling
             data={pairCorrelation.rollingCorrelationByPrices[timeframe]}
             colors={rollingCorrelationColors}
           />
         </div>
         <div className="flex flex-1 flex-col gap-2">
-          <h2 className="text-lg font-bold mb-2">Rolling Correlation by Returns</h2>
+          <h2 className="text-lg font-bold">Rolling Correlation by Returns</h2>
           <MetricRolling
             data={pairCorrelation.rollingCorrelationByReturns[timeframe]}
             colors={rollingCorrelationColors}
           />
         </div>
       </div>
-      <div className="p-4 bg-base-200 rounded-lg flex flex-row gap-4">
+      <div className="p-4 flex flex-row gap-4 bg-base-200 rounded-lg">
         <div className="flex flex-1 flex-col gap-2">
-          <h2 className="text-lg font-bold mb-2">Rolling Z-Score by Prices</h2>
+          <h2 className="text-lg font-bold">Rolling Z-Score by Prices</h2>
           <MetricRolling
             data={pairCorrelation.rollingZScoreByPrices[timeframe]}
             colors={rollingZScoreColors}
@@ -131,27 +125,29 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
         </div>
 
         <div className="flex flex-1 flex-col gap-2">
-          <h2 className="text-lg font-bold mb-2">Rolling Z-Score by Returns</h2>
+          <h2 className="text-lg font-bold">Rolling Z-Score by Returns</h2>
           <MetricRolling
             data={pairCorrelation.rollingZScoreByReturns[timeframe]}
             colors={rollingZScoreColors}
           />
         </div>
       </div>
-      <div className="p-4 bg-base-200 rounded-lg">
-        {assetA && assetB && assetACandles && assetBCandles && (
-          <div className="flex gap-2">
-            <div className="flex-grow h-96 w-full">
-              <div className="font-semibold">{assetA.symbol}</div>
+      {assetA && assetB && assetACandles && assetBCandles && (
+        <div className="flex gap-2 p-4 bg-base-200 rounded-lg">
+          <div className="flex flex-1 flex-col gap-2">
+            <h2 className="text-lg font-bold">{assetA.symbol}</h2>
+            <div className="h-96 w-full">
               <CandleChart candles={assetACandles} precision={assetA.pricePrecision} />
             </div>
-            <div className="flex-grow h-96 w-full">
-              <div className="font-semibold">{assetB.symbol}</div>
+          </div>
+          <div className="flex flex-1 flex-col gap-2">
+            <h2 className="text-lg font-bold">{assetB.symbol}</h2>
+            <div className="h-96 w-full">
               <CandleChart candles={assetBCandles} precision={assetB.pricePrecision} />
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 };

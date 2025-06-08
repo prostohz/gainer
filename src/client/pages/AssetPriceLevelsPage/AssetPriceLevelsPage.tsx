@@ -153,7 +153,7 @@ export const AssetPriceLevelsPage = () => {
             </label>
             <input
               type="number"
-              className="input input-bordered input-sm w-full"
+              className="input input-bordered w-full"
               min="0"
               step="1"
               value={minStrength}
