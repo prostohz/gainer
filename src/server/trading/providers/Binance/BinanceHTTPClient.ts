@@ -232,7 +232,6 @@ class BinanceHTTPClient {
         let errorMessage = `HTTP error! Status: ${response.status}, ${response.statusText}`;
         try {
           const text = await response.text();
-          console.log('text', text);
           try {
             const json = JSON.parse(text);
 
@@ -280,8 +279,6 @@ class BinanceHTTPClient {
   public async fetchAssets(): Promise<TAsset[]> {
     try {
       const data = await this.request('/exchangeInfo', 20);
-
-      console.log('data', data.rateLimits);
 
       return (data as { symbols: TRawAsset[] }).symbols
         .filter((symbol: TRawAsset) => symbol.status === 'TRADING')

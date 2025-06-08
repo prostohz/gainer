@@ -6,7 +6,7 @@ import {
   TCorrelationReportList,
   TCorrelationReportMap,
 } from '../../shared/types';
-import { http } from '../shared/http';
+import { http } from '../shared/utils/http';
 
 export const useCorrelationReportList = (
   timeframe: TTimeframe,

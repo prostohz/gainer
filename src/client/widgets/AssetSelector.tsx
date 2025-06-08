@@ -3,8 +3,8 @@ import { FixedSizeList as List } from 'react-window';
 import * as R from 'remeda';
 
 import { Asset } from '../../server/models/Asset';
-import { useLSState } from '../shared/localStorage';
-import { useAvailableHeight } from '../shared/dom';
+import { useLSState } from '../shared/utils/localStorage';
+import { useAvailableHeight } from '../shared/utils/dom';
 
 type AssetSelectorProps = {
   assets: Asset[];

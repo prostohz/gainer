@@ -25,8 +25,8 @@ export const Filters = ({ values, onChange }: TProps) => {
   }, [usdtOnly, ignoreUsdtUsdc, maxPValue, maxHalfLife, minVolume]);
 
   return (
-    <div className="flex flex-row items-center justify-between">
-      <div className="flex flex-row gap-2 items-center">
+    <div className="flex items-center justify-between">
+      <div className="flex gap-2 items-center">
         <input
           type="checkbox"
           className="checkbox checkbox-primary"
@@ -39,7 +39,7 @@ export const Filters = ({ values, onChange }: TProps) => {
         </label>
       </div>
 
-      <div className="flex flex-row gap-2 items-center">
+      <div className="flex gap-2 items-center">
         <input
           type="checkbox"
           className="checkbox checkbox-primary"
@@ -52,7 +52,7 @@ export const Filters = ({ values, onChange }: TProps) => {
         </label>
       </div>
 
-      <div className="flex flex-row gap-2 items-center">
+      <div className="flex gap-2 items-center">
         <input
           type="number"
           min="0"
@@ -69,7 +69,7 @@ export const Filters = ({ values, onChange }: TProps) => {
         </label>
       </div>
 
-      <div className="flex flex-row gap-2 items-center">
+      <div className="flex gap-2 items-center">
         <input
           type="number"
           min="0"
@@ -85,7 +85,7 @@ export const Filters = ({ values, onChange }: TProps) => {
         </label>
       </div>
 
-      <div className="flex flex-row gap-2 items-center">
+      <div className="flex gap-2 items-center">
         <input
           type="number"
           min="0"

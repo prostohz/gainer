@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as R from 'remeda';
 
 import { Asset } from '../../server/models/Asset';
-import { http } from '../shared/http';
+import { http } from '../shared/utils/http';
 
 type AssetsContextType = {
   assetList: Asset[];

@@ -1,6 +1,7 @@
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 import * as R from 'remeda';
+import { Op } from 'sequelize';
 
 import { buildCompleteGraphs } from '../utils/graph';
 import {
@@ -11,9 +12,10 @@ import {
 } from '../../shared/types';
 import { EngleGrangerTest } from '../trading/indicators/EngleGrangerTest/EngleGrangerTest';
 import { TIndicatorCandle } from '../trading/indicators/types';
+import { HalfLife } from '../trading/indicators/HalfLife/HalfLife';
+import BinanceHTTPClient, { TCandle } from '../trading/providers/Binance/BinanceHTTPClient';
 import { Candle } from '../models/Candle';
 import { Asset } from '../models/Asset';
-import { HalfLife } from '../trading/indicators/HalfLife/HalfLife';
 
 const CANDLE_LIMIT = 500;
 
@@ -24,17 +26,22 @@ const correlationReportFilePath = (timeframe: TTimeframe) =>
 const findCandles = async (
   symbol: string,
   timeframe: TTimeframe,
+  date: number,
   limit: number,
 ): Promise<TIndicatorCandle[]> => {
   const candles = await Candle.findAll({
     where: {
       symbol,
       timeframe,
+      openTime: {
+        [Op.lte]: date,
+      },
     },
+    order: [['openTime', 'DESC']],
     limit,
   });
 
-  return candles.map((candle) => ({
+  return candles.reverse().map((candle) => ({
     openTime: candle.openTime,
     closeTime: candle.closeTime,
     open: Number(candle.open),
@@ -193,16 +200,42 @@ export const getReportMap = async (timeframe: TTimeframe, filters: TCorrelationR
   return filterReport(report, filters);
 };
 
-export const buildReport = async (timeframe: TTimeframe) => {
+export const buildReport = async (timeframe: TTimeframe, date: number) => {
   const assets = await Asset.findAll();
   const assetTickers = assets.map((asset) => asset.symbol);
 
   const report: Map<string, TCorrelationReportMapEntry> = new Map();
 
+  await Candle.sync();
+
+  const binanceHttpClient = BinanceHTTPClient.getInstance();
+
+  await Promise.all(
+    assetTickers.map(async (symbol) => {
+      const candles = await binanceHttpClient.fetchAssetCandles(
+        symbol,
+        timeframe,
+        CANDLE_LIMIT,
+        undefined,
+        date,
+      );
+
+      const candlesWithMetadata: (TCandle & { symbol: string; timeframe: string })[] = candles.map(
+        (candle) => ({
+          ...candle,
+          symbol,
+          timeframe,
+        }),
+      );
+
+      return Candle.bulkCreate(candlesWithMetadata, { ignoreDuplicates: true });
+    }),
+  );
+
   const candlesCache = new Map<string, TIndicatorCandle[]>();
 
   for (const ticker of assetTickers) {
-    const candles = await findCandles(ticker, timeframe, CANDLE_LIMIT);
+    const candles = await findCandles(ticker, timeframe, date, CANDLE_LIMIT);
     candlesCache.set(ticker, candles);
   }
 
@@ -247,6 +280,25 @@ export const buildReport = async (timeframe: TTimeframe) => {
     counter++;
 
     console.log(`${((counter / assetTickers.length) * 100).toFixed(2)}% processed`);
+  }
+
+  const cacheDir = correlationReportFolder;
+  const listCachePrefix = `report_${timeframe}_list_`;
+  const clusterCachePrefix = `report_${timeframe}_clusters_`;
+
+  try {
+    const files = fs.readdirSync(cacheDir);
+    for (const file of files) {
+      if (
+        (file.startsWith(listCachePrefix) && file.endsWith('.json')) ||
+        (file.startsWith(clusterCachePrefix) && file.endsWith('.json'))
+      ) {
+        fs.unlinkSync(path.join(cacheDir, file));
+      }
+    }
+    console.log(`Старые кеш-файлы для таймфрейма ${timeframe} удалены`);
+  } catch (err) {
+    console.error('Ошибка при удалении кеш-файлов кластеров:', err);
   }
 
   fs.writeFileSync(

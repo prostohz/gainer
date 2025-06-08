@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { TTimeframe, TCorrelationReportFilters } from '../../../shared/types';
 import { Loader } from '../../shared/ui/Loader';
 import { useCorrelationReportList } from '../../entities/correlationReport';
-import { useAvailableHeight } from '../../shared/dom';
+import { useAvailableHeight } from '../../shared/utils/dom';
 
 type TProps = {
   timeframe: TTimeframe;
@@ -34,10 +34,7 @@ export const CorrelationList = ({ timeframe, filters }: TProps) => {
     const isPositive = halfLife !== null && pValue > 0;
 
     return (
-      <div
-        style={style}
-        className="bg-base-300 rounded-lg flex flex-row px-4 items-center justify-between"
-      >
+      <div style={style} className="bg-base-300 rounded-lg flex px-4 items-center justify-between">
         <div className="flex-grow">
           <Link
             to={`/pair?tickerA=${symbolA}&tickerB=${symbolB}&timeframe=${timeframe}`}
@@ -47,7 +44,7 @@ export const CorrelationList = ({ timeframe, filters }: TProps) => {
           </Link>
         </div>
 
-        <div className="flex flex-row gap-2">
+        <div className="flex gap-2">
           <div className={`font-mono ${isPositive ? 'text-success' : 'text-error'}`}>
             {pValue.toFixed(2)}
           </div>

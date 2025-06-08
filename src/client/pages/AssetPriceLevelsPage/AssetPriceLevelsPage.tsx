@@ -4,7 +4,8 @@ import * as R from 'remeda';
 
 import { TTimeframe, TPriceLevels } from '../../../shared/types';
 import { Candle } from '../../../server/models/Candle';
-import { http } from '../../shared/http';
+import { http } from '../../shared/utils/http';
+import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
 import { CandleChart } from '../../widgets/CandleChart';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
@@ -110,6 +111,8 @@ export const AssetPriceLevelsPage = () => {
 
   return (
     <div className="flex-1 flex flex-col">
+      <Title value={`${asset?.symbol} Price Chart with Levels (${timeframe})`} />
+
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold">
           <span className="text-primary">{asset?.symbol}</span> Price Chart with Levels ({timeframe}
@@ -120,7 +123,7 @@ export const AssetPriceLevelsPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-row gap-4 flex-1">
+      <div className="flex gap-4 flex-1">
         <div className="flex-grow overflow-auto">
           {assetCandles && assetPriceLevels && asset ? (
             <>

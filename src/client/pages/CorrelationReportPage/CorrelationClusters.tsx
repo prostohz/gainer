@@ -5,7 +5,7 @@ import {
   TCorrelationReportClusters,
   TCorrelationReportFilters,
 } from '../../../shared/types';
-import { http } from '../../shared/http';
+import { http } from '../../shared/utils/http';
 import { Loader } from '../../shared/ui/Loader';
 import { setFavorites } from '../../widgets/AssetSelector';
 
@@ -33,12 +33,9 @@ export const CorrelationClusters = ({ timeframe, filters }: TProps) => {
     <div className="flex flex-col flex-grow">
       {clusters && clusters.length > 0 ? (
         clusters.map((item, index) => (
-          <div
-            key={index}
-            className="bg-base-300 rounded-lg p-4 mb-4 flex flex-row justify-between gap-4"
-          >
+          <div key={index} className="bg-base-300 rounded-lg p-4 mb-4 flex justify-between gap-4">
             <div className="break-words">{item.join(', ')}</div>
-            <div className="flex flex-row gap-2 shrink-0">
+            <div className="flex gap-2 shrink-0">
               <button className="btn btn-sm btn-primary" onClick={() => setFavorites(item)}>
                 Set favorites
               </button>

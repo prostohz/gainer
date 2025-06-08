@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { TCorrelation, TTimeframe } from '../../../shared/types';
 import { Candle } from '../../../server/models/Candle';
-import { http } from '../../shared/http';
+import { http } from '../../shared/utils/http';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { MetricsStats } from './MetricsStats';
 import { MetricRolling } from './MetricRolling';
@@ -99,7 +99,7 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
           <TimeframeSelector selectedTimeFrame={timeframe} setSelectedTimeFrame={setTimeframe} />
         </div>
       </div>
-      <div className="p-4 bg-base-200 rounded-lg flex flex-row gap-4">
+      <div className="p-4 bg-base-200 rounded-lg flex gap-4">
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-lg font-bold">Rolling Correlation by Prices</h2>
           <MetricRolling
@@ -115,7 +115,7 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
           />
         </div>
       </div>
-      <div className="p-4 flex flex-row gap-4 bg-base-200 rounded-lg">
+      <div className="p-4 flex gap-4 bg-base-200 rounded-lg">
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-lg font-bold">Rolling Z-Score by Prices</h2>
           <MetricRolling

@@ -85,11 +85,12 @@ router.get(
 
 router.post(
   '/build',
-  validateParams(['timeframe']),
+  validateParams(['timeframe', 'date']),
   asyncHandler(async (req: Request, res: Response) => {
     const timeframe = req.query.timeframe as TTimeframe;
+    const date = Number(req.query.date);
 
-    await buildReport(timeframe);
+    await buildReport(timeframe, date);
     sendResponse(res, { message: 'Report built' });
   }),
 );

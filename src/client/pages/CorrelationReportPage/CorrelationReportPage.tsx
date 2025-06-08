@@ -2,9 +2,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import cn from 'classnames';
 
 import { TCorrelationReportFilters, TTimeframe } from '../../../shared/types';
-import { http } from '../../shared/http';
-import { useLSState } from '../../shared/localStorage';
+import { http } from '../../shared/utils/http';
+import { useLSState } from '../../shared/utils/localStorage';
+import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
+import { DateTimePicker } from '../../shared/ui/Calendar';
 import { TimeframeSelector } from '../../widgets/TimeframeSelector';
 import { CorrelationClusters } from './CorrelationClusters';
 import { CorrelationList } from './CorrelationList';
@@ -29,9 +31,10 @@ const TABS = [
 export const CorrelationReportPage = () => {
   const [activeTab, setActiveTab] = useLSState<(typeof TABS)[number]['id']>('activeTab', 'list');
   const [selectedTimeFrame, setSelectedTimeFrame] = useLSState<TTimeframe>(
-    'selectedTimeFrame',
+    'reportSelectedTimeFrame',
     '1m',
   );
+  const [selectedDate, setSelectedDate] = useLSState<number>('reportSelectedDate', Date.now());
 
   const [filters, setFilters] = useLSState<TCorrelationReportFilters>('filters', {
     usdtOnly: false,
@@ -45,14 +48,16 @@ export const CorrelationReportPage = () => {
     queryKey: ['hasCorrelationReport', selectedTimeFrame],
     queryFn: () =>
       http
-        .get('/api/correlationReport/has', { params: { timeframe: selectedTimeFrame } })
+        .get('/api/correlationReport/has', {
+          params: { timeframe: selectedTimeFrame },
+        })
         .then((response) => response.data),
   });
 
-  const { mutate: buildReport } = useMutation({
+  const { mutate: buildReport, isPending } = useMutation({
     mutationFn: () =>
       http.post('/api/correlationReport/build', null, {
-        params: { timeframe: selectedTimeFrame },
+        params: { timeframe: selectedTimeFrame, date: selectedDate },
       }),
   });
 
@@ -62,16 +67,26 @@ export const CorrelationReportPage = () => {
 
   return (
     <div className="flex flex-col flex-grow">
+      <Title value={`Correlation Report (${selectedTimeFrame})`} />
+
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Correlation Report</h1>
 
         <div className="flex items-center gap-2">
+          <DateTimePicker
+            value={new Date(selectedDate)}
+            onChange={(date) => setSelectedDate((date as Date).getTime())}
+            className="min-w-56"
+            placeholder="Select date"
+          />
+
           <TimeframeSelector
             selectedTimeFrame={selectedTimeFrame}
             setSelectedTimeFrame={setSelectedTimeFrame}
           />
-          <button className="btn btn-sm btn-primary" onClick={() => buildReport()}>
-            {hasReport ? 'Rebuild report' : 'Build report'}
+
+          <button className="btn btn-primary" disabled={isPending} onClick={() => buildReport()}>
+            {isPending ? 'Building...' : hasReport ? 'Rebuild report' : 'Build report'}
           </button>
         </div>
       </div>

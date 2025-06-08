@@ -20,6 +20,7 @@ type TOpenTrade = {
   openPriceA: number;
   openPriceB: number;
   openTime: number;
+  reason: string;
 };
 
 type TCompleteTrade = {
@@ -33,7 +34,8 @@ type TCompleteTrade = {
   openTime: number;
   closeTime: number;
   profitPercent: number;
-  reason: string;
+  openReason: string;
+  closeReason: string;
 };
 
 const loadTrades = measureTime(
@@ -270,6 +272,7 @@ export const run = async (
                 openTime: timeEnvironment.currentTime,
                 openPriceA: signal.symbolA.price,
                 openPriceB: signal.symbolB.price,
+                reason: signal.reason,
               };
               strategy.positionEnterAccepted(signal);
               break;
@@ -320,8 +323,9 @@ export const run = async (
                 closePriceA: signal.symbolA.price,
                 openPriceB: openTrade.openPriceB,
                 closePriceB: signal.symbolB.price,
+                openReason: openTrade.reason,
+                closeReason: signal.reason,
                 profitPercent,
-                reason: signal.reason,
               });
               openTrade = null;
               strategy.positionExitAccepted();
