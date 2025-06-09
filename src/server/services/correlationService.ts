@@ -11,7 +11,7 @@ import { Candle } from '../models/Candle';
 const CANDLE_LIMIT = 1000;
 
 const PEARSON_CANDLE_LIMIT = 500;
-const Z_SCORE_CANDLE_LIMIT = 100;
+const Z_SCORE_CANDLE_LIMIT = 20;
 const COINTEGRATION_CANDLE_LIMIT = 500;
 
 const findCandles = async (

@@ -79,7 +79,6 @@ export class MeanReversionStrategy extends EventEmitter {
 
   private readonly CORRELATION_THRESHOLD = 0.9;
 
-  // Параметры ADX для защиты от трендов
   private readonly ADX_TREND_THRESHOLD = 25; // Минимальный ADX для определения тренда
   private readonly ADX_STRONG_TREND_THRESHOLD = 40; // Сильный тренд - не входим в сделку
 
@@ -90,7 +89,7 @@ export class MeanReversionStrategy extends EventEmitter {
 
   private position: TOpenSignal | null = null;
 
-  private readonly ANALYSIS_THROTTLE_MS = 1_000; // Анализ раз в секунду
+  private readonly ANALYSIS_THROTTLE_MS = 15_000;
   private lastAnalysisTime = 0;
 
   constructor(symbolA: string, symbolB: string, timeframe: TTimeframe, environment: TEnvironment) {
@@ -122,8 +121,16 @@ export class MeanReversionStrategy extends EventEmitter {
   private async updateHistoricalCandles(): Promise<void> {
     try {
       const [newCandlesA, newCandlesB] = await Promise.all([
-        this.dataProvider.fetchAssetCandles(this.symbolA, this.timeframe, this.CANDLES_COUNT),
-        this.dataProvider.fetchAssetCandles(this.symbolB, this.timeframe, this.CANDLES_COUNT),
+        this.dataProvider.fetchAssetCandles({
+          symbol: this.symbolA,
+          timeframe: this.timeframe,
+          limit: this.CANDLES_COUNT,
+        }),
+        this.dataProvider.fetchAssetCandles({
+          symbol: this.symbolB,
+          timeframe: this.timeframe,
+          limit: this.CANDLES_COUNT,
+        }),
       ]);
 
       if (newCandlesA.length === 0 || newCandlesB.length === 0) {
@@ -286,13 +293,14 @@ export class MeanReversionStrategy extends EventEmitter {
     const lastCloseA = lastCandleA.close;
     const lastCloseB = lastCandleB.close;
 
-    // Проверяем наличие подходящего тренда с помощью ADX
+    // Проверяем наличие тренда с помощью ADX
     if (!this.hasAcceptableTrend()) {
-      return; // Не входим в сделку при не подходящем тренде
+      return;
     }
 
+    // Проверяем наличие корреляции
     if (!this.hasAcceptableCorrelation()) {
-      return; // Не входим в сделку при не подходящей корреляции
+      return;
     }
 
     const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
@@ -383,7 +391,6 @@ export class MeanReversionStrategy extends EventEmitter {
 
     const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
 
-    // Проверка на выход по стоп-лоссу
     const shouldZScoreStopLoss =
       (direction === 'sell-buy' && zScore >= this.Z_SCORE_STOP_LOSS) ||
       (direction === 'buy-sell' && zScore <= -this.Z_SCORE_STOP_LOSS);
@@ -410,7 +417,6 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
-    // Проверка обычного выхода по возврату к среднему
     const shouldClose =
       (direction === 'sell-buy' && zScore <= this.Z_SCORE_EXIT) ||
       (direction === 'buy-sell' && zScore >= -this.Z_SCORE_EXIT);

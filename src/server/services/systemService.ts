@@ -92,11 +92,11 @@ export const loadCandles = async () => {
       await Promise.all(
         timeframes.map(async (timeframe) => {
           if (isNewAsset) {
-            const candles = await binanceHttpClient.fetchAssetCandles(
+            const candles = await binanceHttpClient.fetchAssetCandles({
               symbol,
               timeframe,
-              CANDLES_LIMIT,
-            );
+              limit: CANDLES_LIMIT,
+            });
 
             await Candle.bulkCreate(
               candles.map((candle) => ({
@@ -136,12 +136,12 @@ export const loadCandles = async () => {
 
             const limit = Math.ceil((currentTime - startTime) / timeframeToMilliseconds(timeframe));
 
-            const candles = await binanceHttpClient.fetchAssetCandles(
+            const candles = await binanceHttpClient.fetchAssetCandles({
               symbol,
               timeframe,
               limit,
               startTime,
-            );
+            });
 
             if (candles.length > 0) {
               Candle.bulkCreate(
@@ -157,11 +157,11 @@ export const loadCandles = async () => {
               console.log(`Догружено ${candles.length} свечей для ${symbol} (${timeframe})`);
             }
           } else {
-            const candles = await binanceHttpClient.fetchAssetCandles(
+            const candles = await binanceHttpClient.fetchAssetCandles({
               symbol,
               timeframe,
-              CANDLES_LIMIT,
-            );
+              limit: CANDLES_LIMIT,
+            });
             if (candles.length > 0) {
               Candle.bulkCreate(
                 candles.map((candle) => ({

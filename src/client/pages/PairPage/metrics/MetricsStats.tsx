@@ -1,6 +1,6 @@
 import * as R from 'remeda';
 
-import { TCointegration } from '../../../shared/types';
+import { TCointegration } from '../../../../shared/types';
 
 type TProps = {
   correlationByPrices: Record<string, number>;

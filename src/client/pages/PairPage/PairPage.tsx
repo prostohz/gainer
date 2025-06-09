@@ -6,8 +6,8 @@ import { useLSState } from '../../shared/utils/localStorage';
 import { Title } from '../../shared/utils/Title';
 import { AssetSelector } from '../../widgets/AssetSelector';
 import { useAssets } from '../../entities/assets';
-import { MetricsPane } from './MetricsPane';
-import { BacktestPane } from './BacktestPane';
+import { MetricsPane } from './metrics/MetricsPane';
+import { BacktestPane } from './backtest/BacktestPane';
 
 const TABS = [
   {
@@ -51,7 +51,7 @@ export const PairPage = () => {
       </h1>
 
       <div className="flex gap-4 flex-1">
-        <div className="flex gap-4 max-w-96 p-4 bg-base-200 rounded-lg">
+        <div className="flex gap-4 min-w-96 max-w-96 p-4 bg-base-200 rounded-lg">
           <AssetSelector
             isLoading={isAssetsLoading}
             assets={assetList}

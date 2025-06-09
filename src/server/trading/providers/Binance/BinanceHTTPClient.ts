@@ -341,18 +341,26 @@ class BinanceHTTPClient {
   /**
    * Получение исторических свечей через REST API
    */
-  public async fetchAssetCandles(
-    symbol: string,
-    timeframe: TTimeframe,
-    limit: number,
-    startTime?: number,
-    endTime?: number,
-  ): Promise<TCandle[]> {
+  public async fetchAssetCandles({
+    symbol,
+    timeframe,
+    limit,
+    startTime,
+    endTime,
+  }: {
+    symbol: string;
+    timeframe: TTimeframe;
+    limit?: number;
+    startTime?: number;
+    endTime?: number;
+  }): Promise<TCandle[]> {
     try {
       const queryParams = new URLSearchParams();
       queryParams.set('symbol', symbol);
       queryParams.set('interval', timeframe);
-      queryParams.set('limit', limit.toString());
+      if (limit) {
+        queryParams.set('limit', limit.toString());
+      }
       if (startTime) {
         queryParams.set('startTime', startTime.toString());
       }

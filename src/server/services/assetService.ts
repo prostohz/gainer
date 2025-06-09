@@ -1,3 +1,5 @@
+import { Op } from 'sequelize';
+
 import { TTimeframe } from '../../shared/types';
 import BinanceHTTPClient from '../trading/providers/Binance/BinanceHTTPClient';
 import { Asset } from '../models/Asset';
@@ -9,7 +11,19 @@ export const getAssetList = () => {
   return Asset.findAll();
 };
 
-export const getAssetCandles = async (symbol: string, timeframe: TTimeframe, limit: number) => {
+export const getAssetCandles = async ({
+  symbol,
+  timeframe,
+  startTimestamp,
+  endTimestamp,
+  limit,
+}: {
+  symbol: string;
+  timeframe: TTimeframe;
+  startTimestamp?: number;
+  endTimestamp?: number;
+  limit?: number;
+}) => {
   const asset = await Asset.findOne({
     where: {
       symbol,
@@ -20,12 +34,32 @@ export const getAssetCandles = async (symbol: string, timeframe: TTimeframe, lim
     throw new Error(`Asset ${symbol} not found`);
   }
 
+  const query = {
+    symbol: asset.symbol,
+    timeframe,
+  } as Record<string, unknown>;
+
+  if (startTimestamp || endTimestamp) {
+    const openTimeQuery: Record<symbol, number> = {};
+
+    if (startTimestamp) {
+      openTimeQuery[Op.gte] = startTimestamp;
+    }
+
+    if (endTimestamp) {
+      openTimeQuery[Op.lte] = endTimestamp;
+    }
+
+    query.openTime = openTimeQuery;
+  }
+
+  if (limit) {
+    query.limit = limit;
+  }
+
   return Candle.findAll({
-    where: {
-      symbol: asset.symbol,
-      timeframe,
-    },
-    limit,
+    where: query,
+    order: [['openTime', 'ASC']],
   });
 };
 

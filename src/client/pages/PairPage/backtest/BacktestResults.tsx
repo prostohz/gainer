@@ -1,48 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import dayjs from 'dayjs';
 import cn from 'classnames';
+import dayjs from 'dayjs';
 
-import { TTimeframe } from '../../../shared/types';
-import { http } from '../../shared/utils/http';
-import { useLSState } from '../../shared/utils/localStorage';
-import { DateTimePicker } from '../../shared/ui/Calendar';
-import { TimeframeSelector } from '../../widgets/TimeframeSelector';
-import { useAssets } from '../../entities/assets';
+import { useAssets } from '../../../entities/assets';
+import { TBacktestTrade } from './types';
 
-type BacktestPaneProps = {
-  symbolA: string | null;
-  symbolB: string | null;
-};
-
-type TPositionDirection = 'buy-sell' | 'sell-buy';
-
-type TBacktestTrade = {
-  direction: TPositionDirection;
-  assetA: {
-    symbol: string;
-    baseAsset: string;
-    quoteAsset: string;
-  };
-  assetB: {
-    symbol: string;
-    baseAsset: string;
-    quoteAsset: string;
-  };
-  openPriceA: number;
-  closePriceA: number;
-  openPriceB: number;
-  closePriceB: number;
-  openTime: number;
-  closeTime: number;
-  profitPercent: number;
-  openReason: string;
-  closeReason: string;
-};
-
-type TBacktestResults = TBacktestTrade[];
-
-const BacktestResults = ({ results }: { results: TBacktestResults }) => {
+export const BacktestResults = ({ results }: { results: TBacktestTrade[] }) => {
   const { assetMap } = useAssets();
 
   const totalTrades = results.length;
@@ -121,9 +83,12 @@ const BacktestResults = ({ results }: { results: TBacktestResults }) => {
         <div className="bg-base-300 rounded-lg p-4">
           <h4 className="text-md font-semibold mb-3">Trade history</h4>
           <div className="overflow-x-auto max-h-96">
-            <table className="table table-sm w-full">
+            <table className="table table-sm w-full overflow-x-auto">
               <thead>
                 <tr>
+                  <th>ID</th>
+                  <th>Symbol A</th>
+                  <th>Symbol B</th>
                   <th>Open time</th>
                   <th>Close time</th>
                   <th>Duration</th>
@@ -137,8 +102,8 @@ const BacktestResults = ({ results }: { results: TBacktestResults }) => {
               </thead>
               <tbody>
                 {results.map((trade, index) => {
-                  const assetA = assetMap[trade.assetA.symbol];
-                  const assetB = assetMap[trade.assetB.symbol];
+                  const assetA = assetMap[trade.symbolA];
+                  const assetB = assetMap[trade.symbolB];
 
                   const assetAPricePrecision = assetA.pricePrecision;
                   const assetBPricePrecision = assetB.pricePrecision;
@@ -151,10 +116,13 @@ const BacktestResults = ({ results }: { results: TBacktestResults }) => {
                         'bg-error/10': trade.profitPercent < 0,
                       })}
                     >
+                      <td className="text-xs">{trade.id}</td>
+                      <td className="text-xs">{trade.symbolA}</td>
+                      <td className="text-xs">{trade.symbolB}</td>
                       <td className="text-xs">{dayjs(trade.openTime).format('DD.MM HH:mm:ss')}</td>
                       <td className="text-xs">{dayjs(trade.closeTime).format('DD.MM HH:mm:ss')}</td>
                       <td className="text-xs">
-                        {dayjs(trade.closeTime).diff(dayjs(trade.openTime), 'minutes')}m
+                        {dayjs(trade.closeTime).diff(dayjs(trade.openTime), 'seconds')}s
                       </td>
                       <td className="text-xs">
                         <span className="badge badge-sm badge-info">
@@ -187,111 +155,6 @@ const BacktestResults = ({ results }: { results: TBacktestResults }) => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
-  const [startDate, setStartDate] = useLSState<number>('backtestStartDate', Date.now());
-  const [endDate, setEndDate] = useLSState<number>('backtestEndDate', startDate);
-  const [timeframe, setTimeframe] = useState<TTimeframe>('1m');
-  const [backtestResults, setBacktestResults] = useState<TBacktestResults | null>(null);
-
-  const {
-    mutate: runBacktest,
-    isPending,
-    error,
-  } = useMutation({
-    mutationFn: () =>
-      http.post('/api/backtest', null, {
-        params: {
-          symbolA: symbolA,
-          symbolB: symbolB,
-          timeframe: timeframe,
-          startTimestamp: startDate,
-          endTimestamp: endDate,
-        },
-      }),
-    onSuccess: (response) => {
-      setBacktestResults(response.data);
-    },
-    onError: (error) => {
-      console.error('Ошибка при выполнении бэктеста:', error);
-      setBacktestResults(null);
-    },
-  });
-
-  const clearResults = () => {
-    setBacktestResults(null);
-  };
-
-  useEffect(() => {
-    clearResults();
-  }, [symbolA, symbolB]);
-
-  return (
-    <div className="bg-base-200 rounded-lg p-4">
-      <div className="space-y-4">
-        <div className="flex items-top gap-4">
-          <div className="flex-1">
-            <TimeframeSelector
-              selectedTimeFrame={timeframe}
-              setSelectedTimeFrame={(newTimeframe) => {
-                setTimeframe(newTimeframe);
-                clearResults();
-              }}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <DateTimePicker
-              value={new Date(startDate)}
-              maxDate={new Date()}
-              onChange={(date) => {
-                setStartDate((date as Date).getTime());
-                clearResults();
-              }}
-              placeholder="Start time"
-              timeIntervals={15}
-            />
-
-            <DateTimePicker
-              value={new Date(endDate)}
-              minDate={new Date(startDate)}
-              maxDate={new Date()}
-              onChange={(date) => {
-                const selectedDate = date as Date;
-                if (startDate && dayjs(selectedDate).isBefore(startDate)) {
-                  setEndDate(startDate);
-                } else {
-                  setEndDate(selectedDate.getTime());
-                }
-                clearResults();
-              }}
-              placeholder="End time"
-              timeIntervals={15}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              className="btn btn-primary w-48"
-              disabled={!symbolA || !symbolB || !startDate || !endDate || isPending}
-              onClick={() => runBacktest()}
-            >
-              {isPending ? 'Running...' : 'Run backtest'}
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="alert alert-error">
-            <span>Ошибка при выполнении бэктеста: {error.message}</span>
-          </div>
-        )}
-
-        {backtestResults && <BacktestResults results={backtestResults} />}
-      </div>
     </div>
   );
 };

@@ -20,9 +20,17 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const symbol = req.query.symbol as string;
     const timeframe = req.query.timeframe as TTimeframe;
-    const limit = Number(req.query.limit) || 1000;
+    const startTimestamp = req.query.startTimestamp ? Number(req.query.startTimestamp) : undefined;
+    const endTimestamp = req.query.endTimestamp ? Number(req.query.endTimestamp) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
 
-    const assetCandles = await getAssetCandles(symbol, timeframe, limit);
+    const assetCandles = await getAssetCandles({
+      symbol,
+      timeframe,
+      startTimestamp,
+      endTimestamp,
+      limit,
+    });
     sendResponse(res, assetCandles);
   }),
 );

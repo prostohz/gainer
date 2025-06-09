@@ -212,13 +212,12 @@ export const buildReport = async (timeframe: TTimeframe, date: number) => {
 
   await Promise.all(
     assetTickers.map(async (symbol) => {
-      const candles = await binanceHttpClient.fetchAssetCandles(
+      const candles = await binanceHttpClient.fetchAssetCandles({
         symbol,
         timeframe,
-        CANDLE_LIMIT,
-        undefined,
-        date,
-      );
+        limit: CANDLE_LIMIT,
+        endTime: date,
+      });
 
       const candlesWithMetadata: (TCandle & { symbol: string; timeframe: string })[] = candles.map(
         (candle) => ({

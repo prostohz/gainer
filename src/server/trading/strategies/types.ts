@@ -5,7 +5,15 @@ import { TCandle } from '../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade, TStreamSubscription } from '../providers/Binance/BinanceStreamClient';
 
 export interface TDataProvider {
-  fetchAssetCandles: (symbol: string, timeframe: TTimeframe, limit: number) => Promise<TCandle[]>;
+  fetchAssetCandles: ({
+    symbol,
+    timeframe,
+    limit,
+  }: {
+    symbol: string;
+    timeframe: TTimeframe;
+    limit: number;
+  }) => Promise<TCandle[]>;
 }
 
 export interface TStreamDataProvider extends EventEmitter {

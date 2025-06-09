@@ -16,11 +16,15 @@ export class FakeDataProvider implements TDataProvider {
     this.candleCache = new Map<string, TCandle[]>();
   }
 
-  async fetchAssetCandles(
-    symbol: string,
-    timeframe: TTimeframe,
-    limit: number,
-  ): Promise<TCandle[]> {
+  async fetchAssetCandles({
+    symbol,
+    timeframe,
+    limit,
+  }: {
+    symbol: string;
+    timeframe: TTimeframe;
+    limit: number;
+  }): Promise<TCandle[]> {
     const key = `${symbol}-${timeframe}-${limit}`;
     if (this.candleCache.has(key)) {
       return this.candleCache.get(key)!;

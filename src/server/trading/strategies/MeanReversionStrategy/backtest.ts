@@ -5,7 +5,6 @@ import {
   OPEN_POSITION_COMMISSION_RATE,
   MARGIN_HOUR_COMMISSION_RATE,
 } from '../../../configs/trading';
-import { Asset } from '../../../models/Asset';
 import { Candle } from '../../../models/Candle';
 import { Trade } from '../../../models/Trade';
 import { measureTime } from '../../../utils/performance';
@@ -14,8 +13,11 @@ import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
 import { TTimeEnvironment } from '../types';
 import { FakeDataProvider, FakeStreamDataProvider } from '../fakes';
 import { MeanReversionStrategy, TPositionDirection, TSignal } from './strategy';
+import { timeframeToMilliseconds } from '../../../utils/timeframe';
 
 type TOpenTrade = {
+  symbolA: string;
+  symbolB: string;
   direction: TPositionDirection;
   openPriceA: number;
   openPriceB: number;
@@ -24,9 +26,10 @@ type TOpenTrade = {
 };
 
 type TCompleteTrade = {
+  id: number;
   direction: TPositionDirection;
-  assetA: Asset;
-  assetB: Asset;
+  symbolA: string;
+  symbolB: string;
   openPriceA: number;
   closePriceA: number;
   openPriceB: number;
@@ -49,35 +52,9 @@ const loadTrades = measureTime(
 
     await Promise.all(
       symbols.map(async (symbol) => {
-        let lastTradeId: number | undefined;
         let symbolTrades: TTrade[] = [];
 
-        const BORDER_WINDOW_MS = 60 * 1000; // 1 минута
-
-        const [startBorderTrade, endBorderTrade] = await Promise.all([
-          Trade.findOne({
-            where: {
-              symbol,
-              timestamp: {
-                [Op.gte]: startTimestamp,
-                [Op.lte]: startTimestamp + BORDER_WINDOW_MS,
-              },
-            },
-          }),
-          Trade.findOne({
-            where: {
-              symbol,
-              timestamp: {
-                [Op.gte]: endTimestamp - BORDER_WINDOW_MS,
-                [Op.lte]: endTimestamp,
-              },
-            },
-          }),
-        ]);
-
-        if (startBorderTrade && endBorderTrade) {
-          return;
-        }
+        let lastTradeId: number | undefined;
 
         while (true) {
           const params: { startTime?: number; fromId?: number } = {};
@@ -108,23 +85,48 @@ const loadTrades = measureTime(
 
 const loadCandles = measureTime(
   'Загрузка свечей из Binance',
-  async (symbols: string[], timeframe: TTimeframe, startTimestamp: number) => {
+  async (
+    symbols: string[],
+    timeframe: TTimeframe,
+    startTimestamp: number,
+    endTimestamp: number,
+  ) => {
     await Candle.sync();
+
+    const BATCH_SIZE = 1000;
 
     const binanceHttpClient = BinanceHTTPClient.getInstance();
 
     await Promise.all(
       symbols.map(async (symbol) => {
-        const candles = await binanceHttpClient.fetchAssetCandles(
-          symbol,
-          timeframe,
-          1000,
-          undefined,
-          startTimestamp,
-        );
+        const allCandles: TCandle[] = [];
+
+        let fetchFrom = startTimestamp;
+
+        while (true) {
+          const fetchTo = fetchFrom + BATCH_SIZE * timeframeToMilliseconds(timeframe);
+
+          const candles = await binanceHttpClient.fetchAssetCandles({
+            symbol,
+            timeframe,
+            startTime: fetchFrom,
+            endTime: fetchTo,
+          });
+
+          if (!candles.length) {
+            break;
+          }
+
+          allCandles.push(...candles);
+          fetchFrom = fetchTo + 1;
+
+          if (fetchTo >= endTimestamp) {
+            break;
+          }
+        }
 
         const candlesWithMetadata: (TCandle & { symbol: string; timeframe: string })[] =
-          candles.map((candle) => ({
+          allCandles.map((candle) => ({
             ...candle,
             symbol,
             timeframe,
@@ -135,16 +137,6 @@ const loadCandles = measureTime(
     );
   },
 );
-
-const buildAssetsCache = measureTime('Построение кеша активов', async (symbols: string[]) => {
-  const cache = new Map<string, Asset>();
-  const assets = await Asset.findAll({
-    where: { symbol: { [Op.in]: symbols } },
-  });
-  assets.forEach((asset) => cache.set(asset.symbol, asset));
-
-  return cache;
-});
 
 const buildTradesCache = measureTime(
   'Построение кеша сделок',
@@ -197,6 +189,33 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
   return trades;
 };
 
+const calculateProfitPercent = (
+  direction: TPositionDirection,
+  openPriceA: number,
+  openPriceB: number,
+  closePriceA: number,
+  closePriceB: number,
+  durationMs: number,
+) => {
+  let pnlA = 0;
+  let pnlB = 0;
+
+  if (direction === 'buy-sell') {
+    pnlA = (closePriceA - openPriceA) / openPriceA;
+    pnlB = (openPriceB - closePriceB) / openPriceB;
+  } else {
+    pnlA = (openPriceA - closePriceA) / openPriceA;
+    pnlB = (closePriceB - openPriceB) / openPriceB;
+  }
+
+  const grossProfitPercent = pnlA + pnlB;
+  const openingCommission = 4 * OPEN_POSITION_COMMISSION_RATE;
+  const holdingCommission =
+    (Math.ceil(durationMs / (60 * 60 * 1000)) * MARGIN_HOUR_COMMISSION_RATE) / 2;
+
+  return (grossProfitPercent - openingCommission - holdingCommission) * 100;
+};
+
 export const run = async (
   symbolA: string,
   symbolB: string,
@@ -211,9 +230,8 @@ export const run = async (
   };
 
   await loadTrades(symbols, startTimestamp, endTimestamp);
-  await loadCandles(symbols, timeframe, startTimestamp);
+  await loadCandles(symbols, timeframe, startTimestamp, endTimestamp);
 
-  const assetsCache = await buildAssetsCache(symbols);
   const tradesCache = await buildTradesCache(symbols, startTimestamp, endTimestamp);
 
   const processedPairs = {
@@ -241,12 +259,9 @@ export const run = async (
     const completeTrades: TCompleteTrade[] = [];
 
     for (const symbolA of symbols) {
-      const assetA = assetsCache.get(symbolA)!;
       const assetATrades = tradesCache.get(symbolA) ?? [];
 
       for (const symbolB of symbols) {
-        const assetB = assetsCache.get(symbolB)!;
-
         if (symbolA === symbolB) continue;
         if (!processedPairs.checkPair(symbolA, symbolB)) continue;
 
@@ -256,18 +271,32 @@ export const run = async (
 
         const dataProvider = new FakeDataProvider(timeEnvironment);
         const streamDataProvider = new FakeStreamDataProvider();
-
         const strategy = new MeanReversionStrategy(symbolA, symbolB, timeframe, {
           dataProvider,
           streamDataProvider,
         });
+
+        const assetBTrades = tradesCache.get(symbolB) ?? [];
+
+        const lastAssetATrade = assetATrades[assetATrades.length - 1];
+        const lastAssetBTrade = assetBTrades[assetBTrades.length - 1];
 
         let openTrade: TOpenTrade | null = null;
 
         strategy.on('signal', (signal: TSignal) => {
           switch (signal.type) {
             case 'open':
+              if (
+                timeEnvironment.currentTime >= lastAssetATrade.timestamp ||
+                timeEnvironment.currentTime >= lastAssetBTrade.timestamp
+              ) {
+                strategy.positionEnterRejected();
+                return;
+              }
+
               openTrade = {
+                symbolA,
+                symbolB,
                 direction: signal.direction,
                 openTime: timeEnvironment.currentTime,
                 openPriceA: signal.symbolA.price,
@@ -288,34 +317,19 @@ export const run = async (
                 return;
               }
 
-              let profit = 0;
-              if (openTrade.direction === 'buy-sell') {
-                profit =
-                  signal.symbolA.price -
-                  openTrade.openPriceA +
-                  (openTrade.openPriceB - signal.symbolB.price);
-              } else {
-                profit =
-                  openTrade.openPriceA -
-                  signal.symbolA.price +
-                  (signal.symbolB.price - openTrade.openPriceB);
-              }
-
-              const tradesCount = 4;
-              const positionDurationInHours = Math.ceil(
-                (timeEnvironment.currentTime - openTrade.openTime) / 3600,
+              const profitPercent = calculateProfitPercent(
+                openTrade.direction,
+                openTrade.openPriceA,
+                openTrade.openPriceB,
+                signal.symbolA.price,
+                signal.symbolB.price,
+                timeEnvironment.currentTime - openTrade.openTime,
               );
 
-              const base = Math.abs(openTrade.openPriceA) + Math.abs(openTrade.openPriceB);
-              const profitPercent =
-                (profit / base -
-                  tradesCount * OPEN_POSITION_COMMISSION_RATE -
-                  positionDurationInHours * MARGIN_HOUR_COMMISSION_RATE) *
-                100;
-
               completeTrades.push({
-                assetA,
-                assetB,
+                id: completeTrades.length + 1,
+                symbolA: openTrade.symbolA,
+                symbolB: openTrade.symbolB,
                 direction: openTrade.direction,
                 openTime: openTrade.openTime,
                 closeTime: timeEnvironment.currentTime,
@@ -332,8 +346,6 @@ export const run = async (
               break;
           }
         });
-
-        const assetBTrades = tradesCache.get(symbolB) ?? [];
 
         await strategy.start();
 
@@ -361,13 +373,50 @@ export const run = async (
           }
         }
 
-        // Не открывать сделку на последнем трейде
-        // Закрыть сделку если она открыта
+        if (openTrade) {
+          const currentOpenTrade = openTrade as TOpenTrade;
+
+          const lastPriceA = lastAssetATrade
+            ? parseFloat(lastAssetATrade.price)
+            : currentOpenTrade.openPriceA;
+          const lastPriceB = lastAssetBTrade
+            ? parseFloat(lastAssetBTrade.price)
+            : currentOpenTrade.openPriceB;
+          const closeTime = Math.max(
+            lastAssetATrade ? lastAssetATrade.timestamp : currentOpenTrade.openTime,
+            lastAssetBTrade ? lastAssetBTrade.timestamp : currentOpenTrade.openTime,
+            timeEnvironment.currentTime,
+          );
+
+          const profitPercent = calculateProfitPercent(
+            currentOpenTrade.direction,
+            currentOpenTrade.openPriceA,
+            currentOpenTrade.openPriceB,
+            lastPriceA,
+            lastPriceB,
+            closeTime - currentOpenTrade.openTime,
+          );
+
+          completeTrades.push({
+            id: completeTrades.length + 1,
+            symbolA: currentOpenTrade.symbolA,
+            symbolB: currentOpenTrade.symbolB,
+            direction: currentOpenTrade.direction,
+            openTime: currentOpenTrade.openTime,
+            closeTime,
+            openPriceA: currentOpenTrade.openPriceA,
+            closePriceA: lastPriceA,
+            openPriceB: currentOpenTrade.openPriceB,
+            closePriceB: lastPriceB,
+            openReason: currentOpenTrade.reason,
+            closeReason: 'force-close-at-end',
+            profitPercent,
+          });
+          openTrade = null;
+        }
 
         strategy.stop();
       }
-
-      console.log(`Обработан актив ${symbolA}`);
     }
 
     return completeTrades;

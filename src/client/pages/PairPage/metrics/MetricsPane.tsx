@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { TCorrelation, TTimeframe } from '../../../shared/types';
-import { Candle } from '../../../server/models/Candle';
-import { http } from '../../shared/utils/http';
-import { TimeframeSelector } from '../../widgets/TimeframeSelector';
+import { TCorrelation, TTimeframe } from '../../../../shared/types';
+import { Candle } from '../../../../server/models/Candle';
+import { http } from '../../../shared/utils/http';
+import { TimeframeSelector } from '../../../widgets/TimeframeSelector';
 import { MetricsStats } from './MetricsStats';
 import { MetricRolling } from './MetricRolling';
-import { useAssets } from '../../entities/assets';
-import { CandleChart } from '../../widgets/CandleChart';
+import { useAssets } from '../../../entities/assets';
+import { CandleChart } from '../../../widgets/CandleChart';
 
 const rollingCorrelationColors = {
   '-0.9': '#22c55e', // зеленый
