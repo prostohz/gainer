@@ -1,9 +1,25 @@
 import express, { Request, Response } from 'express';
 
-import { loadCandles } from '../services/systemService';
+import { flushDatabase, getSystemInfo, loadCandles } from '../services/systemService';
 import { asyncHandler, sendResponse } from '../utils/apiHandler';
 
 const router = express.Router();
+
+router.get(
+  '/',
+  asyncHandler(async (req: Request, res: Response) => {
+    const systemInfo = await getSystemInfo();
+    sendResponse(res, systemInfo);
+  }),
+);
+
+router.post(
+  '/flushDatabase',
+  asyncHandler(async (req: Request, res: Response) => {
+    await flushDatabase();
+    sendResponse(res, { message: 'Database flushed successfully' });
+  }),
+);
 
 router.post(
   '/loadCandles',

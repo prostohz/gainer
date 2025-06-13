@@ -4,8 +4,8 @@ import logo from './logo.png';
 
 const links = [
   {
-    to: '/correlationReport',
-    label: 'Correlation Report',
+    to: '/pairReport',
+    label: 'Pair Report',
   },
   {
     to: '/pair',

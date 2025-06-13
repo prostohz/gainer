@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-import { CorrelationReportPage } from '../pages/CorrelationReportPage/CorrelationReportPage';
+import { PairReportListPage } from '../pages/PairReportListPage/PairReportListPage';
+import { PairReportPage } from '../pages/PairReportPage/PairReportPage';
 import { PairPage } from '../pages/PairPage/PairPage';
 import { AssetPriceLevelsPage } from '../pages/AssetPriceLevelsPage/AssetPriceLevelsPage';
 import { SystemPage } from '../pages/SystemPage/SystemPage';
@@ -15,7 +16,8 @@ export const App = () => {
           <Navigation />
           <div className="container mx-auto p-4 flex-1 flex flex-col">
             <Routes>
-              <Route path="/correlationReport" element={<CorrelationReportPage />} />
+              <Route path="/pairReport" element={<PairReportListPage />} />
+              <Route path="/pairReport/:id" element={<PairReportPage />} />
               <Route path="/pair" element={<PairPage />} />
               <Route path="/assetPriceLevels" element={<AssetPriceLevelsPage />} />
               <Route path="/system" element={<SystemPage />} />

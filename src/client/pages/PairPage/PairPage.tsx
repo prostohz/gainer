@@ -8,6 +8,7 @@ import { AssetSelector } from '../../widgets/AssetSelector';
 import { useAssets } from '../../entities/assets';
 import { MetricsPane } from './metrics/MetricsPane';
 import { BacktestPane } from './backtest/BacktestPane';
+import { TTimeframe } from '../../../shared/types';
 
 const TABS = [
   {
@@ -29,6 +30,7 @@ export const PairPage = () => {
 
   const [symbolA, setSymbolA] = useQSState<string | null>('tickerA', null);
   const [symbolB, setSymbolB] = useQSState<string | null>('tickerB', null);
+  const [timeframe] = useQSState<TTimeframe>('timeframe', '1m' as TTimeframe);
 
   const title = useMemo(() => {
     if (!symbolA || !symbolB) return 'Pair';
@@ -85,7 +87,9 @@ export const PairPage = () => {
             ))}
           </div>
 
-          {activeTab === 'metrics' && <MetricsPane symbolA={symbolA} symbolB={symbolB} />}
+          {activeTab === 'metrics' && (
+            <MetricsPane symbolA={symbolA} symbolB={symbolB} timeframe={timeframe} />
+          )}
           {activeTab === 'backtest' && <BacktestPane symbolA={symbolA} symbolB={symbolB} />}
         </div>
       </div>

@@ -2,6 +2,8 @@ import * as R from 'remeda';
 
 import { TCointegration } from '../../../../shared/types';
 
+const ROUND_PRECISION = 4;
+
 type TProps = {
   correlationByPrices: Record<string, number>;
   correlationByReturns: Record<string, number>;
@@ -52,7 +54,7 @@ export const MetricsStats = ({
         </div>
       ))}
 
-      <div className="col-span-2 border-t border-neutral pt-2">Price Correlation</div>
+      <div className="col-span-2 border-t border-neutral pt-2">Pearson Correlation by prices</div>
       {timeframes.map((timeframe) => {
         const correlationItem = correlationByPrices[timeframe];
         const correlationColorClass = getCorrelationColorClass(correlationItem);
@@ -61,12 +63,12 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${correlationColorClass} text-right border-t border-neutral pt-2`}
           >
-            {correlationItem.toFixed(2)}
+            {correlationItem.toFixed(ROUND_PRECISION)}
           </div>
         );
       })}
 
-      <div className="col-span-2 border-t border-neutral pt-2">Return Correlation</div>
+      <div className="col-span-2 border-t border-neutral pt-2">Pearson Correlation by returns</div>
       {timeframes.map((timeframe) => {
         const correlationItem = correlationByReturns[timeframe];
         const correlationColorClass = getCorrelationColorClass(correlationItem);
@@ -75,12 +77,12 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${correlationColorClass} text-right border-t border-neutral pt-2`}
           >
-            {correlationItem.toFixed(2)}
+            {correlationItem.toFixed(ROUND_PRECISION)}
           </div>
         );
       })}
 
-      <div className="col-span-2 border-t border-neutral pt-2">Price Z-Score</div>
+      <div className="col-span-2 border-t border-neutral pt-2">Z-Score by prices</div>
       {timeframes.map((timeframe) => {
         const zScoreItem = zScoreByPrices[timeframe];
         const zScoreColorClass = getZScoreColorClass(zScoreItem);
@@ -89,12 +91,12 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${zScoreColorClass} text-right border-t border-neutral pt-2`}
           >
-            {zScoreItem.toFixed(2) || 'N/A'}
+            {zScoreItem.toFixed(ROUND_PRECISION) || 'N/A'}
           </div>
         );
       })}
 
-      <div className="col-span-2 border-t border-neutral pt-2">Return Z-Score</div>
+      <div className="col-span-2 border-t border-neutral pt-2">Z-Score by returns</div>
       {timeframes.map((timeframe) => {
         const zScoreItem = zScoreByReturns[timeframe];
         const zScoreColorClass = getZScoreColorClass(zScoreItem);
@@ -103,12 +105,12 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${zScoreColorClass} text-right border-t border-neutral pt-2`}
           >
-            {zScoreItem.toFixed(2) || 'N/A'}
+            {zScoreItem.toFixed(ROUND_PRECISION) || 'N/A'}
           </div>
         );
       })}
 
-      <div className="col-span-2 border-t border-neutral pt-2">Engle Granger</div>
+      <div className="col-span-2 border-t border-neutral pt-2">Engle Granger (p-value)</div>
       {timeframes.map((timeframe) => {
         const cointegrationItem = cointegration[timeframe];
         const cointegrationColorClass = getCointegrationColorClass(cointegrationItem);
@@ -117,7 +119,7 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${cointegrationColorClass} text-right border-t border-neutral pt-2`}
           >
-            {cointegrationItem.pValue.toFixed(2)}
+            {cointegrationItem.pValue.toFixed(ROUND_PRECISION)}
           </div>
         );
       })}

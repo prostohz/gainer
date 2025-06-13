@@ -18,21 +18,22 @@ export type TCorrelation = {
   cointegration: TCorrelationRecord<TCointegration>;
 };
 
-export type TCorrelationReportList = {
-  pair: string;
+export type TPairReportEntry = {
   pValue: number;
   halfLife: number;
-}[];
-export type TCorrelationReportMapEntry = { pValue: number; halfLife: number } | null;
-export type TCorrelationReportMap = Record<string, TCorrelationReportMapEntry>;
-export type TCorrelationReportClusters = string[][];
-export type TCorrelationReportFilters = {
-  usdtOnly: boolean;
-  ignoreUsdtUsdc: boolean;
-  maxPValue: number;
-  maxHalfLife: number;
-  minVolume: number;
+  hurstExponent: number;
+  correlationByPrices: number;
+  beta: number;
+} | null;
+export type TPairReportList = ({
+  pair: string;
+} & NonNullable<TPairReportEntry>)[];
+export type TPairReportMeta = {
+  id: string;
+  timeframe: TTimeframe;
+  date: number;
 };
+export type TPairReportMap = Record<string, TPairReportEntry>;
 
 export type TPriceLevelItem = {
   price: number;

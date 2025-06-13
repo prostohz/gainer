@@ -27,12 +27,13 @@ const rollingZScoreColors = {
 type TProps = {
   symbolA: string | null;
   symbolB: string | null;
+  timeframe: TTimeframe;
 };
 
-export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
+export const MetricsPane = ({ symbolA, symbolB, timeframe }: TProps) => {
   const { assetMap } = useAssets();
 
-  const [timeframe, setTimeframe] = useState<TTimeframe>('1m');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<TTimeframe>(timeframe);
 
   const { data: pairCorrelation = null, isLoading: isPairCorrelationLoading } =
     useQuery<TCorrelation>({
@@ -45,21 +46,21 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
     });
 
   const { data: assetACandles = null } = useQuery<Candle[]>({
-    queryKey: ['assetA', symbolA, timeframe],
+    queryKey: ['assetA', symbolA, selectedTimeframe],
     queryFn: () =>
       http
-        .get(`/api/asset/candles?symbol=${symbolA}&timeframe=${timeframe}`)
+        .get(`/api/asset/candles?symbol=${symbolA}&timeframe=${selectedTimeframe}`)
         .then((res) => res.data),
-    enabled: Boolean(symbolA) && Boolean(timeframe),
+    enabled: Boolean(symbolA) && Boolean(selectedTimeframe),
   });
 
   const { data: assetBCandles = null } = useQuery<Candle[]>({
-    queryKey: ['assetB', symbolB, timeframe],
+    queryKey: ['assetB', symbolB, selectedTimeframe],
     queryFn: () =>
       http
-        .get(`/api/asset/candles?symbol=${symbolB}&timeframe=${timeframe}`)
+        .get(`/api/asset/candles?symbol=${symbolB}&timeframe=${selectedTimeframe}`)
         .then((res) => res.data),
-    enabled: Boolean(symbolB) && Boolean(timeframe),
+    enabled: Boolean(symbolB) && Boolean(selectedTimeframe),
   });
 
   const assetA = symbolA ? assetMap[symbolA] : null;
@@ -96,21 +97,24 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
       <div className="flex items-center justify-end gap-2">
         <label htmlFor="timeframe">Timeframe</label>
         <div className="w-32">
-          <TimeframeSelector selectedTimeFrame={timeframe} setSelectedTimeFrame={setTimeframe} />
+          <TimeframeSelector
+            selectedTimeFrame={selectedTimeframe}
+            setSelectedTimeFrame={setSelectedTimeframe}
+          />
         </div>
       </div>
       <div className="p-4 bg-base-200 rounded-lg flex gap-4">
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-lg font-bold">Rolling Correlation by Prices</h2>
           <MetricRolling
-            data={pairCorrelation.rollingCorrelationByPrices[timeframe]}
+            data={pairCorrelation.rollingCorrelationByPrices[selectedTimeframe]}
             colors={rollingCorrelationColors}
           />
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-lg font-bold">Rolling Correlation by Returns</h2>
           <MetricRolling
-            data={pairCorrelation.rollingCorrelationByReturns[timeframe]}
+            data={pairCorrelation.rollingCorrelationByReturns[selectedTimeframe]}
             colors={rollingCorrelationColors}
           />
         </div>
@@ -119,7 +123,7 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-lg font-bold">Rolling Z-Score by Prices</h2>
           <MetricRolling
-            data={pairCorrelation.rollingZScoreByPrices[timeframe]}
+            data={pairCorrelation.rollingZScoreByPrices[selectedTimeframe]}
             colors={rollingZScoreColors}
           />
         </div>
@@ -127,7 +131,7 @@ export const MetricsPane = ({ symbolA, symbolB }: TProps) => {
         <div className="flex flex-1 flex-col gap-2">
           <h2 className="text-lg font-bold">Rolling Z-Score by Returns</h2>
           <MetricRolling
-            data={pairCorrelation.rollingZScoreByReturns[timeframe]}
+            data={pairCorrelation.rollingZScoreByReturns[selectedTimeframe]}
             colors={rollingZScoreColors}
           />
         </div>

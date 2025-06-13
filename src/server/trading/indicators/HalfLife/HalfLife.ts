@@ -26,7 +26,7 @@ export class HalfLife {
    * @returns   half-life в тех же барах, что входные данные.
    *            Infinity → mean-reversion не подтверждена.
    */
-  calculate(p1: number[], p2: number[]): number {
+  public calculate(p1: number[], p2: number[]): number {
     if (p1.length !== p2.length || p1.length < 3) {
       throw new Error('Ряды должны быть одинаковой длины ≥ 3.');
     }

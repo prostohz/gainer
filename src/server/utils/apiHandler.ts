@@ -77,7 +77,7 @@ export const validateParams = (requiredParams: string[]) => {
     const missingParams: string[] = [];
 
     for (const param of requiredParams) {
-      if (!req.query[param] && !req.body[param] && !req.params[param]) {
+      if (!req.query?.[param] && !req.body?.[param] && !req.params?.[param]) {
         missingParams.push(param);
       }
     }

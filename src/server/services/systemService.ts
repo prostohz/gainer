@@ -5,8 +5,27 @@ import BinanceHTTPClient, {
 } from '../trading/providers/Binance/BinanceHTTPClient';
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
+import { Trade } from '../models/Trade';
 
 const binanceHttpClient = BinanceHTTPClient.getInstance();
+
+export const flushDatabase = async () => {
+  await Asset.destroy({ where: {} });
+  await Candle.destroy({ where: {} });
+  await Trade.destroy({ where: {} });
+};
+
+export const getSystemInfo = async () => {
+  const assetCount = await Asset.count();
+  const lastCandle = await Candle.findOne({
+    where: { timeframe: '1m' },
+    order: [['openTime', 'DESC']],
+    attributes: ['openTime'],
+    limit: 1,
+  });
+
+  return { assetCount, lastCandleTime: lastCandle?.openTime };
+};
 
 export const getAssetPricePrecision = (asset: TBinanceAsset): number => {
   const priceFilter = asset.filters.find((filter) => filter.filterType === 'PRICE_FILTER');
