@@ -16,6 +16,11 @@ export const PairReport = ({ timeframe, report }: TProps) => {
 
   const HEADER_HEIGHT = 48;
 
+  const renderSafeValue = (value: number | null) => {
+    if (value === null) return 'N/A';
+    return value.toFixed(4);
+  };
+
   const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     if (!report) {
       return null;
@@ -38,13 +43,11 @@ export const PairReport = ({ timeframe, report }: TProps) => {
           {symbolA} - {symbolB}
         </Link>
 
-        <div className="text-right font-mono">{pValue.toFixed(4)}</div>
-        <div className="text-right font-mono">{halfLife === null ? '∞' : halfLife.toFixed(4)}</div>
-        <div className="text-right font-mono">
-          {hurstExponent === null ? 'N/A' : hurstExponent.toFixed(4)}
-        </div>
-        <div className="text-right font-mono">{correlationByPrices.toFixed(4)}</div>
-        <div className="text-right font-mono">{beta.toFixed(4)}</div>
+        <div className="text-right font-mono">{renderSafeValue(pValue)}</div>
+        <div className="text-right font-mono">{renderSafeValue(halfLife)}</div>
+        <div className="text-right font-mono">{renderSafeValue(hurstExponent)}</div>
+        <div className="text-right font-mono">{renderSafeValue(correlationByPrices)}</div>
+        <div className="text-right font-mono">{renderSafeValue(beta)}</div>
       </div>
     );
   };

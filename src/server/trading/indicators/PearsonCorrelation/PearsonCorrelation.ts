@@ -1,12 +1,17 @@
 import { TIndicatorCandle } from '../types';
 
 export class PearsonCorrelation {
-  private calculate(x: number[], y: number[]): number {
+  private calculate(x: number[], y: number[]) {
     const n = x.length;
 
-    // Проверка на достаточное количество данных
     if (n < 2) {
-      return 0;
+      console.warn(
+        'PearsonCorrelation: prices series have less than 2 observations:',
+        x.length,
+        y.length,
+      );
+
+      return null;
     }
 
     // Рассчитываем суммы
@@ -40,34 +45,35 @@ export class PearsonCorrelation {
     return numerator / denominator;
   }
 
-  public correlationByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]): number {
+  public correlationByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     if (!candlesA.length || !candlesB.length) {
-      return 0;
+      console.warn(
+        'PearsonCorrelation: prices series have no observations:',
+        candlesA.length,
+        candlesB.length,
+      );
+
+      return null;
     }
 
     const minLength = Math.min(candlesA.length, candlesB.length);
 
-    // Извлекаем цены закрытия для расчета корреляции
     const pricesA = candlesA.slice(0, minLength).map((candle) => candle.close);
     const pricesB = candlesB.slice(0, minLength).map((candle) => candle.close);
 
     return this.calculate(pricesA, pricesB);
   }
 
-  public rollingCorrelationByPrices(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
-  ): { timestamp: number; value: number }[] {
+  public rollingCorrelationByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     const ROLLING_WINDOW = 100;
 
     const minLength = Math.min(candlesA.length, candlesB.length);
 
-    // Если данных меньше чем размер окна - возвращаем пустой массив
     if (minLength < ROLLING_WINDOW) {
       return [];
     }
 
-    const result: { timestamp: number; value: number }[] = [];
+    const result: { timestamp: number; value: number | null }[] = [];
 
     for (let i = ROLLING_WINDOW; i < minLength; i++) {
       const seriesA = candlesA.slice(i - ROLLING_WINDOW, i);
@@ -85,11 +91,13 @@ export class PearsonCorrelation {
   /**
    * Вычисляет логарифмические доходности по массиву свечей
    */
-  private getLogReturns(candles: TIndicatorCandle[]): number[] {
+  private getLogReturns(candles: TIndicatorCandle[]) {
     const returns: number[] = [];
+
     for (let i = 1; i < candles.length; i++) {
       const prev = candles[i - 1].close;
       const curr = candles[i].close;
+
       // Защита от деления на 0 и отрицательных цен
       if (prev > 0 && curr > 0) {
         returns.push(Math.log(curr / prev));
@@ -103,14 +111,19 @@ export class PearsonCorrelation {
   /**
    * Корреляция по доходностям
    */
-  public correlationByReturns(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]): number {
+  public correlationByReturns(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     if (candlesA.length < 2 || candlesB.length < 2) {
-      return 0;
+      console.warn(
+        'PearsonCorrelation: prices series have less than 2 observations:',
+        candlesA.length,
+        candlesB.length,
+      );
+
+      return null;
     }
 
     const minLength = Math.min(candlesA.length, candlesB.length);
 
-    // Синхронизируем длину
     const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
     const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
 
@@ -127,7 +140,7 @@ export class PearsonCorrelation {
     candlesA: TIndicatorCandle[],
     candlesB: TIndicatorCandle[],
     window: number = 100,
-  ): { timestamp: number; value: number }[] {
+  ) {
     const minLength = Math.min(candlesA.length, candlesB.length);
 
     if (minLength < window + 1) {
@@ -137,7 +150,7 @@ export class PearsonCorrelation {
     const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
     const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
 
-    const result: { timestamp: number; value: number }[] = [];
+    const result: { timestamp: number; value: number | null }[] = [];
     for (let i = window; i < returnsA.length && i < returnsB.length; i++) {
       const windowA = returnsA.slice(i - window, i);
       const windowB = returnsB.slice(i - window, i);

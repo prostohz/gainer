@@ -15,32 +15,29 @@ export class EngleGrangerTest {
    * @param pricesB Массив цен второго актива
    * @returns Результат теста коинтеграции
    */
-  private testCointegration(pricesA: number[], pricesB: number[]): TCointegrationResult {
-    if (pricesA.length !== pricesB.length) {
-      console.warn('Цены двух активов имеют разную длину');
+  private testCointegration(pricesA: number[], pricesB: number[]) {
+    const minLength = Math.min(pricesA.length, pricesB.length);
 
-      return {
-        isCointegrated: false,
-        testStatistic: 0,
-        pValue: 0,
-      };
+    const pA = pricesA.slice(-minLength);
+    const pB = pricesB.slice(-minLength);
+
+    if (pA.length !== pB.length) {
+      console.warn('EngleGrangerTest: prices series have different lengths:', pA.length, pB.length);
+
+      return null;
     }
 
-    if (pricesA.length < 30) {
-      console.warn('Цены двух активов имеют меньше 30 наблюдений');
+    if (pA.length < 30) {
+      console.warn('EngleGrangerTest: prices series have less than 30 observations:', pA.length);
 
-      return {
-        isCointegrated: false,
-        testStatistic: 0,
-        pValue: 0,
-      };
+      return null;
     }
 
     // Шаг 1: Оценка коинтеграционного соотношения (регрессия)
-    const { slope: beta, intercept: alpha } = this.linearRegression(pricesA, pricesB);
+    const { slope: beta, intercept: alpha } = this.linearRegression(pA, pB);
 
     // Шаг 2: Вычисление остатков
-    const residuals = pricesB.map((y, i) => y - (alpha + beta * pricesA[i]));
+    const residuals = pB.map((y, i) => y - (alpha + beta * pA[i]));
 
     // Шаг 3: Проверка стационарности остатков (тест Дики-Фуллера)
     const adfResult = this.augmentedDickeyFullerTest(residuals);
@@ -53,12 +50,10 @@ export class EngleGrangerTest {
       '10%': -3.04,
     };
 
-    // Если тестовая статистика меньше критического значения, отвергаем нулевую гипотезу
-    // о наличии единичного корня, что означает стационарность остатков и наличие коинтеграции
-    const isCointegrated = adfResult.testStatistic < criticalValues['5%'];
-
     return {
-      isCointegrated,
+      // Если тестовая статистика меньше критического значения, отвергаем нулевую гипотезу
+      // о наличии единичного корня, что означает стационарность остатков и наличие коинтеграции
+      isCointegrated: adfResult.testStatistic < criticalValues['5%'],
       testStatistic: adfResult.testStatistic,
       pValue: adfResult.pValue,
     };
@@ -70,10 +65,7 @@ export class EngleGrangerTest {
    * @param lags Количество лагов для теста (по умолчанию определяется автоматически)
    * @returns Результат теста
    */
-  private augmentedDickeyFullerTest(
-    series: number[],
-    lags?: number,
-  ): { testStatistic: number; pValue: number } {
+  private augmentedDickeyFullerTest(series: number[], lags?: number) {
     // Автоматическое определение количества лагов, если не указано
     if (lags === undefined) {
       // Формула для определения оптимального количества лагов: (T^(1/3))
@@ -156,7 +148,7 @@ export class EngleGrangerTest {
    * Грубое приближение p-значения для теста Дики-Фуллера
    * В реальной реализации следует использовать таблицы или более точные методы
    */
-  private approximatePValue(testStatistic: number): number {
+  private approximatePValue(testStatistic: number) {
     // Очень упрощенное приближение
     return Math.exp(testStatistic) / (1 + Math.exp(testStatistic));
   }
@@ -164,10 +156,7 @@ export class EngleGrangerTest {
   /**
    * Рассчитывает коинтеграцию для нескольких таймфреймов
    */
-  public calculateCointegration(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
-  ): TCointegrationResult {
+  public calculateCointegration(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     const pricesA = candlesA.map((candle) => candle.close);
     const pricesB = candlesB.map((candle) => candle.close);
 

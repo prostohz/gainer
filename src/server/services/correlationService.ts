@@ -6,6 +6,7 @@ import {
   TCointegrationResult,
   EngleGrangerTest,
 } from '../trading/indicators/EngleGrangerTest/EngleGrangerTest';
+import { BetaHedge } from '../trading/indicators/BetaHedge/BetaHedge';
 import { Candle } from '../models/Candle';
 
 const CANDLE_LIMIT = 1000;
@@ -41,25 +42,33 @@ const findCandles = async (
 export const getPairCorrelation = async (symbolA: string, symbolB: string) => {
   const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
-  const correlationByPrices = {} as Record<TTimeframe, number>;
-  const correlationByReturns = {} as Record<TTimeframe, number>;
+  const correlationByPrices = {} as Record<TTimeframe, number | null>;
+  const correlationByReturns = {} as Record<TTimeframe, number | null>;
   const rollingCorrelationByPrices = {} as Record<
     TTimeframe,
-    { timestamp: number; value: number }[]
+    { timestamp: number; value: number | null }[]
   >;
   const rollingCorrelationByReturns = {} as Record<
     TTimeframe,
-    { timestamp: number; value: number }[]
+    { timestamp: number; value: number | null }[]
   >;
-  const zScoreByPrices = {} as Record<TTimeframe, number>;
-  const zScoreByReturns = {} as Record<TTimeframe, number>;
-  const rollingZScoreByPrices = {} as Record<TTimeframe, { timestamp: number; value: number }[]>;
-  const rollingZScoreByReturns = {} as Record<TTimeframe, { timestamp: number; value: number }[]>;
-  const cointegration = {} as Record<TTimeframe, TCointegrationResult>;
+  const zScoreByPrices = {} as Record<TTimeframe, number | null>;
+  const zScoreByReturns = {} as Record<TTimeframe, number | null>;
+  const rollingZScoreByPrices = {} as Record<
+    TTimeframe,
+    { timestamp: number; value: number | null }[]
+  >;
+  const rollingZScoreByReturns = {} as Record<
+    TTimeframe,
+    { timestamp: number; value: number | null }[]
+  >;
+  const cointegration = {} as Record<TTimeframe, TCointegrationResult | null>;
+  const betaHedge = {} as Record<TTimeframe, number | null>;
 
   const pearsonCorrelation = new PearsonCorrelation();
   const zScore = new ZScore();
   const engleGrangerTest = new EngleGrangerTest();
+  const betaHedgeIndicator = new BetaHedge();
 
   for (const timeframe of timeframes) {
     const [candlesA, candlesB] = await Promise.all([
@@ -97,6 +106,10 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string) => {
     );
     rollingZScoreByPrices[timeframe] = zScore.rollingZScoreByPrices(candlesA, candlesB);
     rollingZScoreByReturns[timeframe] = zScore.rollingZScoreByReturns(candlesA, candlesB);
+    betaHedge[timeframe] = betaHedgeIndicator.calculateBeta(
+      candlesA.map((candle) => candle.close),
+      candlesB.map((candle) => candle.close),
+    );
   }
 
   return {
@@ -109,5 +122,6 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string) => {
     rollingZScoreByPrices,
     rollingZScoreByReturns,
     cointegration,
+    betaHedge,
   };
 };
