@@ -10,13 +10,15 @@ import { TIndicatorCandle } from '../trading/indicators/types';
 import { HalfLife } from '../trading/indicators/HalfLife/HalfLife';
 import { HurstExponent } from '../trading/indicators/HurstExponent/HurstExponent';
 import BinanceHTTPClient from '../trading/providers/Binance/BinanceHTTPClient';
+import { timeframeToMilliseconds } from '../utils/timeframe';
 import { Asset } from '../models/Asset';
 
-const CANDLE_LIMIT = 1000;
+const CANDLE_LIMIT = 500;
 const MIN_VOLUME = 1_000_000;
 const MAX_P_VALUE = 0.01;
 const MAX_HURST_EXPONENT = 0.5;
-const MAX_HALF_LIFE = 4;
+const MIN_CORRELATION_BY_PRICES = 0.5;
+const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
 
 const pairReportFolder = path.resolve(process.cwd(), 'data', 'pairReports');
 const pairReportMetaDataFilePath = (id: string) => path.join(pairReportFolder, id, 'report.json');
@@ -101,7 +103,12 @@ export const createReport = async (timeframe: TTimeframe, date: number) => {
     }),
   );
 
-  const serializePairName = (tickerA: string, tickerB: string) => `${tickerA}-${tickerB}`;
+  const maxHalfLifeBars = Math.floor(
+    MAX_HALF_LIFE_DURATION_MS / timeframeToMilliseconds(timeframe),
+  );
+
+  const serializePairName = (tickerA: string, tickerB: string) =>
+    [tickerA, tickerB].sort().join('-');
 
   const startTime = Date.now();
 
@@ -129,13 +136,24 @@ export const createReport = async (timeframe: TTimeframe, date: number) => {
 
         const pearsonCorrelation = new PearsonCorrelation();
         const correlationByPrices = pearsonCorrelation.correlationByPrices(candlesA, candlesB);
+        if (!correlationByPrices) {
+          report.set(pairName, null);
+          continue;
+        }
+
+        if (correlationByPrices < MIN_CORRELATION_BY_PRICES) {
+          report.set(pairName, null);
+          continue;
+        }
 
         const engleGrangerTest = new EngleGrangerTest();
-        const cointegration = engleGrangerTest.calculateCointegration(candlesA, candlesB);
-
+        const cointegration = engleGrangerTest.calculateCointegration(candlesA, candlesB)!;
+        if (!cointegration) {
+          report.set(pairName, null);
+          continue;
+        }
         if (cointegration.pValue > MAX_P_VALUE) {
           report.set(pairName, null);
-
           continue;
         }
 
@@ -143,20 +161,24 @@ export const createReport = async (timeframe: TTimeframe, date: number) => {
         const pricesB = candlesB.map((candle) => candle.close);
 
         const hurstExponent = new HurstExponent();
-        const hurstExponentValue = hurstExponent.calculate(pricesA, pricesB);
-
+        const hurstExponentValue = hurstExponent.calculate(pricesA, pricesB)!;
+        if (!hurstExponentValue) {
+          report.set(pairName, null);
+          continue;
+        }
         if (hurstExponentValue > MAX_HURST_EXPONENT) {
           report.set(pairName, null);
-
           continue;
         }
 
         const halfLife = new HalfLife();
-        const halfLifeValue = halfLife.calculate(pricesA, pricesB);
-
-        if (halfLifeValue > MAX_HALF_LIFE) {
+        const halfLifeValue = halfLife.calculate(pricesA, pricesB)!;
+        if (!halfLifeValue) {
           report.set(pairName, null);
-
+          continue;
+        }
+        if (halfLifeValue > maxHalfLifeBars) {
+          report.set(pairName, null);
           continue;
         }
 
@@ -194,12 +216,9 @@ export const createReport = async (timeframe: TTimeframe, date: number) => {
       ...correlation,
     })),
     R.sort((a, b) => {
-      if (a.halfLife === null && b.halfLife === null) {
-        return 0;
-      }
-      if (a.halfLife === Infinity && b.halfLife === Infinity) {
-        return 0;
-      }
+      if (a.halfLife === null || b.halfLife === null) return 0;
+      if (a.halfLife === null && b.halfLife === null) return 0;
+      if (a.halfLife === Infinity && b.halfLife === Infinity) return 0;
 
       return a.halfLife - b.halfLife;
     }),

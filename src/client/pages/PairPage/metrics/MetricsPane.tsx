@@ -92,6 +92,7 @@ export const MetricsPane = ({ symbolA, symbolB, timeframe }: TProps) => {
           zScoreByPrices={pairCorrelation.zScoreByPrices}
           zScoreByReturns={pairCorrelation.zScoreByReturns}
           cointegration={pairCorrelation.cointegration}
+          betaHedge={pairCorrelation.betaHedge}
         />
       </div>
       <div className="flex items-center justify-end gap-2">

@@ -5,6 +5,7 @@ nyc_output
 dist/
 coverage/
 /data/
+/docs/
 temp/
 logs/
 node_modules/

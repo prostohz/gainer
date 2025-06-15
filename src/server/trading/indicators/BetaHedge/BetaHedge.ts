@@ -1,28 +1,32 @@
 export class BetaHedge {
-  public calculateBeta(pricesA: number[], pricesB: number[]): number {
-    // Validate input lengths
-    if (pricesA.length !== pricesB.length) {
-      throw new Error('Price series must have the same length');
-    }
+  public calculateBeta(pricesA: number[], pricesB: number[]) {
+    const minLength = Math.min(pricesA.length, pricesB.length);
 
-    if (pricesA.length < 2) {
-      throw new Error('Price series must contain at least two data points');
+    const pA = pricesA.slice(-minLength);
+    const pB = pricesB.slice(-minLength);
+
+    if (pA.length < 2) {
+      console.warn('BetaHedge: prices series have less than 2 observations:', pA.length);
+
+      return null;
     }
 
     // Calculate simple returns for each series
     const returnsA: number[] = [];
     const returnsB: number[] = [];
 
-    for (let i = 1; i < pricesA.length; i += 1) {
-      const prevA = pricesA[i - 1];
-      const prevB = pricesB[i - 1];
+    for (let i = 1; i < pA.length; i += 1) {
+      const prevA = pA[i - 1];
+      const prevB = pB[i - 1];
 
       if (prevA === 0 || prevB === 0) {
-        throw new Error('Price values must be non-zero');
+        console.warn('BetaHedge: price values must be non-zero:', prevA, prevB);
+
+        return null;
       }
 
-      returnsA.push(pricesA[i] / prevA - 1);
-      returnsB.push(pricesB[i] / prevB - 1);
+      returnsA.push(pA[i] / prevA - 1);
+      returnsB.push(pB[i] / prevB - 1);
     }
 
     // Helper to compute mean
@@ -48,7 +52,9 @@ export class BetaHedge {
     varianceB /= returnsB.length;
 
     if (varianceB === 0) {
-      throw new Error('Variance of benchmark returns is zero; beta is undefined');
+      console.warn('BetaHedge: variance of benchmark returns is zero; beta is undefined');
+
+      return null;
     }
 
     return covariance / varianceB;

@@ -3,7 +3,7 @@ import { createChart, LineSeries, UTCTimestamp } from 'lightweight-charts';
 import * as R from 'remeda';
 
 type TProps = {
-  data?: { timestamp: number; value: number }[];
+  data?: { timestamp: number; value: number | null }[];
   colors: Record<string, string>;
 };
 
@@ -63,7 +63,7 @@ export const MetricRolling = ({ data = [], colors }: TProps) => {
     // Преобразуем данные для графика
     const chartData = data.map((item) => ({
       time: (item.timestamp / 1000) as UTCTimestamp,
-      value: item.value,
+      value: item.value ?? null,
     }));
 
     mainSeries.setData(chartData);
@@ -116,7 +116,7 @@ export const MetricRolling = ({ data = [], colors }: TProps) => {
   if (data.length === 0) {
     return (
       <div className="w-full h-[300px] bg-[#282a36] rounded-lg flex items-center justify-center">
-        <div className="text-neutral-content">Нет данных для отображения</div>
+        <div className="text-neutral-content">No data</div>
       </div>
     );
   }

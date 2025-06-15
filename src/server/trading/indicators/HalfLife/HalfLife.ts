@@ -21,19 +21,25 @@ export class HalfLife {
 
   /**
    * Рассчитывает half-life (t₁/₂) спреда лог-цен двух активов.
-   * @param p1  массив цен (актив 1), длина ≥ 3
-   * @param p2  массив цен (актив 2), та же длина, что и p1
+   * @param pricesA  массив цен (актива A), длина ≥ 3
+   * @param pricesB  массив цен (актива B), та же длина, что и pricesA
    * @returns   half-life в тех же барах, что входные данные.
    *            Infinity → mean-reversion не подтверждена.
    */
-  public calculate(p1: number[], p2: number[]): number {
-    if (p1.length !== p2.length || p1.length < 3) {
-      throw new Error('Ряды должны быть одинаковой длины ≥ 3.');
+  public calculate(pricesA: number[], pricesB: number[]) {
+    if (pricesA.length !== pricesB.length || pricesA.length < 3) {
+      console.warn(
+        'HalfLife: prices series have different lengths or less than 3 observations:',
+        pricesA.length,
+        pricesB.length,
+      );
+
+      return null;
     }
 
     /* ---------- 1. Лог-цены ---------- */
-    const log1 = p1.map(Math.log);
-    const log2 = p2.map(Math.log);
+    const log1 = pricesA.map(Math.log);
+    const log2 = pricesB.map(Math.log);
 
     /* ---------- 2. Бета хеджа (OLS slope log1 ~ β·log2) ---------- */
     const beta = this.olsSlope(log2, log1); // ковариация / дисперсия log2

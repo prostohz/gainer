@@ -5,8 +5,8 @@ export class HurstExponent {
    * H > 0.5 - персистентный ряд (тренд)
    * H < 0.5 - антиперсистентный ряд (возврат к среднему)
    *
-   * @param p1 - массив ценовых данных актива 1
-   * @param p2 - массив ценовых данных актива 2
+   * @param pricesA - массив ценовых данных актива 1
+   * @param pricesB - массив ценовых данных актива 2
    * @param minPeriod - минимальный период для анализа (по умолчанию 10)
    * @param maxPeriod - максимальный период для анализа (по умолчанию длина данных / 4)
    * @param useLogPrices - флаг использования логарифмов цен (по умолчанию true)
@@ -14,23 +14,36 @@ export class HurstExponent {
    * @returns экспонента Херста
    */
   public calculate(
-    p1: number[],
-    p2: number[],
+    pricesA: number[],
+    pricesB: number[],
     minPeriod: number = 10,
     maxPeriod?: number,
     useLogPrices: boolean = true,
     applyDifferencing: boolean = true,
-  ): number {
-    if (p1.length !== p2.length) {
-      throw new Error('Массивы цен p1 и p2 должны иметь одинаковую длину');
+  ) {
+    if (pricesA.length !== pricesB.length) {
+      console.warn(
+        'HurstExponent: price arrays must have the same length:',
+        pricesA.length,
+        pricesB.length,
+      );
+
+      return null;
     }
 
     // При необходимости конвертируем в логарифмы, чтобы нивелировать экспоненциальный рост цен
-    const series1 = useLogPrices ? p1.map((v) => Math.log(v)) : p1;
-    const series2 = useLogPrices ? p2.map((v) => Math.log(v)) : p2;
+    const series1 = useLogPrices ? pricesA.map((v) => Math.log(v)) : pricesA;
+    const series2 = useLogPrices ? pricesB.map((v) => Math.log(v)) : pricesB;
 
     // Находим коэффициенты коинтеграционной регрессии: series2 = alpha + beta * series1
-    const { slope: beta, intercept: alpha } = this.linearRegression(series1, series2);
+    const regression = this.linearRegression(series1, series2);
+    if (!regression) {
+      console.warn('HurstExponent: failed to calculate linear regression:', series1, series2);
+
+      return null;
+    }
+
+    const { slope: beta, intercept: alpha } = regression;
 
     // Спред = остатки регрессии (series2 - (alpha + beta * series1))
     let data = series2.map((value, i) => value - (alpha + beta * series1[i]));
@@ -41,13 +54,17 @@ export class HurstExponent {
     }
 
     if (data.length < 20) {
-      throw new Error('Недостаточно данных для вычисления экспоненты Херста (минимум 20 точек)');
+      console.warn('HurstExponent: not enough data for Hurst exponent calculation:', data.length);
+
+      return null;
     }
 
     maxPeriod = maxPeriod || Math.floor(data.length / 4);
 
     if (minPeriod >= maxPeriod) {
-      throw new Error('minPeriod должен быть меньше maxPeriod');
+      console.warn('HurstExponent: minPeriod must be less than maxPeriod:', minPeriod, maxPeriod);
+
+      return null;
     }
 
     const logPeriods: number[] = [];
@@ -56,6 +73,12 @@ export class HurstExponent {
     // Перебираем различные периоды для анализа
     for (let period = minPeriod; period <= maxPeriod; period++) {
       const rs = this.calculateRescaledRange(data, period);
+      if (rs === null) {
+        console.warn('HurstExponent: failed to calculate rescaled range:', data, period);
+
+        return null;
+      }
+
       if (rs > 0) {
         logPeriods.push(Math.log(period));
         logRS.push(Math.log(rs));
@@ -63,11 +86,23 @@ export class HurstExponent {
     }
 
     if (logPeriods.length < 3) {
-      throw new Error('Недостаточно точек для вычисления экспоненты Херста');
+      console.warn(
+        'HurstExponent: not enough points for Hurst exponent calculation:',
+        logPeriods.length,
+      );
+
+      return 0;
     }
 
     // Вычисляем наклон линейной регрессии (это и есть экспонента Херста)
-    return this.linearRegression(logPeriods, logRS).slope;
+    const lr = this.linearRegression(logPeriods, logRS);
+    if (!lr) {
+      console.warn('HurstExponent: failed to calculate linear regression:', logPeriods, logRS);
+
+      return null;
+    }
+
+    return lr.slope;
   }
 
   /**
@@ -76,9 +111,13 @@ export class HurstExponent {
    * @param period - период для анализа
    * @returns среднее значение rescaled range
    */
-  private calculateRescaledRange(data: number[], period: number): number {
+  private calculateRescaledRange(data: number[], period: number) {
     const segments = Math.floor(data.length / period);
-    if (segments < 1) return 0;
+    if (segments < 1) {
+      console.warn('HurstExponent: segments less than 1:', segments);
+
+      return null;
+    }
 
     let totalRS = 0;
     let validSegments = 0;
@@ -90,6 +129,12 @@ export class HurstExponent {
       const segment = data.slice(segmentStart, segmentEnd);
 
       const rs = this.calculateRSForSegment(segment);
+      if (rs === null) {
+        console.warn('HurstExponent: failed to calculate RS for segment:', segment);
+
+        return null;
+      }
+
       if (rs > 0) {
         totalRS += rs;
         validSegments++;
@@ -104,8 +149,12 @@ export class HurstExponent {
    * @param segment - сегмент временного ряда
    * @returns rescaled range для сегмента
    */
-  private calculateRSForSegment(segment: number[]): number {
-    if (segment.length < 2) return 0;
+  private calculateRSForSegment(segment: number[]) {
+    if (segment.length < 2) {
+      console.warn('HurstExponent: segment has less than 2 observations:', segment.length);
+
+      return null;
+    }
 
     // Вычисляем среднее значение
     const mean = segment.reduce((sum, val) => sum + val, 0) / segment.length;
@@ -139,9 +188,15 @@ export class HurstExponent {
    * @param y - массив y значений
    * @returns объект с наклоном и пересечением
    */
-  private linearRegression(x: number[], y: number[]): { slope: number; intercept: number } {
+  private linearRegression(x: number[], y: number[]) {
     if (x.length !== y.length || x.length === 0) {
-      throw new Error('x и y массивы должны иметь одинаковую ненулевую длину');
+      console.warn(
+        'HurstExponent: x and y arrays must have the same non-zero length:',
+        x.length,
+        y.length,
+      );
+
+      return null;
     }
 
     const n = x.length;

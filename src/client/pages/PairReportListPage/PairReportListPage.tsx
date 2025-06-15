@@ -82,11 +82,10 @@ export const PairReportListPage = () => {
           reportList.map((report) => (
             <div key={report.id} className="flex justify-between items-center">
               <Link to={`/pairReport/${report.id}`} className="flex gap-2 items-center">
-                <span className="font-bold text-gray-500">{report.id}</span>
-                <span className="text-sm text-primary">{report.timeframe}</span>
                 <span className="text-sm text-secondary">
-                  {format(new Date(report.date), 'dd.MM.yyyy mm:hh')}
+                  {format(new Date(report.date), 'dd.MM.yyyy hh:mm')}
                 </span>
+                <span className="text-sm text-primary">{report.timeframe}</span>
               </Link>
 
               <button
@@ -99,7 +98,7 @@ export const PairReportListPage = () => {
             </div>
           ))
         ) : (
-          <div className="text-center text-base-content">No reports</div>
+          <div className="text-center text-neutral-content">No reports</div>
         )}
       </div>
     </div>

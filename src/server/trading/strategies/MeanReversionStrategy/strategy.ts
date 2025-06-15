@@ -279,6 +279,10 @@ export class MeanReversionStrategy extends EventEmitter {
   private hasAcceptableCorrelation(): boolean {
     const correlation = this.pearsonCorrelation.correlationByPrices(this.candlesA, this.candlesB);
 
+    if (!correlation) {
+      return false;
+    }
+
     return correlation > this.CORRELATION_THRESHOLD;
   }
 
@@ -304,6 +308,9 @@ export class MeanReversionStrategy extends EventEmitter {
     }
 
     const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
+    if (!zScore) {
+      return;
+    }
 
     if (zScore >= this.Z_SCORE_ENTRY) {
       // Сигнал на открытие: Short A / Long B
@@ -390,6 +397,9 @@ export class MeanReversionStrategy extends EventEmitter {
     }
 
     const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
+    if (!zScore) {
+      return;
+    }
 
     const shouldZScoreStopLoss =
       (direction === 'sell-buy' && zScore >= this.Z_SCORE_STOP_LOSS) ||

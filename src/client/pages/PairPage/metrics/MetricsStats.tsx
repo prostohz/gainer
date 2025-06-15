@@ -2,14 +2,14 @@ import * as R from 'remeda';
 
 import { TCointegration } from '../../../../shared/types';
 
-const ROUND_PRECISION = 4;
-
+type TMetric<T> = Record<string, T | null>;
 type TProps = {
-  correlationByPrices: Record<string, number>;
-  correlationByReturns: Record<string, number>;
-  zScoreByPrices: Record<string, number>;
-  zScoreByReturns: Record<string, number>;
-  cointegration: Record<string, TCointegration>;
+  correlationByPrices: TMetric<number>;
+  correlationByReturns: TMetric<number>;
+  zScoreByPrices: TMetric<number>;
+  zScoreByReturns: TMetric<number>;
+  cointegration: TMetric<TCointegration>;
+  betaHedge: TMetric<number>;
 };
 
 export const MetricsStats = ({
@@ -18,32 +18,42 @@ export const MetricsStats = ({
   zScoreByPrices,
   zScoreByReturns,
   cointegration,
+  betaHedge,
 }: TProps) => {
-  const getCorrelationColorClass = (correlation: number) => {
+  const getCorrelationColorClass = (correlation: number | null) => {
+    if (correlation === null) return 'text-neutral';
+
     const absCorrelation = Math.abs(correlation);
 
-    if (absCorrelation < 0.3) return 'text-red-500';
-    if (absCorrelation < 0.7) return 'text-yellow-500';
-    return 'text-lime-500';
+    if (absCorrelation < 0.7) return 'text-red-500';
+    if (absCorrelation < 0.9) return 'text-yellow-500';
+    return 'text-green-500';
   };
 
-  const getZScoreColorClass = (zScore: number) => {
+  const getZScoreColorClass = (zScore: number | null) => {
+    if (zScore === null) return 'text-neutral';
+
     const zScoreAbs = Math.abs(zScore);
 
     if (zScoreAbs < 2) return 'text-red-500';
     if (zScoreAbs < 3) return 'text-yellow-500';
-    return 'text-lime-500';
+    return 'text-green-500';
   };
 
-  const getCointegrationColorClass = (cointegration: TCointegration) => {
+  const getCointegrationColorClass = (cointegration: TCointegration | null) => {
+    if (cointegration === null) return 'text-neutral';
+
     if (cointegration.pValue < 0.01) return 'text-green-500';
-    if (cointegration.pValue < 0.05) return 'text-lime-500';
-    if (cointegration.pValue < 0.1) return 'text-yellow-500';
-    if (cointegration.pValue < 0.2) return 'text-orange-500';
+    if (cointegration.pValue < 0.05) return 'text-yellow-500';
     return 'text-red-500';
   };
 
   const timeframes = R.keys(correlationByPrices);
+
+  const renderSafeValue = (value: number | null) => {
+    if (value === null) return 'N/A';
+    return value.toFixed(4);
+  };
 
   return (
     <div className="text-md grid grid-cols-9 gap-2">
@@ -63,7 +73,7 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${correlationColorClass} text-right border-t border-neutral pt-2`}
           >
-            {correlationItem.toFixed(ROUND_PRECISION)}
+            {renderSafeValue(correlationItem)}
           </div>
         );
       })}
@@ -77,7 +87,7 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${correlationColorClass} text-right border-t border-neutral pt-2`}
           >
-            {correlationItem.toFixed(ROUND_PRECISION)}
+            {renderSafeValue(correlationItem)}
           </div>
         );
       })}
@@ -91,7 +101,7 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${zScoreColorClass} text-right border-t border-neutral pt-2`}
           >
-            {zScoreItem.toFixed(ROUND_PRECISION) || 'N/A'}
+            {renderSafeValue(zScoreItem)}
           </div>
         );
       })}
@@ -105,7 +115,7 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${zScoreColorClass} text-right border-t border-neutral pt-2`}
           >
-            {zScoreItem.toFixed(ROUND_PRECISION) || 'N/A'}
+            {renderSafeValue(zScoreItem)}
           </div>
         );
       })}
@@ -119,7 +129,17 @@ export const MetricsStats = ({
             key={timeframe}
             className={`${cointegrationColorClass} text-right border-t border-neutral pt-2`}
           >
-            {cointegrationItem.pValue.toFixed(ROUND_PRECISION)}
+            {renderSafeValue(cointegrationItem?.pValue ?? null)}
+          </div>
+        );
+      })}
+
+      <div className="col-span-2 border-t border-neutral pt-2">Beta Hedge</div>
+      {timeframes.map((timeframe) => {
+        const betaHedgeItem = betaHedge[timeframe];
+        return (
+          <div key={timeframe} className="text-right border-t border-neutral pt-2">
+            {renderSafeValue(betaHedgeItem)}
           </div>
         );
       })}

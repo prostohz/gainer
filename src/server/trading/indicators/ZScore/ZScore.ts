@@ -18,9 +18,11 @@ export class ZScore {
     return (spreadSeries[spreadSeries.length - 1] - mean) / stdDev;
   }
 
-  public zScoreByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]): number {
+  public zScoreByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     if (!candlesA.length || !candlesB.length) {
-      return 0;
+      console.warn('ZScore: prices series have no observations:', candlesA.length, candlesB.length);
+
+      return null;
     }
 
     const candlesAClosePrices = candlesA.map((candle) => candle.close);
@@ -32,7 +34,7 @@ export class ZScore {
   /**
    * Вычисляет логарифмические доходности по массиву свечей
    */
-  private getLogReturns(candles: TIndicatorCandle[]): number[] {
+  private getLogReturns(candles: TIndicatorCandle[]) {
     const returns: number[] = [];
     for (let i = 1; i < candles.length; i++) {
       const prev = candles[i - 1].close;
@@ -49,9 +51,15 @@ export class ZScore {
   /**
    * Рассчитывает Z-Score по доходностям (логарифмическим)
    */
-  public zScoreByReturns(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]): number {
+  public zScoreByReturns(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     if (candlesA.length < 2 || candlesB.length < 2) {
-      return 0;
+      console.warn(
+        'ZScore: prices series have less than 2 observations:',
+        candlesA.length,
+        candlesB.length,
+      );
+
+      return null;
     }
     const minLength = Math.min(candlesA.length, candlesB.length);
     const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
@@ -60,10 +68,7 @@ export class ZScore {
     return this.calculate(returnsA, returnsB);
   }
 
-  public rollingZScoreByPrices(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
-  ): { timestamp: number; value: number }[] {
+  public rollingZScoreByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
     const ROLLING_WINDOW = 100;
 
     const minLength = Math.min(candlesA.length, candlesB.length);
@@ -71,7 +76,7 @@ export class ZScore {
       return [];
     }
 
-    const result: { timestamp: number; value: number }[] = [];
+    const result: { timestamp: number; value: number | null }[] = [];
 
     for (let i = ROLLING_WINDOW; i < minLength; i++) {
       const windowA = candlesA.slice(i - ROLLING_WINDOW, i + 1);
@@ -96,7 +101,7 @@ export class ZScore {
     candlesA: TIndicatorCandle[],
     candlesB: TIndicatorCandle[],
     window: number = 100,
-  ): { timestamp: number; value: number }[] {
+  ) {
     const minLength = Math.min(candlesA.length, candlesB.length);
     if (minLength < window + 1) {
       return [];
@@ -104,7 +109,7 @@ export class ZScore {
 
     const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
     const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
-    const result: { timestamp: number; value: number }[] = [];
+    const result: { timestamp: number; value: number | null }[] = [];
 
     for (let i = window; i < returnsA.length && i < returnsB.length; i++) {
       const windowA = returnsA.slice(i - window, i + 1);
@@ -118,6 +123,7 @@ export class ZScore {
         value,
       });
     }
+
     return result;
   }
 }
