@@ -1,4 +1,5 @@
 import { TTimeframe } from '../../shared/types';
+import dayjs from '../../shared/utils/daytime';
 import { timeframeToMilliseconds } from '../utils/timeframe';
 import BinanceHTTPClient, {
   TAsset as TBinanceAsset,
@@ -6,6 +7,7 @@ import BinanceHTTPClient, {
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
 import { Trade } from '../models/Trade';
+import { measureTime } from '../utils/performance';
 
 const binanceHttpClient = BinanceHTTPClient.getInstance();
 
@@ -17,17 +19,27 @@ export const flushDatabase = async () => {
 
 export const getSystemInfo = async () => {
   const assetCount = await Asset.count();
+  const firstCandle = await Candle.findOne({
+    where: { symbol: 'BTCUSDT', timeframe: '1m' },
+    order: [['openTime', 'ASC']],
+    attributes: ['openTime'],
+    limit: 1,
+  });
   const lastCandle = await Candle.findOne({
-    where: { timeframe: '1m' },
+    where: { symbol: 'BTCUSDT', timeframe: '1m' },
     order: [['openTime', 'DESC']],
     attributes: ['openTime'],
     limit: 1,
   });
 
-  return { assetCount, lastCandleTime: lastCandle?.openTime };
+  return {
+    assetCount,
+    firstCandleTime: firstCandle?.openTime,
+    lastCandleTime: lastCandle?.openTime,
+  };
 };
 
-export const getAssetPricePrecision = (asset: TBinanceAsset): number => {
+const getAssetPricePrecision = (asset: TBinanceAsset): number => {
   const priceFilter = asset.filters.find((filter) => filter.filterType === 'PRICE_FILTER');
   if (priceFilter) {
     const tickSize = priceFilter.tickSize;
@@ -40,7 +52,7 @@ export const getAssetPricePrecision = (asset: TBinanceAsset): number => {
   return asset.baseAssetPrecision;
 };
 
-export const getAssetVolumePrecision = (asset: TBinanceAsset): number => {
+const getAssetVolumePrecision = (asset: TBinanceAsset): number => {
   const lotSize = asset.filters.find((filter) => filter.filterType === 'LOT_SIZE');
   if (lotSize) {
     const stepSize = lotSize.stepSize;
@@ -52,9 +64,62 @@ export const getAssetVolumePrecision = (asset: TBinanceAsset): number => {
 
 const CANDLES_LIMIT = 1000;
 
-export const loadCandles = async () => {
-  const startTime = Date.now();
+const TIMEFRAME_LIMITS: Record<TTimeframe, number> = {
+  '1m': dayjs.duration(5, 'day').asMinutes(),
+  '5m': dayjs.duration(10, 'day').asMinutes() / 5,
+  '15m': dayjs.duration(30, 'day').asMinutes() / 15,
+  '30m': dayjs.duration(90, 'day').asMinutes() / 30,
+  '1h': dayjs.duration(180, 'day').asHours(),
+  '4h': dayjs.duration(360, 'day').asHours() / 4,
+  '1d': dayjs.duration(720, 'day').asDays(),
+};
 
+const fetchCandlesInBatches = async ({
+  symbol,
+  timeframe,
+  totalCandles,
+  startTime,
+}: {
+  symbol: string;
+  timeframe: TTimeframe;
+  totalCandles: number;
+  startTime?: number;
+}) => {
+  let remaining = totalCandles;
+  const timeframeMs = timeframeToMilliseconds(timeframe);
+  // Если стартовое время не передано — считаем от текущего момента назад на totalCandles баров
+  let currentStartTime = startTime ?? Date.now() - remaining * timeframeMs;
+
+  const result: Awaited<ReturnType<typeof binanceHttpClient.fetchAssetCandles>> = [];
+
+  while (remaining > 0) {
+    const chunkSize = Math.min(remaining, CANDLES_LIMIT);
+
+    const candles = await binanceHttpClient.fetchAssetCandles({
+      symbol,
+      timeframe,
+      limit: chunkSize,
+      startTime: currentStartTime,
+    });
+
+    if (!candles.length) {
+      break;
+    }
+
+    result.push(...candles);
+    remaining -= candles.length;
+    // Смещаем стартовое время на следующий бар после последнего полученного
+    currentStartTime = candles[candles.length - 1].closeTime + 1;
+    // Если получили меньше чем запрашивали — дальше данных нет
+    if (candles.length < chunkSize) {
+      break;
+    }
+  }
+
+  return result;
+};
+
+export const loadCandles = measureTime('Candles loading', async () => {
   const binanceAssets = await binanceHttpClient.fetchAssets();
   const binanceAssets24HrStats = await binanceHttpClient.getAssets24HrStats();
   const savedAssets = await Asset.findAll();
@@ -66,7 +131,6 @@ export const loadCandles = async () => {
     (item) => !savedAssetsSymbols.includes(item),
   );
 
-  // Удаляем все существующие активы
   await Asset.destroy({ where: {} });
 
   const assetsToSave = binanceAssets.map((asset) => {
@@ -111,21 +175,25 @@ export const loadCandles = async () => {
       await Promise.all(
         timeframes.map(async (timeframe) => {
           if (isNewAsset) {
-            const candles = await binanceHttpClient.fetchAssetCandles({
+            const candlesToFetch = TIMEFRAME_LIMITS[timeframe] ?? CANDLES_LIMIT;
+
+            const candles = await fetchCandlesInBatches({
               symbol,
               timeframe,
-              limit: CANDLES_LIMIT,
+              totalCandles: candlesToFetch,
             });
 
-            await Candle.bulkCreate(
-              candles.map((candle) => ({
-                ...candle,
-                symbol,
-                timeframe,
-              })),
-            );
-            console.log(`Сохранено ${candles.length} свечей для ${symbol} (${timeframe})`);
+            if (candles.length) {
+              await Candle.bulkCreate(
+                candles.map((candle) => ({
+                  ...candle,
+                  symbol,
+                  timeframe,
+                })),
+              );
+            }
 
+            console.log(`Saved ${candles.length} candles for ${symbol} (${timeframe})`);
             return;
           }
 
@@ -147,23 +215,26 @@ export const loadCandles = async () => {
               await Candle.destroy({
                 where: { symbol, timeframe, openTime: lastCandle.openTime },
               });
-              console.log(`Удалена незакрытая свеча для ${symbol} (${timeframe})`);
+              console.log(`Deleted open candle for ${symbol} (${timeframe})`);
               startTime = lastCandle.openTime;
             } else {
               startTime = lastCandle.closeTime + 1;
             }
 
             const limit = Math.ceil((currentTime - startTime) / timeframeToMilliseconds(timeframe));
+            if (limit <= 0) {
+              return;
+            }
 
-            const candles = await binanceHttpClient.fetchAssetCandles({
+            const candles = await fetchCandlesInBatches({
               symbol,
               timeframe,
-              limit,
+              totalCandles: limit,
               startTime,
             });
 
             if (candles.length > 0) {
-              Candle.bulkCreate(
+              await Candle.bulkCreate(
                 candles.map((candle) => ({
                   ...candle,
                   symbol,
@@ -173,16 +244,19 @@ export const loadCandles = async () => {
                   ignoreDuplicates: true,
                 },
               );
-              console.log(`Догружено ${candles.length} свечей для ${symbol} (${timeframe})`);
+              console.log(`Loaded ${candles.length} candles for ${symbol} (${timeframe})`);
             }
           } else {
-            const candles = await binanceHttpClient.fetchAssetCandles({
+            const candlesToFetch = TIMEFRAME_LIMITS[timeframe];
+
+            const candles = await fetchCandlesInBatches({
               symbol,
               timeframe,
-              limit: CANDLES_LIMIT,
+              totalCandles: candlesToFetch,
             });
+
             if (candles.length > 0) {
-              Candle.bulkCreate(
+              await Candle.bulkCreate(
                 candles.map((candle) => ({
                   ...candle,
                   symbol,
@@ -192,19 +266,15 @@ export const loadCandles = async () => {
                   ignoreDuplicates: true,
                 },
               );
-              console.log(`Сохранено ${candles.length} свечей для ${symbol} (${timeframe})`);
+              console.log(`Saved ${candles.length} candles for ${symbol} (${timeframe})`);
             }
           }
         }),
       );
 
-      console.log(`Обработан символ ${symbol}`);
+      console.log(`Processed symbol ${symbol}`);
     }
-
-    console.log(`Обработано ${binanceAssetsSymbols.length} активов`);
   } catch (error) {
-    console.error('Ошибка при обновлении базы данных:', error);
+    console.error('Error updating database:', error);
   }
-
-  console.log(`Обновление базы данных завершено за ${(Date.now() - startTime) / 1000}s`);
-};
+});

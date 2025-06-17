@@ -1,7 +1,7 @@
+import { round } from 'mathjs';
 import * as R from 'remeda';
 
 import { TTimeframe } from '../../../../shared/types';
-import { roundTo } from '../../../utils/math';
 import { TIndicatorCandle } from '../types';
 
 type TPriceLevelType = 'support' | 'resistance';
@@ -229,7 +229,7 @@ export class PriceLevels {
       }
 
       return {
-        price: roundTo(averagePrice, this.precision),
+        price: round(averagePrice, this.precision),
         strength,
         type,
       };

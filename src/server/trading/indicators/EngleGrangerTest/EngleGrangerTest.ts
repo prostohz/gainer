@@ -1,4 +1,4 @@
-import * as R from 'remeda';
+import { mean } from 'mathjs';
 
 import { TIndicatorCandle } from '../types';
 
@@ -95,8 +95,8 @@ export class EngleGrangerTest {
 
     // Упрощенная реализация: используем только лагированный уровень
     const n = y.length;
-    const meanX = R.mean(x1)!;
-    const meanY = R.mean(y)!;
+    const meanX = Number(mean(x1));
+    const meanY = Number(mean(y));
 
     const numerator = x1.reduce((sum, x, i) => sum + (x - meanX) * (y[i] - meanY), 0);
     const denominator = x1.reduce((sum, x) => sum + Math.pow(x - meanX, 2), 0);
@@ -127,8 +127,8 @@ export class EngleGrangerTest {
    */
   private linearRegression(x: number[], y: number[]): { slope: number; intercept: number } {
     const n = x.length;
-    const meanX = R.mean(x)!;
-    const meanY = R.mean(y)!;
+    const meanX = Number(mean(x));
+    const meanY = Number(mean(y));
 
     let numerator = 0;
     let denominator = 0;

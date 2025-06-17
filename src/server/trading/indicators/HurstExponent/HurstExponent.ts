@@ -1,3 +1,7 @@
+import { mean } from 'mathjs';
+
+import { TIndicatorCandle } from '../types';
+
 export class HurstExponent {
   /**
    * Вычисляет экспоненту Херста для временного ряда
@@ -14,22 +18,25 @@ export class HurstExponent {
    * @returns экспонента Херста
    */
   public calculate(
-    pricesA: number[],
-    pricesB: number[],
+    candlesA: TIndicatorCandle[],
+    candlesB: TIndicatorCandle[],
     minPeriod: number = 10,
     maxPeriod?: number,
     useLogPrices: boolean = true,
     applyDifferencing: boolean = true,
   ) {
-    if (pricesA.length !== pricesB.length) {
+    if (candlesA.length !== candlesB.length) {
       console.warn(
         'HurstExponent: price arrays must have the same length:',
-        pricesA.length,
-        pricesB.length,
+        candlesA.length,
+        candlesB.length,
       );
 
       return null;
     }
+
+    const pricesA = candlesA.slice(-candlesA.length).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-candlesB.length).map((candle) => candle.close);
 
     // При необходимости конвертируем в логарифмы, чтобы нивелировать экспоненциальный рост цен
     const series1 = useLogPrices ? pricesA.map((v) => Math.log(v)) : pricesA;
@@ -156,15 +163,14 @@ export class HurstExponent {
       return null;
     }
 
-    // Вычисляем среднее значение
-    const mean = segment.reduce((sum, val) => sum + val, 0) / segment.length;
+    const segmentMean = Number(mean(segment));
 
     // Вычисляем накопленные отклонения от среднего
     const cumulativeDeviations: number[] = [];
     let cumSum = 0;
 
     for (const value of segment) {
-      cumSum += value - mean;
+      cumSum += value - segmentMean;
       cumulativeDeviations.push(cumSum);
     }
 
@@ -175,7 +181,7 @@ export class HurstExponent {
 
     // Вычисляем стандартное отклонение (Scale)
     const variance =
-      segment.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / segment.length;
+      segment.reduce((sum, val) => sum + Math.pow(val - segmentMean, 2), 0) / segment.length;
     const standardDeviation = Math.sqrt(variance);
 
     // Возвращаем R/S (избегаем деления на ноль)

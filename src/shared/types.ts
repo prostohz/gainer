@@ -23,14 +23,15 @@ export type TPairReportEntry = {
   halfLife: number | null;
   hurstExponent: number | null;
   correlationByPrices: number | null;
+  correlationByReturns: number | null;
   beta: number | null;
+  crossings: number | null;
 } | null;
 export type TPairReportList = ({
   pair: string;
 } & NonNullable<TPairReportEntry>)[];
 export type TPairReportMeta = {
   id: string;
-  timeframe: TTimeframe;
   date: number;
 };
 export type TPairReportMap = Record<string, TPairReportEntry>;

@@ -1,4 +1,5 @@
-import { calculateMean, calculateStandardDeviation } from '../../../utils/math';
+import { mean, std } from 'mathjs';
+
 import { TIndicatorCandle } from '../types';
 
 export class ZScore {
@@ -12,10 +13,10 @@ export class ZScore {
       spreadSeries.push(x[i] - y[i]);
     }
 
-    const mean = calculateMean(spreadSeries);
-    const stdDev = calculateStandardDeviation(spreadSeries, mean);
+    const spreadMean = Number(mean(spreadSeries));
+    const spreadStd = Number(std(spreadSeries));
 
-    return (spreadSeries[spreadSeries.length - 1] - mean) / stdDev;
+    return (spreadSeries[spreadSeries.length - 1] - spreadMean) / spreadStd;
   }
 
   public zScoreByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {

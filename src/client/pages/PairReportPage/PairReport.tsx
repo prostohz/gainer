@@ -1,24 +1,70 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FixedSizeList } from 'react-window';
 import { Link } from 'react-router-dom';
 
-import { TPairReportList, TTimeframe } from '../../../shared/types';
+import { TPairReportList } from '../../../shared/types';
 import { useAvailableHeight } from '../../shared/utils/dom';
 
 type TProps = {
   report: {
     id: string;
     date: number;
-    timeframe: TTimeframe;
     data: TPairReportList;
   };
 };
 
 export const PairReport = ({ report }: TProps) => {
-  const { id, date, timeframe, data } = report;
+  const { id, date, data } = report;
 
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
   const containerHeight = useAvailableHeight(containerElement);
+
+  const [sortField, setSortField] = useState<keyof TPairReportList[0]>('pair');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const columns: {
+    label: string;
+    field: typeof sortField;
+    align: 'right' | 'left';
+  }[] = [
+    { label: 'Pair', field: 'pair', align: 'left' },
+    { label: 'p-value', field: 'pValue', align: 'right' },
+    { label: 'Half-life', field: 'halfLife', align: 'right' },
+    { label: 'Hurst', field: 'hurstExponent', align: 'right' },
+    { label: 'Corr (prices)', field: 'correlationByPrices', align: 'right' },
+    { label: 'Corr (returns)', field: 'correlationByReturns', align: 'right' },
+    { label: 'Beta', field: 'beta', align: 'right' },
+    { label: 'Crossings', field: 'crossings', align: 'right' },
+  ];
+
+  const handleSort = (field: typeof sortField) => {
+    if (field === sortField) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    const compare = (a: (typeof data)[0], b: (typeof data)[0]) => {
+      const valA = a[sortField];
+      const valB = b[sortField];
+
+      const isNullA = valA === null || valA === undefined;
+      const isNullB = valB === null || valB === undefined;
+
+      if (isNullA && isNullB) return 0;
+      if (isNullA) return 1;
+      if (isNullB) return -1;
+
+      if (valA! < valB!) return sortDirection === 'asc' ? -1 : 1;
+      if (valA! > valB!) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    };
+
+    return [...data].sort(compare);
+  }, [data, sortField, sortDirection]);
 
   const uniqueAssetsCount = new Set(data.map((item) => item.pair.split('-')[0])).size;
 
@@ -28,21 +74,30 @@ export const PairReport = ({ report }: TProps) => {
   };
 
   const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const item = data[index];
+    const item = sortedData[index];
     if (!item) {
       return null;
     }
 
-    const { pair, pValue, halfLife, hurstExponent, correlationByPrices, beta } = item;
+    const {
+      pair,
+      pValue,
+      halfLife,
+      hurstExponent,
+      correlationByPrices,
+      correlationByReturns,
+      beta,
+      crossings,
+    } = item;
     const [symbolA, symbolB] = pair.split('-');
 
     return (
       <div
         style={style}
-        className="grid grid-cols-[1fr_repeat(5,120px)] gap-2 items-center px-4 hover:bg-base-300"
+        className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 items-center px-4 hover:bg-base-300"
       >
         <Link
-          to={`/pair?tickerA=${symbolA}&tickerB=${symbolB}&timeframe=${timeframe}`}
+          to={`/pair?tickerA=${symbolA}&tickerB=${symbolB}&date=${date}`}
           className="hover:underline truncate"
         >
           {symbolA} - {symbolB}
@@ -52,28 +107,45 @@ export const PairReport = ({ report }: TProps) => {
         <div className="text-right font-mono">{renderSafeValue(halfLife)}</div>
         <div className="text-right font-mono">{renderSafeValue(hurstExponent)}</div>
         <div className="text-right font-mono">{renderSafeValue(correlationByPrices)}</div>
+        <div className="text-right font-mono">{renderSafeValue(correlationByReturns)}</div>
         <div className="text-right font-mono">{renderSafeValue(beta)}</div>
+        <div className="text-right font-mono">{crossings}</div>
       </div>
     );
   };
 
   const renderContent = () => {
     if (data.length === 0) {
-      return <div className="text-center">No correlation data available</div>;
+      return <div className="text-base-content text-center p-4">No correlation data available</div>;
     }
 
     return (
       <>
-        <div className="grid grid-cols-[1fr_repeat(5,120px)] gap-2 px-4 py-2 font-semibold sticky top-0 z-10 bg-base-300">
-          <div>Pair</div>
-          <div className="text-right">p-value</div>
-          <div className="text-right">Half-life</div>
-          <div className="text-right">Hurst</div>
-          <div className="text-right">Correlation</div>
-          <div className="text-right">Beta</div>
+        <div className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 px-4 py-4 font-semibold sticky top-0 z-10 bg-base-300">
+          {columns.map(({ label, field, align }) => (
+            <div
+              key={field}
+              role="button"
+              onClick={() => handleSort(field)}
+              className={[
+                'cursor-pointer select-none flex items-center gap-1',
+                align === 'right' ? 'text-right justify-end' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <span>{label}</span>
+              {sortField === field && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+            </div>
+          ))}
         </div>
 
-        <FixedSizeList width="100%" height={containerHeight} itemCount={data.length} itemSize={60}>
+        <FixedSizeList
+          width="100%"
+          height={containerHeight}
+          itemCount={sortedData.length}
+          itemSize={60}
+        >
           {Row}
         </FixedSizeList>
       </>
@@ -82,7 +154,7 @@ export const PairReport = ({ report }: TProps) => {
 
   return (
     <div className="w-full h-full flex flex-col gap-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="card bg-base-200 shadow p-4">
           <div className="text-xs opacity-60 mb-1">Report ID</div>
           <div className="font-semibold text-info truncate" title={id}>
@@ -93,11 +165,6 @@ export const PairReport = ({ report }: TProps) => {
         <div className="card bg-base-200 shadow p-4">
           <div className="text-xs opacity-60 mb-1">Date</div>
           <div className="font-semibold text-info">{new Date(date).toLocaleString()}</div>
-        </div>
-
-        <div className="card bg-base-200 shadow p-4">
-          <div className="text-xs opacity-60 mb-1">Timeframe</div>
-          <div className="font-semibold text-info">{timeframe}</div>
         </div>
 
         <div className="card bg-base-200 shadow p-4">

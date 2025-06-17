@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
-import dayjs from 'dayjs';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
@@ -9,10 +8,29 @@ import { PairReport } from './PairReport';
 
 export const PairReportPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
-  const { data: report, isLoading } = useQuery({
+  const {
+    data: report,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['report', id],
     queryFn: () => http.get(`/api/pairReport/${id}`).then((response) => response.data),
+  });
+
+  const { mutate: updateReport, isPending: isUpdating } = useMutation({
+    mutationFn: (id: string) => http.put(`/api/pairReport/${id}`),
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const { mutate: deleteReport } = useMutation({
+    mutationFn: (id: string) => http.delete(`/api/pairReport/${id}`),
+    onSuccess: () => {
+      navigate('/pairReport');
+    },
   });
 
   const renderContent = () => {
@@ -33,6 +51,22 @@ export const PairReportPage = () => {
 
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Pair Report</h1>
+
+        {id && (
+          <div className="flex gap-2">
+            <button
+              className="btn btn-primary btn-outline"
+              onClick={() => updateReport(id)}
+              disabled={isUpdating}
+            >
+              {isUpdating ? 'Updating...' : 'Update'}
+            </button>
+
+            <button className="btn btn-error btn-outline" onClick={() => deleteReport(id)}>
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       {renderContent()}

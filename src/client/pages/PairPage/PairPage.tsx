@@ -30,6 +30,7 @@ export const PairPage = () => {
 
   const [symbolA, setSymbolA] = useQSState<string | null>('tickerA', null);
   const [symbolB, setSymbolB] = useQSState<string | null>('tickerB', null);
+  const [date] = useQSState<number | null>('date', null);
   const [timeframe] = useQSState<TTimeframe>('timeframe', '1m' as TTimeframe);
 
   const title = useMemo(() => {
@@ -88,7 +89,7 @@ export const PairPage = () => {
           </div>
 
           {activeTab === 'metrics' && (
-            <MetricsPane symbolA={symbolA} symbolB={symbolB} timeframe={timeframe} />
+            <MetricsPane symbolA={symbolA} symbolB={symbolB} timeframe={timeframe} date={date} />
           )}
           {activeTab === 'backtest' && <BacktestPane symbolA={symbolA} symbolB={symbolB} />}
         </div>

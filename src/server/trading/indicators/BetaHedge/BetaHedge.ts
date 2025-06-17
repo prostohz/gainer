@@ -1,62 +1,72 @@
+import { TIndicatorCandle } from '../types';
+
 export class BetaHedge {
-  public calculateBeta(pricesA: number[], pricesB: number[]) {
-    const minLength = Math.min(pricesA.length, pricesB.length);
+  public calculateBeta(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
 
-    const pA = pricesA.slice(-minLength);
-    const pB = pricesB.slice(-minLength);
+    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
 
-    if (pA.length < 2) {
-      console.warn('BetaHedge: prices series have less than 2 observations:', pA.length);
+    if (pricesA.length < 2) {
+      console.warn('BetaHedge: prices series have less than 2 observations:', pricesA.length);
 
       return null;
     }
 
-    // Calculate simple returns for each series
-    const returnsA: number[] = [];
-    const returnsB: number[] = [];
-
-    for (let i = 1; i < pA.length; i += 1) {
-      const prevA = pA[i - 1];
-      const prevB = pB[i - 1];
-
-      if (prevA === 0 || prevB === 0) {
-        console.warn('BetaHedge: price values must be non-zero:', prevA, prevB);
-
-        return null;
-      }
-
-      returnsA.push(pA[i] / prevA - 1);
-      returnsB.push(pB[i] / prevB - 1);
-    }
-
-    // Helper to compute mean
     const mean = (values: number[]): number =>
       values.reduce((acc, v) => acc + v, 0) / values.length;
 
-    const meanA = mean(returnsA);
-    const meanB = mean(returnsB);
+    const meanA = mean(pricesA);
+    const meanB = mean(pricesB);
 
-    // Compute covariance and variance
-    let covariance = 0;
-    let varianceB = 0;
+    // Compute numerator and denominator for slope (beta)
+    let numerator = 0;
+    let denominator = 0;
 
-    for (let i = 0; i < returnsA.length; i += 1) {
-      const diffA = returnsA[i] - meanA;
-      const diffB = returnsB[i] - meanB;
+    for (let i = 0; i < pricesA.length; i += 1) {
+      const diffA = pricesA[i] - meanA;
+      const diffB = pricesB[i] - meanB;
 
-      covariance += diffA * diffB;
-      varianceB += diffB * diffB;
+      numerator += diffA * diffB;
+      denominator += diffA * diffA;
     }
 
-    covariance /= returnsA.length;
-    varianceB /= returnsB.length;
-
-    if (varianceB === 0) {
-      console.warn('BetaHedge: variance of benchmark returns is zero; beta is undefined');
+    if (denominator === 0) {
+      console.warn('BetaHedge: variance of independent prices is zero; beta is undefined');
 
       return null;
     }
 
-    return covariance / varianceB;
+    return numerator / denominator;
+  }
+
+  public rollingBeta(
+    candlesA: TIndicatorCandle[],
+    candlesB: TIndicatorCandle[],
+    window: number = 100,
+  ) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+
+    if (minLength < window + 1) {
+      return [];
+    }
+
+    const pA = candlesA.slice(-minLength);
+    const pB = candlesB.slice(-minLength);
+
+    const result: { timestamp: number; value: number | null }[] = [];
+    for (let i = window; i < pA.length && i < pB.length; i++) {
+      const windowA = pA.slice(i - window, i);
+      const windowB = pB.slice(i - window, i);
+
+      const beta = this.calculateBeta(windowA, windowB);
+
+      result.push({
+        timestamp: Number(pA[i].openTime),
+        value: beta,
+      });
+    }
+
+    return result;
   }
 }

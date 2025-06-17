@@ -28,39 +28,44 @@ type TProps = {
   symbolA: string | null;
   symbolB: string | null;
   timeframe: TTimeframe;
+  date: number | null;
 };
 
-export const MetricsPane = ({ symbolA, symbolB, timeframe }: TProps) => {
+export const MetricsPane = ({ symbolA, symbolB, timeframe, date }: TProps) => {
   const { assetMap } = useAssets();
 
   const [selectedTimeframe, setSelectedTimeframe] = useState<TTimeframe>(timeframe);
 
   const { data: pairCorrelation = null, isLoading: isPairCorrelationLoading } =
     useQuery<TCorrelation>({
-      queryKey: ['pairCorrelation', symbolA, symbolB],
+      queryKey: ['pairCorrelation', symbolA, symbolB, date],
       queryFn: () =>
         http
-          .get(`/api/correlation/pair?symbolA=${symbolA}&symbolB=${symbolB}`)
+          .get(`/api/correlation/pair?symbolA=${symbolA}&symbolB=${symbolB}&date=${date}`)
           .then((res) => res.data),
-      enabled: Boolean(symbolA) && Boolean(symbolB),
+      enabled: Boolean(symbolA) && Boolean(symbolB) && Boolean(date),
     });
 
   const { data: assetACandles = null } = useQuery<Candle[]>({
-    queryKey: ['assetA', symbolA, selectedTimeframe],
+    queryKey: ['assetA', symbolA, selectedTimeframe, date],
     queryFn: () =>
       http
-        .get(`/api/asset/candles?symbol=${symbolA}&timeframe=${selectedTimeframe}`)
+        .get(
+          `/api/asset/candles?symbol=${symbolA}&timeframe=${selectedTimeframe}&endTimestamp=${date}`,
+        )
         .then((res) => res.data),
-    enabled: Boolean(symbolA) && Boolean(selectedTimeframe),
+    enabled: Boolean(symbolA) && Boolean(selectedTimeframe) && Boolean(date),
   });
 
   const { data: assetBCandles = null } = useQuery<Candle[]>({
-    queryKey: ['assetB', symbolB, selectedTimeframe],
+    queryKey: ['assetB', symbolB, selectedTimeframe, date],
     queryFn: () =>
       http
-        .get(`/api/asset/candles?symbol=${symbolB}&timeframe=${selectedTimeframe}`)
+        .get(
+          `/api/asset/candles?symbol=${symbolB}&timeframe=${selectedTimeframe}&endTimestamp=${date}`,
+        )
         .then((res) => res.data),
-    enabled: Boolean(symbolB) && Boolean(selectedTimeframe),
+    enabled: Boolean(symbolB) && Boolean(selectedTimeframe) && Boolean(date),
   });
 
   const assetA = symbolA ? assetMap[symbolA] : null;
@@ -75,7 +80,7 @@ export const MetricsPane = ({ symbolA, symbolB, timeframe }: TProps) => {
       <div className="p-4 bg-base-200 rounded-lg">
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <p className="text-md text-neutral-content">No assets selected</p>
+            <p className="text-md text-neutral-content">No assets selected or date is not set</p>
           </div>
         </div>
       </div>
@@ -138,7 +143,7 @@ export const MetricsPane = ({ symbolA, symbolB, timeframe }: TProps) => {
         </div>
       </div>
       {assetA && assetB && assetACandles && assetBCandles && (
-        <div className="flex gap-2 p-4 bg-base-200 rounded-lg">
+        <div className="flex gap-4 p-4 bg-base-200 rounded-lg">
           <div className="flex flex-1 flex-col gap-2">
             <h2 className="text-lg font-bold">{assetA.symbol}</h2>
             <div className="h-96 w-full">

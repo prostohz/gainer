@@ -1,6 +1,6 @@
 import cn from 'classnames';
-import dayjs from 'dayjs';
 
+import dayjs from '../../../../shared/utils/daytime';
 import { useAssets } from '../../../entities/assets';
 import { TBacktestTrade } from './types';
 

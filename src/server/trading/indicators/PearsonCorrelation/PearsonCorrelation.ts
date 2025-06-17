@@ -64,20 +64,22 @@ export class PearsonCorrelation {
     return this.calculate(pricesA, pricesB);
   }
 
-  public rollingCorrelationByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
-    const ROLLING_WINDOW = 100;
-
+  public rollingCorrelationByPrices(
+    candlesA: TIndicatorCandle[],
+    candlesB: TIndicatorCandle[],
+    window: number = 100,
+  ) {
     const minLength = Math.min(candlesA.length, candlesB.length);
 
-    if (minLength < ROLLING_WINDOW) {
+    if (minLength < window) {
       return [];
     }
 
     const result: { timestamp: number; value: number | null }[] = [];
 
-    for (let i = ROLLING_WINDOW; i < minLength; i++) {
-      const seriesA = candlesA.slice(i - ROLLING_WINDOW, i);
-      const seriesB = candlesB.slice(i - ROLLING_WINDOW, i);
+    for (let i = window; i < minLength; i++) {
+      const seriesA = candlesA.slice(i - window, i);
+      const seriesB = candlesB.slice(i - window, i);
 
       result.push({
         timestamp: Number(candlesA[i].openTime),

@@ -1,3 +1,5 @@
+import { Op } from 'sequelize';
+
 import { TTimeframe } from '../../shared/types';
 import { PearsonCorrelation } from '../trading/indicators/PearsonCorrelation/PearsonCorrelation';
 import { TIndicatorCandle } from '../trading/indicators/types';
@@ -10,23 +12,30 @@ import { BetaHedge } from '../trading/indicators/BetaHedge/BetaHedge';
 import { Candle } from '../models/Candle';
 
 const CANDLE_LIMIT = 1000;
-
-const PEARSON_CANDLE_LIMIT = 500;
-const Z_SCORE_CANDLE_LIMIT = 20;
-const COINTEGRATION_CANDLE_LIMIT = 500;
+const CANDLE_LIMIT_FOR_PEARSON = 500;
+const CANDLE_LIMIT_FOR_Z_SCORE = 20;
+const CANDLE_LIMIT_FOR_COINTEGRATION = 1000;
+const CANDLE_LIMIT_FOR_ROLLING = 300;
 
 const findCandles = async (
   symbol: string,
   timeframe: TTimeframe,
   limit: number,
+  date: number,
 ): Promise<TIndicatorCandle[]> => {
   const candles = await Candle.findAll({
     where: {
       symbol,
       timeframe,
+      openTime: {
+        [Op.lte]: date,
+      },
     },
     limit,
+    order: [['openTime', 'DESC']],
   });
+
+  candles.reverse();
 
   return candles.map((candle) => ({
     openTime: candle.openTime,
@@ -39,7 +48,7 @@ const findCandles = async (
   }));
 };
 
-export const getPairCorrelation = async (symbolA: string, symbolB: string) => {
+export const getPairCorrelation = async (symbolA: string, symbolB: string, date: number) => {
   const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
   const correlationByPrices = {} as Record<TTimeframe, number | null>;
@@ -72,44 +81,44 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string) => {
 
   for (const timeframe of timeframes) {
     const [candlesA, candlesB] = await Promise.all([
-      findCandles(symbolA, timeframe, CANDLE_LIMIT),
-      findCandles(symbolB, timeframe, CANDLE_LIMIT),
+      findCandles(symbolA, timeframe, CANDLE_LIMIT, date),
+      findCandles(symbolB, timeframe, CANDLE_LIMIT, date),
     ]);
 
     correlationByPrices[timeframe] = pearsonCorrelation.correlationByPrices(
-      candlesA.slice(0, PEARSON_CANDLE_LIMIT),
-      candlesB.slice(0, PEARSON_CANDLE_LIMIT),
+      candlesA.slice(0, CANDLE_LIMIT_FOR_PEARSON),
+      candlesB.slice(0, CANDLE_LIMIT_FOR_PEARSON),
     );
     correlationByReturns[timeframe] = pearsonCorrelation.correlationByReturns(
-      candlesA.slice(0, PEARSON_CANDLE_LIMIT),
-      candlesB.slice(0, PEARSON_CANDLE_LIMIT),
+      candlesA.slice(0, CANDLE_LIMIT_FOR_PEARSON),
+      candlesB.slice(0, CANDLE_LIMIT_FOR_PEARSON),
     );
     zScoreByPrices[timeframe] = zScore.zScoreByPrices(
-      candlesA.slice(0, Z_SCORE_CANDLE_LIMIT),
-      candlesB.slice(0, Z_SCORE_CANDLE_LIMIT),
+      candlesA.slice(0, CANDLE_LIMIT_FOR_Z_SCORE),
+      candlesB.slice(0, CANDLE_LIMIT_FOR_Z_SCORE),
     );
     zScoreByReturns[timeframe] = zScore.zScoreByReturns(
-      candlesA.slice(0, Z_SCORE_CANDLE_LIMIT),
-      candlesB.slice(0, Z_SCORE_CANDLE_LIMIT),
+      candlesA.slice(0, CANDLE_LIMIT_FOR_Z_SCORE),
+      candlesB.slice(0, CANDLE_LIMIT_FOR_Z_SCORE),
     );
     cointegration[timeframe] = engleGrangerTest.calculateCointegration(
-      candlesA.slice(0, COINTEGRATION_CANDLE_LIMIT),
-      candlesB.slice(0, COINTEGRATION_CANDLE_LIMIT),
+      candlesA.slice(0, CANDLE_LIMIT_FOR_COINTEGRATION),
+      candlesB.slice(0, CANDLE_LIMIT_FOR_COINTEGRATION),
     );
     rollingCorrelationByPrices[timeframe] = pearsonCorrelation.rollingCorrelationByPrices(
       candlesA,
       candlesB,
+      CANDLE_LIMIT_FOR_ROLLING,
     );
     rollingCorrelationByReturns[timeframe] = pearsonCorrelation.rollingCorrelationByReturns(
       candlesA,
       candlesB,
+      CANDLE_LIMIT_FOR_ROLLING,
     );
     rollingZScoreByPrices[timeframe] = zScore.rollingZScoreByPrices(candlesA, candlesB);
     rollingZScoreByReturns[timeframe] = zScore.rollingZScoreByReturns(candlesA, candlesB);
-    betaHedge[timeframe] = betaHedgeIndicator.calculateBeta(
-      candlesA.map((candle) => candle.close),
-      candlesB.map((candle) => candle.close),
-    );
+
+    betaHedge[timeframe] = betaHedgeIndicator.calculateBeta(candlesA, candlesB);
   }
 
   return {

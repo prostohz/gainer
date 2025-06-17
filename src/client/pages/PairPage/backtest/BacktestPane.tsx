@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import dayjs from 'dayjs';
 
 import { TTimeframe } from '../../../../shared/types';
+import dayjs from '../../../../shared/utils/daytime';
 import { Candle } from '../../../../server/models/Candle';
 import { http } from '../../../shared/utils/http';
 import { useLSState } from '../../../shared/utils/localStorage';

@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
 
-import { TTimeframe } from '../../shared/types';
 import {
   getReportList,
   getReport,
   createReport,
+  updateReport,
   deleteReport,
 } from '../services/pairReportService';
 import { asyncHandler, sendResponse, validateParams } from '../utils/apiHandler';
@@ -19,6 +19,17 @@ router.get(
   }),
 );
 
+router.post(
+  '/',
+  validateParams(['date']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const date = Number(req.query.date);
+
+    await createReport(date);
+    sendResponse(res, { message: 'Report built' });
+  }),
+);
+
 router.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
@@ -28,24 +39,21 @@ router.get(
   }),
 );
 
+router.put(
+  '/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    await updateReport(id);
+    sendResponse(res, { message: 'Report updated' });
+  }),
+);
+
 router.delete(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
     await deleteReport(id);
     sendResponse(res, { message: 'Report deleted' });
-  }),
-);
-
-router.post(
-  '/',
-  validateParams(['timeframe', 'date']),
-  asyncHandler(async (req: Request, res: Response) => {
-    const timeframe = req.query.timeframe as TTimeframe;
-    const date = Number(req.query.date);
-
-    await createReport(timeframe, date);
-    sendResponse(res, { message: 'Report built' });
   }),
 );
 

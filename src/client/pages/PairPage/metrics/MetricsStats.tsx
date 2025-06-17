@@ -48,6 +48,12 @@ export const MetricsStats = ({
     return 'text-red-500';
   };
 
+  const getBetaHedgeColorClass = (betaHedge: number | null) => {
+    if (betaHedge === null) return 'text-neutral';
+
+    return 'text-green-500';
+  };
+
   const timeframes = R.keys(correlationByPrices);
 
   const renderSafeValue = (value: number | null) => {
@@ -137,8 +143,12 @@ export const MetricsStats = ({
       <div className="col-span-2 border-t border-neutral pt-2">Beta Hedge</div>
       {timeframes.map((timeframe) => {
         const betaHedgeItem = betaHedge[timeframe];
+        const betaHedgeColorClass = getBetaHedgeColorClass(betaHedgeItem);
         return (
-          <div key={timeframe} className="text-right border-t border-neutral pt-2">
+          <div
+            key={timeframe}
+            className={`${betaHedgeColorClass} text-right border-t border-neutral pt-2`}
+          >
             {renderSafeValue(betaHedgeItem)}
           </div>
         );
