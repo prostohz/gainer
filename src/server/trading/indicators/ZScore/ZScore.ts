@@ -1,16 +1,17 @@
 import { mean, std } from 'mathjs';
 
+import { BetaHedge } from '../BetaHedge/BetaHedge';
 import { TIndicatorCandle } from '../types';
 
 export class ZScore {
-  private calculate(x: number[], y: number[]): number {
+  private calculate(x: number[], y: number[], beta: number): number {
     // Определяем минимальную длину массивов
     const minLength = Math.min(x.length, y.length);
     const spreadSeries: number[] = [];
 
     // Рассчитываем разницу между ценами закрытия
     for (let i = 0; i < minLength; i++) {
-      spreadSeries.push(x[i] - y[i]);
+      spreadSeries.push(x[i] - y[i] * beta);
     }
 
     const spreadMean = Number(mean(spreadSeries));
@@ -29,7 +30,16 @@ export class ZScore {
     const candlesAClosePrices = candlesA.map((candle) => candle.close);
     const candlesBClosePrices = candlesB.map((candle) => candle.close);
 
-    return this.calculate(candlesAClosePrices, candlesBClosePrices);
+    const betaHedge = new BetaHedge();
+    const beta = betaHedge.calculateBeta(candlesA, candlesB);
+
+    if (!beta) {
+      console.warn('ZScore: beta is null');
+
+      return null;
+    }
+
+    return this.calculate(candlesAClosePrices, candlesBClosePrices, beta);
   }
 
   /**
@@ -66,22 +76,33 @@ export class ZScore {
     const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
     const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
 
-    return this.calculate(returnsA, returnsB);
+    const betaHedge = new BetaHedge();
+    const beta = betaHedge.calculateBeta(candlesA, candlesB);
+
+    if (!beta) {
+      console.warn('ZScore: beta is null');
+
+      return null;
+    }
+
+    return this.calculate(returnsA, returnsB, beta);
   }
 
-  public rollingZScoreByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
-    const ROLLING_WINDOW = 100;
-
+  public rollingZScoreByPrices(
+    candlesA: TIndicatorCandle[],
+    candlesB: TIndicatorCandle[],
+    window: number = 100,
+  ) {
     const minLength = Math.min(candlesA.length, candlesB.length);
-    if (minLength < ROLLING_WINDOW) {
+    if (minLength < window) {
       return [];
     }
 
     const result: { timestamp: number; value: number | null }[] = [];
 
-    for (let i = ROLLING_WINDOW; i < minLength; i++) {
-      const windowA = candlesA.slice(i - ROLLING_WINDOW, i + 1);
-      const windowB = candlesB.slice(i - ROLLING_WINDOW, i + 1);
+    for (let i = window; i < minLength; i++) {
+      const windowA = candlesA.slice(i - window, i + 1);
+      const windowB = candlesB.slice(i - window, i + 1);
 
       const timestamp = Number(candlesA[i].openTime);
       const value = this.zScoreByPrices(windowA, windowB);
@@ -108,16 +129,14 @@ export class ZScore {
       return [];
     }
 
-    const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
-    const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
     const result: { timestamp: number; value: number | null }[] = [];
 
-    for (let i = window; i < returnsA.length && i < returnsB.length; i++) {
-      const windowA = returnsA.slice(i - window, i + 1);
-      const windowB = returnsB.slice(i - window, i + 1);
+    for (let i = window; i < minLength; i++) {
+      const windowA = candlesA.slice(i - window, i + 1);
+      const windowB = candlesB.slice(i - window, i + 1);
 
-      const timestamp = Number(candlesA[i + 1]?.openTime ?? candlesA[candlesA.length - 1].openTime);
-      const value = this.calculate(windowA, windowB);
+      const timestamp = Number(candlesA[i].openTime);
+      const value = this.zScoreByReturns(windowA, windowB);
 
       result.push({
         timestamp,

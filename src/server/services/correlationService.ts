@@ -105,6 +105,7 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string, date:
       candlesA.slice(0, CANDLE_LIMIT_FOR_COINTEGRATION),
       candlesB.slice(0, CANDLE_LIMIT_FOR_COINTEGRATION),
     );
+    betaHedge[timeframe] = betaHedgeIndicator.calculateBeta(candlesA, candlesB);
     rollingCorrelationByPrices[timeframe] = pearsonCorrelation.rollingCorrelationByPrices(
       candlesA,
       candlesB,
@@ -117,8 +118,6 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string, date:
     );
     rollingZScoreByPrices[timeframe] = zScore.rollingZScoreByPrices(candlesA, candlesB);
     rollingZScoreByReturns[timeframe] = zScore.rollingZScoreByReturns(candlesA, candlesB);
-
-    betaHedge[timeframe] = betaHedgeIndicator.calculateBeta(candlesA, candlesB);
   }
 
   return {
