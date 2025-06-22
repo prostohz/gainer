@@ -117,8 +117,10 @@ Candle.init(
         name: 'idx_candles_symbol_timeframe_openTime',
         unique: true,
       },
+      {
+        fields: ['symbol', 'timeframe', { name: 'openTime', order: 'DESC' }],
+        name: 'idx_candles_symbol_timeframe_openTime_desc',
+      },
     ],
   },
 );
-
-Candle.sync();

@@ -145,5 +145,3 @@ Asset.init(
     indexes: [{ fields: ['symbol'], name: 'idx_assets_symbol', unique: true }],
   },
 );
-
-Asset.sync();

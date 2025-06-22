@@ -76,10 +76,10 @@ export class MeanReversionStrategy extends EventEmitter {
   private readonly timeframe: TTimeframe;
 
   // Параметры стратегии
-  private readonly CANDLES_COUNT = 288;
+  private readonly CANDLES_COUNT = 1440;
   private readonly CANDLES_COUNT_FOR_BETA = 60;
   private readonly CANDLES_COUNT_FOR_Z_SCORE = 60;
-  private readonly CANDLES_COUNT_FOR_ADX = 288;
+  private readonly CANDLES_COUNT_FOR_ADX = 720;
 
   private readonly Z_SCORE_ENTRY = 3.0;
   private readonly Z_SCORE_EXIT = 0.0;
@@ -98,6 +98,8 @@ export class MeanReversionStrategy extends EventEmitter {
   private lastAnalysisTime = 0;
 
   private adx: ADX;
+  private betaHedge: BetaHedge;
+  private zScore: ZScore;
 
   constructor(symbolA: string, symbolB: string, timeframe: TTimeframe, environment: TEnvironment) {
     super();
@@ -109,6 +111,8 @@ export class MeanReversionStrategy extends EventEmitter {
     this.streamDataProvider = environment.streamDataProvider;
 
     this.adx = new ADX();
+    this.betaHedge = new BetaHedge();
+    this.zScore = new ZScore();
   }
 
   private formatCandle(candles: TCandle[]): TIndicatorCandle[] {
@@ -192,22 +196,18 @@ export class MeanReversionStrategy extends EventEmitter {
   }
 
   private calculateBeta(): number | null {
-    return new BetaHedge().calculateBeta(
+    return this.betaHedge.calculateBeta(
       this.candlesA.slice(-this.CANDLES_COUNT_FOR_BETA),
       this.candlesB.slice(-this.CANDLES_COUNT_FOR_BETA),
     );
   }
 
   private calculateZScore(beta: number): number | null {
-    return new ZScore().zScoreByPrices(
+    return this.zScore.zScoreByPrices(
       this.candlesA.slice(-this.CANDLES_COUNT_FOR_Z_SCORE),
       this.candlesB.slice(-this.CANDLES_COUNT_FOR_Z_SCORE),
       beta,
     );
-  }
-
-  private calculateADX(): number | null {
-    return this.adx.calculateADX(this.candlesA.slice(-this.CANDLES_COUNT_FOR_ADX)) ?? null;
   }
 
   private onPriceUpdate = (trade: TBinanceTrade) => {
@@ -254,23 +254,30 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
-    const adx = this.calculateADX();
-    if (!adx) {
-      throw new Error('ADX is null');
+    const candlesAAdx = this.adx.calculateADX(this.candlesA.slice(-this.CANDLES_COUNT_FOR_ADX));
+    const candlesBAdx = this.adx.calculateADX(this.candlesB.slice(-this.CANDLES_COUNT_FOR_ADX));
+    if (!candlesAAdx || !candlesBAdx) {
+      console.warn('ADX is null');
+      return;
     }
 
-    if (this.adx.getTrendStrength(adx) !== 'weak') {
+    if (
+      this.adx.getTrendStrength(candlesAAdx) !== 'weak' ||
+      this.adx.getTrendStrength(candlesBAdx) !== 'weak'
+    ) {
       return;
     }
 
     const beta = this.calculateBeta();
     if (!beta) {
-      throw new Error('Beta is null');
+      console.warn('Beta is null');
+      return;
     }
 
     const zScore = this.calculateZScore(beta);
     if (!zScore) {
-      throw new Error('Z-score is null');
+      console.warn('Z-score is null');
+      return;
     }
 
     if (zScore >= this.Z_SCORE_STOP_LOSS || zScore <= -this.Z_SCORE_STOP_LOSS) {
@@ -364,12 +371,14 @@ export class MeanReversionStrategy extends EventEmitter {
 
     const beta = this.calculateBeta();
     if (!beta) {
-      throw new Error('Beta is null');
+      console.warn('Beta is null');
+      return;
     }
 
     const zScore = this.calculateZScore(beta);
     if (!zScore) {
-      throw new Error('Z-score is null');
+      console.warn('Z-score is null');
+      return;
     }
 
     const shouldZScoreStopLoss =

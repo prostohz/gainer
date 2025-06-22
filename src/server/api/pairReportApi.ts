@@ -6,6 +6,8 @@ import {
   createReport,
   updateReport,
   deleteReport,
+  getReportBacktest,
+  createReportBacktest,
 } from '../services/pairReportService';
 import { asyncHandler, sendResponse, validateParams } from '../utils/apiHandler';
 
@@ -54,6 +56,28 @@ router.delete(
     const id = req.params.id as string;
     await deleteReport(id);
     sendResponse(res, { message: 'Report deleted' });
+  }),
+);
+
+router.get(
+  '/:id/backtest',
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const backtest = await getReportBacktest(id);
+    sendResponse(res, backtest);
+  }),
+);
+
+router.post(
+  '/:id/backtest',
+  validateParams(['startTimestamp', 'endTimestamp']),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const startTimestamp = Number(req.body.startTimestamp);
+    const endTimestamp = Number(req.body.endTimestamp);
+
+    await createReportBacktest(id, startTimestamp, endTimestamp);
+    sendResponse(res, { message: 'Report backtested' });
   }),
 );
 

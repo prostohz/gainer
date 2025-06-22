@@ -1,5 +1,7 @@
+import * as R from 'remeda';
+
 import { TTimeframe } from '../../shared/types';
-import dayjs from '../../shared/utils/daytime';
+import { dayjs } from '../../shared/utils/daytime';
 import { timeframeToMilliseconds } from '../utils/timeframe';
 import BinanceHTTPClient, {
   TAsset as TBinanceAsset,
@@ -65,30 +67,32 @@ const getAssetVolumePrecision = (asset: TBinanceAsset): number => {
 const CANDLES_LIMIT = 1000;
 
 const TIMEFRAME_LIMITS: Record<TTimeframe, number> = {
-  '1m': dayjs.duration(5, 'day').asMinutes(),
-  '5m': dayjs.duration(10, 'day').asMinutes() / 5,
-  '15m': dayjs.duration(30, 'day').asMinutes() / 15,
-  '30m': dayjs.duration(90, 'day').asMinutes() / 30,
-  '1h': dayjs.duration(180, 'day').asHours(),
-  '4h': dayjs.duration(360, 'day').asHours() / 4,
-  '1d': dayjs.duration(720, 'day').asDays(),
+  '1m': dayjs.duration(30, 'day').asMinutes(),
+  '5m': dayjs.duration(30, 'day').asMinutes() / 5,
+  '15m': dayjs.duration(10, 'day').asMinutes() / 15,
+  '30m': dayjs.duration(10, 'day').asMinutes() / 30,
+  '1h': dayjs.duration(10, 'day').asHours(),
+  '4h': dayjs.duration(10, 'day').asHours() / 4,
+  '1d': dayjs.duration(10, 'day').asDays(),
 };
 
 const fetchCandlesInBatches = async ({
   symbol,
   timeframe,
   totalCandles,
+  initialTime,
   startTime,
 }: {
   symbol: string;
   timeframe: TTimeframe;
   totalCandles: number;
+  initialTime: number;
   startTime?: number;
 }) => {
   let remaining = totalCandles;
   const timeframeMs = timeframeToMilliseconds(timeframe);
   // Если стартовое время не передано — считаем от текущего момента назад на totalCandles баров
-  let currentStartTime = startTime ?? Date.now() - remaining * timeframeMs;
+  let currentStartTime = startTime ?? initialTime - remaining * timeframeMs;
 
   const result: Awaited<ReturnType<typeof binanceHttpClient.fetchAssetCandles>> = [];
 
@@ -168,113 +172,122 @@ export const loadCandles = measureTime('Candles loading', async () => {
 
   const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
-  try {
-    for (const symbol of binanceAssetsSymbols) {
-      const isNewAsset = newAssetsSymbols.includes(symbol);
+  const initialTime = Date.now();
 
-      await Promise.all(
-        timeframes.map(async (timeframe) => {
-          if (isNewAsset) {
-            const candlesToFetch = TIMEFRAME_LIMITS[timeframe] ?? CANDLES_LIMIT;
+  const chunks = R.chunk(binanceAssetsSymbols, 10);
 
-            const candles = await fetchCandlesInBatches({
-              symbol,
-              timeframe,
-              totalCandles: candlesToFetch,
-            });
+  for (const chunk of chunks) {
+    await Promise.all(
+      chunk.map(async (symbol) => {
+        const isNewAsset = newAssetsSymbols.includes(symbol);
 
-            if (candles.length) {
-              await Candle.bulkCreate(
-                candles.map((candle) => ({
-                  ...candle,
-                  symbol,
-                  timeframe,
-                })),
-              );
-            }
+        await Promise.all(
+          timeframes.map(async (timeframe) => {
+            if (isNewAsset) {
+              const candlesToFetch = TIMEFRAME_LIMITS[timeframe] ?? CANDLES_LIMIT;
 
-            console.log(`Saved ${candles.length} candles for ${symbol} (${timeframe})`);
-            return;
-          }
-
-          const lastCandle = await Candle.findOne({
-            where: { symbol, timeframe },
-            order: [['openTime', 'DESC']],
-          });
-
-          if (lastCandle) {
-            // Проверяем, закрыта ли последняя свеча
-            const currentTime = Date.now();
-            const lastCandleEndTime = lastCandle.closeTime;
-
-            // Определяем время начала запроса
-            let startTime;
-
-            // Если последняя свеча ещё не закрыта, удаляем её и начинаем запрос с её времени открытия
-            if (currentTime < lastCandleEndTime) {
-              await Candle.destroy({
-                where: { symbol, timeframe, openTime: lastCandle.openTime },
+              const candles = await fetchCandlesInBatches({
+                symbol,
+                timeframe,
+                totalCandles: candlesToFetch,
+                initialTime,
               });
-              console.log(`Deleted open candle for ${symbol} (${timeframe})`);
-              startTime = lastCandle.openTime;
-            } else {
-              startTime = lastCandle.closeTime + 1;
-            }
 
-            const limit = Math.ceil((currentTime - startTime) / timeframeToMilliseconds(timeframe));
-            if (limit <= 0) {
+              if (candles.length) {
+                await Candle.bulkCreate(
+                  candles.map((candle) => ({
+                    ...candle,
+                    symbol,
+                    timeframe,
+                  })),
+                );
+              }
+
+              console.log(`Saved ${candles.length} candles for ${symbol} (${timeframe})`);
               return;
             }
 
-            const candles = await fetchCandlesInBatches({
-              symbol,
-              timeframe,
-              totalCandles: limit,
-              startTime,
+            const lastCandle = await Candle.findOne({
+              where: { symbol, timeframe },
+              order: [['openTime', 'DESC']],
             });
 
-            if (candles.length > 0) {
-              await Candle.bulkCreate(
-                candles.map((candle) => ({
-                  ...candle,
-                  symbol,
-                  timeframe,
-                })),
-                {
-                  ignoreDuplicates: true,
-                },
+            if (lastCandle) {
+              // Проверяем, закрыта ли последняя свеча
+              const currentTime = Date.now();
+              const lastCandleEndTime = lastCandle.closeTime;
+
+              // Определяем время начала запроса
+              let startTime;
+
+              // Если последняя свеча ещё не закрыта, удаляем её и начинаем запрос с её времени открытия
+              if (currentTime < lastCandleEndTime) {
+                await Candle.destroy({
+                  where: { symbol, timeframe, openTime: lastCandle.openTime },
+                });
+                console.log(`Deleted open candle for ${symbol} (${timeframe})`);
+                startTime = lastCandle.openTime;
+              } else {
+                startTime = lastCandle.closeTime + 1;
+              }
+
+              const limit = Math.ceil(
+                (currentTime - startTime) / timeframeToMilliseconds(timeframe),
               );
-              console.log(`Loaded ${candles.length} candles for ${symbol} (${timeframe})`);
+              if (limit <= 0) {
+                return;
+              }
+
+              const candles = await fetchCandlesInBatches({
+                symbol,
+                timeframe,
+                totalCandles: limit,
+                initialTime,
+                startTime,
+              });
+
+              if (candles.length > 0) {
+                await Candle.bulkCreate(
+                  candles.map((candle) => ({
+                    ...candle,
+                    symbol,
+                    timeframe,
+                  })),
+                  {
+                    ignoreDuplicates: true,
+                  },
+                );
+                console.log(`Loaded ${candles.length} candles for ${symbol} (${timeframe})`);
+              }
+            } else {
+              const candlesToFetch = TIMEFRAME_LIMITS[timeframe];
+
+              const candles = await fetchCandlesInBatches({
+                symbol,
+                timeframe,
+                totalCandles: candlesToFetch,
+                initialTime,
+              });
+
+              if (candles.length > 0) {
+                await Candle.bulkCreate(
+                  candles.map((candle) => ({
+                    ...candle,
+                    symbol,
+                    timeframe,
+                  })),
+                  {
+                    ignoreDuplicates: true,
+                  },
+                );
+                console.log(`Saved ${candles.length} candles for ${symbol} (${timeframe})`);
+              }
             }
-          } else {
-            const candlesToFetch = TIMEFRAME_LIMITS[timeframe];
+          }),
+        );
 
-            const candles = await fetchCandlesInBatches({
-              symbol,
-              timeframe,
-              totalCandles: candlesToFetch,
-            });
-
-            if (candles.length > 0) {
-              await Candle.bulkCreate(
-                candles.map((candle) => ({
-                  ...candle,
-                  symbol,
-                  timeframe,
-                })),
-                {
-                  ignoreDuplicates: true,
-                },
-              );
-              console.log(`Saved ${candles.length} candles for ${symbol} (${timeframe})`);
-            }
-          }
-        }),
-      );
-
-      console.log(`Processed symbol ${symbol}`);
-    }
-  } catch (error) {
-    console.error('Error updating database:', error);
+        console.log(`Processed symbol ${symbol}`);
+      }),
+    );
   }
 });

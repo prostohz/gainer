@@ -3,6 +3,9 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 
 import api from './api';
+import { Asset } from './models/Asset';
+import { Candle } from './models/Candle';
+import { Trade } from './models/Trade';
 import { errorHandler } from './utils/apiHandler';
 
 const app = express();
@@ -17,9 +20,13 @@ app.use('/api', api);
 // Общий обработчик ошибок
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+(async () => {
+  await Promise.all([Asset.sync(), Candle.sync(), Trade.sync()]);
+
+  // Start server
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+})();
 
 export default app;

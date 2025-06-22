@@ -25,7 +25,7 @@ type TOpenTrade = {
   reason: string;
 };
 
-type TCompleteTrade = {
+export type TCompleteTrade = {
   id: number;
   direction: TPositionDirection;
   symbolA: string;
@@ -46,8 +46,6 @@ type TCompleteTrade = {
 const loadTrades = measureTime(
   'Загрузка сделок из Binance',
   async (symbols: string[], startTimestamp: number, endTimestamp: number) => {
-    await Trade.sync();
-
     const BATCH_SIZE = 1000;
 
     const binanceHttpClient = BinanceHTTPClient.getInstance();
@@ -93,8 +91,6 @@ const loadCandles = measureTime(
     startTimestamp: number,
     endTimestamp: number,
   ) => {
-    await Candle.sync();
-
     const BATCH_SIZE = 1000;
 
     const binanceHttpClient = BinanceHTTPClient.getInstance();
@@ -191,23 +187,19 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
   return trades;
 };
 
-export const run = async (
-  symbolA: string,
-  symbolB: string,
-  timeframe: TTimeframe,
-  startTimestamp: number,
-  endTimestamp: number,
-) => {
+export const run = async (pairs: string[], startTimestamp: number, endTimestamp: number) => {
+  const TIMEFRAME = '1m';
   const BASE_QUANTITY = 1000;
 
-  const symbols = [symbolA, symbolB];
+  const tradedPairs = pairs.map((pair) => pair.split('-'));
+  const symbols = Array.from(new Set(tradedPairs.flat()));
 
   const timeEnvironment: TTimeEnvironment = {
     currentTime: startTimestamp,
   };
 
   await loadTrades(symbols, startTimestamp, endTimestamp);
-  await loadCandles(symbols, timeframe, startTimestamp, endTimestamp);
+  await loadCandles(symbols, TIMEFRAME, startTimestamp, endTimestamp);
 
   const tradesCache = await buildTradesCache(symbols, startTimestamp, endTimestamp);
 
@@ -216,15 +208,13 @@ export const run = async (
     normalizePair(symbolA: string, symbolB: string): string {
       return [symbolA, symbolB].sort().join('-');
     },
-    checkPair(symbolA: string, symbolB: string): boolean {
+    isPairProcessed(symbolA: string, symbolB: string): boolean {
       const pair = this.normalizePair(symbolA, symbolB);
 
       if (this.pairsMap.has(pair)) {
-        return false;
+        return true;
       }
-
-      this.pairsMap.set(pair, 0);
-      return true;
+      return false;
     },
     setPairProcessed(symbolA: string, symbolB: string): void {
       const pair = this.normalizePair(symbolA, symbolB);
@@ -235,137 +225,143 @@ export const run = async (
   const backtestCompleteTrades = await measureTime('Расчёт сделок', async () => {
     const completeTrades: TCompleteTrade[] = [];
 
-    for (const symbolA of symbols) {
-      const assetATrades = tradesCache.get(symbolA) ?? [];
+    let processedPairsCount = 0;
 
-      for (const symbolB of symbols) {
-        if (symbolA === symbolB) continue;
-        if (!processedPairs.checkPair(symbolA, symbolB)) continue;
-
+    for (const [symbolA, symbolB] of tradedPairs) {
+      if (symbolA === symbolB) continue;
+      if (processedPairs.isPairProcessed(symbolA, symbolB)) {
+        continue;
+      } else {
         processedPairs.setPairProcessed(symbolA, symbolB);
-
-        timeEnvironment.currentTime = startTimestamp;
-
-        const dataProvider = new FakeDataProvider(timeEnvironment);
-        const streamDataProvider = new FakeStreamDataProvider();
-        const strategy = new MeanReversionStrategy(symbolA, symbolB, timeframe, {
-          dataProvider,
-          streamDataProvider,
-        });
-
-        const assetBTrades = tradesCache.get(symbolB) ?? [];
-
-        const lastAssetATrade = assetATrades[assetATrades.length - 1];
-        const lastAssetBTrade = assetBTrades[assetBTrades.length - 1];
-
-        let openTrade: TOpenTrade | null = null;
-
-        strategy.on('signal', (signal: TSignal) => {
-          switch (signal.type) {
-            case 'open':
-              if (
-                timeEnvironment.currentTime >= lastAssetATrade.timestamp ||
-                timeEnvironment.currentTime >= lastAssetBTrade.timestamp
-              ) {
-                strategy.positionEnterRejected();
-                return;
-              }
-
-              openTrade = {
-                direction: signal.direction,
-                symbolA,
-                symbolB,
-                quantityA: BASE_QUANTITY,
-                quantityB: BASE_QUANTITY / Math.abs(signal.beta),
-                openTime: timeEnvironment.currentTime,
-                openPriceA: signal.symbolA.price,
-                openPriceB: signal.symbolB.price,
-                reason: signal.reason,
-              };
-              strategy.positionEnterAccepted(
-                R.pick(openTrade, [
-                  'direction',
-                  'symbolA',
-                  'symbolB',
-                  'quantityA',
-                  'quantityB',
-                  'openTime',
-                  'openPriceA',
-                  'openPriceB',
-                ]),
-              );
-
-              break;
-            case 'close':
-            case 'stopLoss':
-              if (!openTrade) {
-                strategy.positionExitRejected();
-                return;
-              }
-
-              const roi = calculateRoi(
-                openTrade.direction,
-                symbolA,
-                symbolB,
-                openTrade.quantityA,
-                openTrade.quantityB,
-                openTrade.openPriceA,
-                openTrade.openPriceB,
-                signal.symbolA.price,
-                signal.symbolB.price,
-              );
-
-              completeTrades.push({
-                id: completeTrades.length + 1,
-                direction: openTrade.direction,
-                symbolA: openTrade.symbolA,
-                symbolB: openTrade.symbolB,
-                quantityA: openTrade.quantityA,
-                quantityB: openTrade.quantityB,
-                openTime: openTrade.openTime,
-                closeTime: timeEnvironment.currentTime,
-                openPriceA: openTrade.openPriceA,
-                closePriceA: signal.symbolA.price,
-                openPriceB: openTrade.openPriceB,
-                closePriceB: signal.symbolB.price,
-                openReason: openTrade.reason,
-                closeReason: signal.reason,
-                roi,
-              });
-              openTrade = null;
-              strategy.positionExitAccepted();
-              break;
-          }
-        });
-
-        await strategy.start();
-
-        const allTrades = mergeTrades(assetATrades, assetBTrades);
-
-        for (const trade of allTrades) {
-          if (trade.timestamp >= timeEnvironment.currentTime) {
-            timeEnvironment.currentTime = trade.timestamp;
-
-            const binanceTrade: TBinanceTrade = {
-              e: 'trade',
-              E: trade.timestamp,
-              s: trade.symbol,
-              t: trade.tradeId,
-              p: trade.price.toString(),
-              q: trade.quantity.toString(),
-              b: trade.firstTradeId,
-              a: trade.lastTradeId,
-              T: trade.timestamp,
-              m: trade.isBuyerMaker,
-              M: false,
-            };
-
-            streamDataProvider.emit('trade', binanceTrade);
-          }
-        }
-
-        strategy.stop();
       }
+
+      timeEnvironment.currentTime = startTimestamp;
+
+      const dataProvider = new FakeDataProvider(timeEnvironment);
+      const streamDataProvider = new FakeStreamDataProvider();
+      const strategy = new MeanReversionStrategy(symbolA, symbolB, TIMEFRAME, {
+        dataProvider,
+        streamDataProvider,
+      });
+
+      const assetATrades = tradesCache.get(symbolA) ?? [];
+      const assetBTrades = tradesCache.get(symbolB) ?? [];
+
+      const lastAssetATrade = assetATrades[assetATrades.length - 1];
+      const lastAssetBTrade = assetBTrades[assetBTrades.length - 1];
+
+      let openTrade: TOpenTrade | null = null;
+
+      strategy.on('signal', (signal: TSignal) => {
+        switch (signal.type) {
+          case 'open':
+            if (
+              timeEnvironment.currentTime >= lastAssetATrade.timestamp ||
+              timeEnvironment.currentTime >= lastAssetBTrade.timestamp
+            ) {
+              strategy.positionEnterRejected();
+              return;
+            }
+
+            openTrade = {
+              direction: signal.direction,
+              symbolA,
+              symbolB,
+              quantityA: BASE_QUANTITY,
+              quantityB: BASE_QUANTITY / Math.abs(signal.beta),
+              openTime: timeEnvironment.currentTime,
+              openPriceA: signal.symbolA.price,
+              openPriceB: signal.symbolB.price,
+              reason: signal.reason,
+            };
+            strategy.positionEnterAccepted(
+              R.pick(openTrade, [
+                'direction',
+                'symbolA',
+                'symbolB',
+                'quantityA',
+                'quantityB',
+                'openTime',
+                'openPriceA',
+                'openPriceB',
+              ]),
+            );
+
+            break;
+          case 'close':
+          case 'stopLoss':
+            if (!openTrade) {
+              strategy.positionExitRejected();
+              return;
+            }
+
+            const roi = calculateRoi(
+              openTrade.direction,
+              symbolA,
+              symbolB,
+              openTrade.quantityA,
+              openTrade.quantityB,
+              openTrade.openPriceA,
+              openTrade.openPriceB,
+              signal.symbolA.price,
+              signal.symbolB.price,
+            );
+
+            completeTrades.push({
+              id: completeTrades.length + 1,
+              direction: openTrade.direction,
+              symbolA: openTrade.symbolA,
+              symbolB: openTrade.symbolB,
+              quantityA: openTrade.quantityA,
+              quantityB: openTrade.quantityB,
+              openTime: openTrade.openTime,
+              closeTime: timeEnvironment.currentTime,
+              openPriceA: openTrade.openPriceA,
+              closePriceA: signal.symbolA.price,
+              openPriceB: openTrade.openPriceB,
+              closePriceB: signal.symbolB.price,
+              openReason: openTrade.reason,
+              closeReason: signal.reason,
+              roi,
+            });
+            openTrade = null;
+            strategy.positionExitAccepted();
+            break;
+        }
+      });
+
+      await strategy.start();
+
+      const allTrades = mergeTrades(assetATrades, assetBTrades);
+
+      for (const trade of allTrades) {
+        if (trade.timestamp >= timeEnvironment.currentTime) {
+          timeEnvironment.currentTime = trade.timestamp;
+
+          const binanceTrade: TBinanceTrade = {
+            e: 'trade',
+            E: trade.timestamp,
+            s: trade.symbol,
+            t: trade.tradeId,
+            p: trade.price.toString(),
+            q: trade.quantity.toString(),
+            b: trade.firstTradeId,
+            a: trade.lastTradeId,
+            T: trade.timestamp,
+            m: trade.isBuyerMaker,
+            M: false,
+          };
+
+          streamDataProvider.emit('trade', binanceTrade);
+        }
+      }
+
+      strategy.stop();
+
+      processedPairsCount++;
+      console.log(
+        `Processed ${((processedPairsCount / tradedPairs.length) * 100).toFixed(2)}% pairs`,
+      );
     }
 
     return completeTrades;

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 
-import dayjs from '../../../shared/utils/daytime';
+import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
@@ -72,22 +72,26 @@ export const SystemPage = () => {
         </div>
       </div>
 
-      <div className="flex gap-4 justify-end">
-        <button
-          className="btn btn-error"
-          onClick={() => flushDatabase()}
-          disabled={isFlushDatabasePending}
-        >
-          {isFlushDatabasePending ? 'Flushing...' : 'Flush Database'}
-        </button>
+      <div className="flex gap-4 justify-between">
+        <div className="flex gap-4">
+          <button
+            className="btn btn-error"
+            onClick={() => flushDatabase()}
+            disabled={isFlushDatabasePending}
+          >
+            {isFlushDatabasePending ? 'Flushing...' : 'Flush Database'}
+          </button>
+        </div>
 
-        <button
-          className="btn btn-success"
-          onClick={() => loadCandles()}
-          disabled={isLoadCandlesPending}
-        >
-          {isLoadCandlesPending ? 'Loading...' : 'Load Candles'}
-        </button>
+        <div className="flex gap-4">
+          <button
+            className="btn btn-secondary"
+            onClick={() => loadCandles()}
+            disabled={isLoadCandlesPending}
+          >
+            {isLoadCandlesPending ? 'Loading...' : 'Load Candles'}
+          </button>
+        </div>
       </div>
     </div>
   );

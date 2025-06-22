@@ -12,24 +12,7 @@ import {
 } from 'lightweight-charts';
 
 import { Candle } from '../../server/models/Candle';
-
-type TPositionDirection = 'buy-sell' | 'sell-buy';
-
-type TBacktestTrade = {
-  id: number;
-  direction: TPositionDirection;
-  symbolA: string;
-  symbolB: string;
-  openPriceA: number;
-  closePriceA: number;
-  openPriceB: number;
-  closePriceB: number;
-  openTime: number;
-  closeTime: number;
-  roi: number;
-  openReason: string;
-  closeReason: string;
-};
+import { TCompleteTrade } from '../../server/trading/strategies/MeanReversionStrategy/backtest';
 
 type SyncContextType = {
   charts: Set<IChartApi>;
@@ -85,7 +68,7 @@ const useSync = () => {
 
 type Props = {
   candles: Candle[];
-  trades: TBacktestTrade[];
+  trades: TCompleteTrade[];
   precision: number;
   symbol: string;
   title?: string;

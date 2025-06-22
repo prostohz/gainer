@@ -2,16 +2,16 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { TTimeframe } from '../../../../shared/types';
-import dayjs from '../../../../shared/utils/daytime';
+import { TCompleteTrade } from '../../../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { dayjs } from '../../../../shared/utils/daytime';
 import { Candle } from '../../../../server/models/Candle';
 import { http } from '../../../shared/utils/http';
 import { useLSState } from '../../../shared/utils/localStorage';
 import { DateTimePicker } from '../../../shared/ui/Calendar';
 import { TimeframeSelector } from '../../../widgets/TimeframeSelector';
 import { SyncedTradeChart, SyncedChartsContainer } from '../../../widgets/SyncedTradeCharts';
+import { BacktestResults } from '../../../widgets/BacktestResults';
 import { useAssets } from '../../../entities/assets';
-import { BacktestResults } from './BacktestResults';
-import { TBacktestTrade } from './types';
 
 type BacktestPaneProps = {
   symbolA: string | null;
@@ -22,7 +22,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
   const [startDate, setStartDate] = useLSState<number>('backtestStartDate', Date.now());
   const [endDate, setEndDate] = useLSState<number>('backtestEndDate', startDate);
   const [timeframe, setTimeframe] = useState<TTimeframe>('1m');
-  const [backtestResults, setBacktestResults] = useState<TBacktestTrade[] | null>(null);
+  const [backtestResults, setBacktestResults] = useState<TCompleteTrade[] | null>(null);
 
   const { assetMap } = useAssets();
 
@@ -73,14 +73,10 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
     error: backtestError,
   } = useMutation({
     mutationFn: () =>
-      http.post('/api/backtest', null, {
-        params: {
-          symbolA: symbolA,
-          symbolB: symbolB,
-          timeframe: timeframe,
-          startTimestamp: startDate,
-          endTimestamp: endDate,
-        },
+      http.post('/api/backtest', {
+        pairs: [`${symbolA}-${symbolB}`],
+        startTimestamp: startDate,
+        endTimestamp: endDate,
       }),
     onSuccess: (response) => {
       setBacktestResults(response.data);
@@ -94,19 +90,9 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
   }, [symbolA, symbolB]);
 
   return (
-    <div className="bg-base-200 rounded-lg p-4 w-full min-w-0">
-      <div className="flex items-top gap-4">
-        <div className="flex-1">
-          <TimeframeSelector
-            selectedTimeFrame={timeframe}
-            setSelectedTimeFrame={(newTimeframe) => {
-              setTimeframe(newTimeframe);
-            }}
-            disabled={isBacktestRunning}
-          />
-        </div>
-
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-4 bg-base-200 rounded-lg p-4 w-full min-w-0">
+      <div className="flex justify-between">
+        <div className="flex gap-4">
           <DateTimePicker
             value={new Date(startDate)}
             maxDate={new Date()}
@@ -154,9 +140,21 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       )}
 
       {backtestResults && (
-        <>
+        <div>
           <div className="mb-4 w-full min-w-0">
             <BacktestResults results={backtestResults} />
+          </div>
+
+          <div className="flex justify-end mb-4">
+            <div className="w-32">
+              <TimeframeSelector
+                selectedTimeFrame={timeframe}
+                setSelectedTimeFrame={(newTimeframe) => {
+                  setTimeframe(newTimeframe);
+                }}
+                disabled={isBacktestRunning}
+              />
+            </div>
           </div>
 
           <div className="bg-base-300 rounded-lg p-4 max-w-full">
@@ -194,7 +192,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

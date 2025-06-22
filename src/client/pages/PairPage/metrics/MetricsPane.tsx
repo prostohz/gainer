@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { TCorrelation, TTimeframe } from '../../../../shared/types';
+import { useLSState } from '../../../shared/utils/localStorage';
 import { Candle } from '../../../../server/models/Candle';
 import { http } from '../../../shared/utils/http';
 import { TimeframeSelector } from '../../../widgets/TimeframeSelector';
@@ -27,14 +27,16 @@ const rollingZScoreColors = {
 type TProps = {
   symbolA: string | null;
   symbolB: string | null;
-  timeframe: TTimeframe;
   date: number | null;
 };
 
-export const MetricsPane = ({ symbolA, symbolB, timeframe, date }: TProps) => {
+export const MetricsPane = ({ symbolA, symbolB, date }: TProps) => {
   const { assetMap } = useAssets();
 
-  const [selectedTimeframe, setSelectedTimeframe] = useState<TTimeframe>(timeframe);
+  const [selectedTimeframe, setSelectedTimeframe] = useLSState<TTimeframe>(
+    'pair-metrics-timeframe',
+    '1m',
+  );
 
   const { data: pairCorrelation = null, isLoading: isPairCorrelationLoading } =
     useQuery<TCorrelation>({

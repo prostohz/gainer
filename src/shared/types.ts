@@ -1,3 +1,5 @@
+import { TCompleteTrade } from '../server/trading/strategies/MeanReversionStrategy/backtest';
+
 export type TTimeframe = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d';
 
 export type TCorrelationRecord<T> = Partial<Record<TTimeframe, T>>;
@@ -19,6 +21,7 @@ export type TCorrelation = {
 };
 
 export type TPairReportEntry = {
+  pair: string;
   pValue: number | null;
   halfLife: number | null;
   hurstExponent: number | null;
@@ -31,15 +34,13 @@ export type TPairReportEntry = {
     median: number;
     std: number;
   } | null;
-} | null;
-export type TPairReportList = ({
-  pair: string;
-} & NonNullable<TPairReportEntry>)[];
-export type TPairReportMeta = {
+};
+export type TPairReport = {
   id: string;
   date: number;
+  data: TPairReportEntry[];
+  backtest: TCompleteTrade[] | null;
 };
-export type TPairReportMap = Record<string, TPairReportEntry>;
 
 export type TPriceLevelItem = {
   price: number;

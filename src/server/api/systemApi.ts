@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 
-import { flushDatabase, getSystemInfo, loadCandles } from '../services/systemService';
+import { getSystemInfo, flushDatabase, loadCandles } from '../services/systemService';
 import { asyncHandler, sendResponse } from '../utils/apiHandler';
 
 const router = express.Router();

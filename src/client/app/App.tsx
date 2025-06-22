@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import { PairReportListPage } from '../pages/PairReportListPage/PairReportListPage';
 import { PairReportPage } from '../pages/PairReportPage/PairReportPage';
+import { PairReportBacktestPage } from '../pages/PairReportBacktestPage/PairReportBacktestPage';
 import { PairPage } from '../pages/PairPage/PairPage';
 import { AssetPriceLevelsPage } from '../pages/AssetPriceLevelsPage/AssetPriceLevelsPage';
 import { SystemPage } from '../pages/SystemPage/SystemPage';
@@ -18,6 +19,7 @@ export const App = () => {
             <Routes>
               <Route path="/pairReport" element={<PairReportListPage />} />
               <Route path="/pairReport/:id" element={<PairReportPage />} />
+              <Route path="/pairReport/:id/backtest" element={<PairReportBacktestPage />} />
               <Route path="/pair" element={<PairPage />} />
               <Route path="/assetPriceLevels" element={<AssetPriceLevelsPage />} />
               <Route path="/system" element={<SystemPage />} />

@@ -1,11 +1,15 @@
 import cn from 'classnames';
 
-import dayjs from '../../../../shared/utils/daytime';
-import { useAssets } from '../../../entities/assets';
-import { TBacktestTrade } from './types';
+import { TCompleteTrade } from '../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { dayjs } from '../../shared/utils/daytime';
+import { useAssets } from '../entities/assets';
 
-export const BacktestResults = ({ results }: { results: TBacktestTrade[] }) => {
-  const { assetMap } = useAssets();
+export const BacktestResults = ({ results }: { results: TCompleteTrade[] }) => {
+  const { assetMap, isLoading } = useAssets();
+
+  if (isLoading) {
+    return null;
+  }
 
   const totalTrades = results.length;
   const profitableTrades = results.filter((trade) => trade.roi > 0).length;

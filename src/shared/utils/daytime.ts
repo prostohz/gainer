@@ -3,4 +3,4 @@ import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(duration);
 
-export default dayjs;
+export { dayjs };

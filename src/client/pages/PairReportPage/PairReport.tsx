@@ -1,16 +1,16 @@
 import { useState, useMemo } from 'react';
 import { FixedSizeList } from 'react-window';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
 
-import { TPairReportList } from '../../../shared/types';
+import { dayjs } from '../../../shared/utils/daytime';
+import { TPairReportEntry } from '../../../shared/types';
 import { useAvailableHeight } from '../../shared/utils/dom';
 
 type TProps = {
   report: {
     id: string;
     date: number;
-    data: TPairReportList;
+    data: TPairReportEntry[];
   };
 };
 
@@ -22,7 +22,7 @@ export const PairReport = ({ report }: TProps) => {
 
   const [search, setSearch] = useState('');
 
-  const [sortField, setSortField] = useState<keyof TPairReportList[0]>('pair');
+  const [sortField, setSortField] = useState<keyof TPairReportEntry>('pair');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const columns: {
@@ -216,9 +216,7 @@ export const PairReport = ({ report }: TProps) => {
 
         <div className="card bg-base-200 shadow p-4">
           <div className="text-xs opacity-60 mb-1">Date</div>
-          <div className="font-semibold text-info">
-            {format(new Date(date), 'dd.MM.yyyy HH:mm')}
-          </div>
+          <div className="font-semibold text-info">{dayjs(date).format('DD.MM.YYYY HH:mm')}</div>
         </div>
 
         <div className="card bg-base-200 shadow p-4">

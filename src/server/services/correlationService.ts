@@ -78,6 +78,7 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string, date:
   const pearsonCorrelation = new PearsonCorrelation();
   const zScore = new ZScore();
   const engleGrangerTest = new EngleGrangerTest();
+  const betaHedgeIndicator = new BetaHedge();
 
   for (const timeframe of timeframes) {
     const [candlesA, candlesB] = await Promise.all([
@@ -85,7 +86,6 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string, date:
       findCandles(symbolB, timeframe, CANDLE_LIMIT, date),
     ]);
 
-    const betaHedgeIndicator = new BetaHedge();
     const beta = betaHedgeIndicator.calculateBeta(
       candlesA.slice(0, CANDLE_LIMIT_FOR_BETA),
       candlesB.slice(0, CANDLE_LIMIT_FOR_BETA),

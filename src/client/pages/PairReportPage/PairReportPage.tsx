@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
@@ -61,6 +61,16 @@ export const PairReportPage = () => {
             >
               {isUpdating ? 'Updating...' : 'Update'}
             </button>
+
+            <Link
+              className="btn btn-secondary btn-outline"
+              to={`/pairReport/${id}/backtest`}
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              Backtest
+            </Link>
 
             <button className="btn btn-error btn-outline" onClick={() => deleteReport(id)}>
               Delete

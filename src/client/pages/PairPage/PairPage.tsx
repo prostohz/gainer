@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import cn from 'classnames';
 
+import { dayjs } from '../../../shared/utils/daytime';
 import { useQSState } from '../../shared/utils/queryString';
 import { useLSState } from '../../shared/utils/localStorage';
 import { Title } from '../../shared/utils/Title';
@@ -8,7 +9,6 @@ import { AssetSelector } from '../../widgets/AssetSelector';
 import { useAssets } from '../../entities/assets';
 import { MetricsPane } from './metrics/MetricsPane';
 import { BacktestPane } from './backtest/BacktestPane';
-import { TTimeframe } from '../../../shared/types';
 
 const TABS = [
   {
@@ -30,8 +30,7 @@ export const PairPage = () => {
 
   const [symbolA, setSymbolA] = useQSState<string | null>('tickerA', null);
   const [symbolB, setSymbolB] = useQSState<string | null>('tickerB', null);
-  const [date] = useQSState<number | null>('date', null);
-  const [timeframe] = useQSState<TTimeframe>('timeframe', '1m' as TTimeframe);
+  const [date] = useQSState<number | null>('date', dayjs('2025-06-15 00:00').valueOf());
 
   const title = useMemo(() => {
     if (!symbolA || !symbolB) return 'Pair';
@@ -42,16 +41,24 @@ export const PairPage = () => {
     <div className="flex-1 flex flex-col">
       <Title value={title} />
 
-      <h1 className="text-2xl font-bold mb-4">
-        {symbolA && symbolB ? (
-          <span>
-            Correlation Pair <span className="text-primary">{symbolA}</span> -{' '}
-            <span className="text-primary">{symbolB}</span>
-          </span>
-        ) : (
-          'Pair'
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold mb-4">
+          {symbolA && symbolB ? (
+            <span>
+              Correlation Pair <span className="text-primary">{symbolA}</span> -{' '}
+              <span className="text-primary">{symbolB}</span>
+            </span>
+          ) : (
+            'Pair'
+          )}
+        </h1>
+
+        {date && (
+          <div className="text-md text-info font-semibold">
+            {dayjs(Number(date)).format('DD.MM.YYYY HH:mm')}
+          </div>
         )}
-      </h1>
+      </div>
 
       <div className="flex gap-4 flex-1">
         <div className="flex gap-4 min-w-96 max-w-96 p-4 bg-base-200 rounded-lg">
@@ -89,7 +96,7 @@ export const PairPage = () => {
           </div>
 
           {activeTab === 'metrics' && (
-            <MetricsPane symbolA={symbolA} symbolB={symbolB} timeframe={timeframe} date={date} />
+            <MetricsPane symbolA={symbolA} symbolB={symbolB} date={date} />
           )}
           {activeTab === 'backtest' && <BacktestPane symbolA={symbolA} symbolB={symbolB} />}
         </div>

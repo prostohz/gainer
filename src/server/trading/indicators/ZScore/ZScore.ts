@@ -4,6 +4,12 @@ import { BetaHedge } from '../BetaHedge/BetaHedge';
 import { TIndicatorCandle } from '../types';
 
 export class ZScore {
+  private betaHedge: BetaHedge;
+
+  constructor() {
+    this.betaHedge = new BetaHedge();
+  }
+
   private calculate(x: number[], y: number[], beta: number): number {
     // Определяем минимальную длину массивов
     const minLength = Math.min(x.length, y.length);
@@ -100,8 +106,7 @@ export class ZScore {
 
       const timestamp = Number(candlesA[i].openTime);
 
-      const betaHedge = new BetaHedge();
-      const beta = betaHedge.calculateBeta(windowA, windowB);
+      const beta = this.betaHedge.calculateBeta(windowA, windowB);
 
       if (!beta) {
         console.warn('ZScore: beta is null');
@@ -139,8 +144,7 @@ export class ZScore {
       const windowA = candlesA.slice(i - window, i + 1);
       const windowB = candlesB.slice(i - window, i + 1);
 
-      const betaHedge = new BetaHedge();
-      const beta = betaHedge.calculateBeta(windowA, windowB);
+      const beta = this.betaHedge.calculateBeta(windowA, windowB);
 
       if (!beta) {
         console.warn('ZScore: beta is null');
