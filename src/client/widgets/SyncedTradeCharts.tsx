@@ -26,7 +26,7 @@ type TBacktestTrade = {
   closePriceB: number;
   openTime: number;
   closeTime: number;
-  profitPercent: number;
+  roi: number;
   openReason: string;
   closeReason: string;
 };

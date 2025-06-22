@@ -8,18 +8,105 @@ export const BacktestResults = ({ results }: { results: TBacktestTrade[] }) => {
   const { assetMap } = useAssets();
 
   const totalTrades = results.length;
-  const profitableTrades = results.filter((trade) => trade.profitPercent > 0).length;
+  const profitableTrades = results.filter((trade) => trade.roi > 0).length;
   const unprofitableTrades = totalTrades - profitableTrades;
-  const totalProfit = results.reduce((sum, trade) => sum + trade.profitPercent, 0);
+  const totalProfit = results.reduce((sum, trade) => sum + trade.roi, 0);
   const avgProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
   const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
 
-  const maxProfit = Math.max(...results.map((trade) => trade.profitPercent), 0);
-  const maxLoss = Math.min(...results.map((trade) => trade.profitPercent), 0);
+  const maxProfit = Math.max(...results.map((trade) => trade.roi), 0);
+  const maxLoss = Math.min(...results.map((trade) => trade.roi), 0);
+
+  const renderContent = () => {
+    if (results.length === 0) {
+      return <div className="text-base-content text-center p-4">No trades</div>;
+    }
+
+    return (
+      <div className="bg-base-300 rounded-lg p-4">
+        <h4 className="text-md font-semibold mb-3">Trade history</h4>
+        <div className="max-h-96 overflow-auto w-full">
+          <div className="overflow-x-scroll w-full">
+            <div className="w-max">
+              <div className="grid grid-cols-[1fr_repeat(13,150px)] gap-2 mb-2 font-semibold text-xs">
+                <div className="px-2">ID</div>
+                <div>Symbol A</div>
+                <div>Symbol B</div>
+                <div>Open time</div>
+                <div>Close time</div>
+                <div>Duration</div>
+                <div>Direction</div>
+                <div>Price A (open/close)</div>
+                <div>Price B (open/close)</div>
+                <div>Quantity A</div>
+                <div>Quantity B</div>
+                <div>Profit %</div>
+                <div>Open reason</div>
+                <div>Close reason</div>
+              </div>
+
+              {results.map((trade, index) => {
+                const assetA = assetMap[trade.symbolA];
+                const assetB = assetMap[trade.symbolB];
+
+                const assetAPricePrecision = assetA.pricePrecision;
+                const assetBPricePrecision = assetB.pricePrecision;
+
+                return (
+                  <div
+                    key={index}
+                    className={cn(
+                      'grid grid-cols-[1fr_repeat(13,150px)] gap-2 py-1 text-xs items-center',
+                      {
+                        'bg-success/10': trade.roi >= 0,
+                        'bg-error/10': trade.roi < 0,
+                      },
+                    )}
+                  >
+                    <div className="px-2">{trade.id}</div>
+                    <div>{trade.symbolA}</div>
+                    <div>{trade.symbolB}</div>
+                    <div>{dayjs(trade.openTime).format('DD.MM HH:mm:ss')}</div>
+                    <div>{dayjs(trade.closeTime).format('DD.MM HH:mm:ss')}</div>
+                    <div>{dayjs(trade.closeTime).diff(dayjs(trade.openTime), 'minutes')}m</div>
+                    <div>
+                      <span className="badge badge-sm badge-info">
+                        {trade.direction === 'buy-sell' ? 'BUY/SELL' : 'SELL/BUY'}
+                      </span>
+                    </div>
+                    <div>
+                      {trade.openPriceA.toFixed(assetAPricePrecision)} /{' '}
+                      {trade.closePriceA.toFixed(assetAPricePrecision)}
+                    </div>
+                    <div>
+                      {trade.openPriceB.toFixed(assetBPricePrecision)} /{' '}
+                      {trade.closePriceB.toFixed(assetBPricePrecision)}
+                    </div>
+                    <div>{trade.quantityA.toFixed(assetA.volumePrecision)}</div>
+                    <div>{trade.quantityB.toFixed(assetB.volumePrecision)}</div>
+                    <div
+                      className={cn('font-semibold', {
+                        'text-success': trade.roi >= 0,
+                        'text-error': trade.roi < 0,
+                      })}
+                    >
+                      {trade.roi.toFixed(2)}%
+                    </div>
+                    <div>{trade.openReason}</div>
+                    <div>{trade.closeReason}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="mt-4 space-y-4">
-      <div className="bg-base-300 rounded-lg p-4">
+    <div className="w-full">
+      <div className="bg-base-300 rounded-lg p-4 mb-4">
         <h3 className="text-lg font-semibold mb-3">Backtest results</h3>
 
         <div className="grid grid-cols-8 gap-4 mb-4">
@@ -35,7 +122,7 @@ export const BacktestResults = ({ results }: { results: TBacktestTrade[] }) => {
 
           <div className="stat bg-base-100 rounded-lg p-3">
             <div className="stat-title text-xs">Unprofitable</div>
-            <div className="stat-value text-lg text-success">{unprofitableTrades}</div>
+            <div className="stat-value text-lg text-error">{unprofitableTrades}</div>
           </div>
 
           <div className="stat bg-base-100 rounded-lg p-3">
@@ -79,82 +166,7 @@ export const BacktestResults = ({ results }: { results: TBacktestTrade[] }) => {
         </div>
       </div>
 
-      {totalTrades > 0 && (
-        <div className="bg-base-300 rounded-lg p-4">
-          <h4 className="text-md font-semibold mb-3">Trade history</h4>
-          <div className="overflow-x-auto max-h-96">
-            <table className="table table-sm w-full overflow-x-auto">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Symbol A</th>
-                  <th>Symbol B</th>
-                  <th>Open time</th>
-                  <th>Close time</th>
-                  <th>Duration</th>
-                  <th>Direction</th>
-                  <th>Price A (open/close)</th>
-                  <th>Price B (open/close)</th>
-                  <th>Profit %</th>
-                  <th>Open reason</th>
-                  <th>Close reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((trade, index) => {
-                  const assetA = assetMap[trade.symbolA];
-                  const assetB = assetMap[trade.symbolB];
-
-                  const assetAPricePrecision = assetA.pricePrecision;
-                  const assetBPricePrecision = assetB.pricePrecision;
-
-                  return (
-                    <tr
-                      key={index}
-                      className={cn({
-                        'bg-success/10': trade.profitPercent >= 0,
-                        'bg-error/10': trade.profitPercent < 0,
-                      })}
-                    >
-                      <td className="text-xs">{trade.id}</td>
-                      <td className="text-xs">{trade.symbolA}</td>
-                      <td className="text-xs">{trade.symbolB}</td>
-                      <td className="text-xs">{dayjs(trade.openTime).format('DD.MM HH:mm:ss')}</td>
-                      <td className="text-xs">{dayjs(trade.closeTime).format('DD.MM HH:mm:ss')}</td>
-                      <td className="text-xs">
-                        {dayjs(trade.closeTime).diff(dayjs(trade.openTime), 'seconds')}s
-                      </td>
-                      <td className="text-xs">
-                        <span className="badge badge-sm badge-info">
-                          {trade.direction === 'buy-sell' ? 'BUY/SELL' : 'SELL/BUY'}
-                        </span>
-                      </td>
-                      <td className="text-xs">
-                        {trade.openPriceA.toFixed(assetAPricePrecision)} /{' '}
-                        {trade.closePriceA.toFixed(assetAPricePrecision)}
-                      </td>
-                      <td className="text-xs">
-                        {trade.openPriceB.toFixed(assetBPricePrecision)} /{' '}
-                        {trade.closePriceB.toFixed(assetBPricePrecision)}
-                      </td>
-                      <td
-                        className={cn('text-xs font-semibold', {
-                          'text-success': trade.profitPercent >= 0,
-                          'text-error': trade.profitPercent < 0,
-                        })}
-                      >
-                        {trade.profitPercent.toFixed(2)}%
-                      </td>
-                      <td className="text-xs">{trade.openReason}</td>
-                      <td className="text-xs">{trade.closeReason}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {renderContent()}
     </div>
   );
 };

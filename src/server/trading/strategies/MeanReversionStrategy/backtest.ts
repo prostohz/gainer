@@ -1,10 +1,7 @@
 import { Op } from 'sequelize';
+import * as R from 'remeda';
 
 import { TTimeframe } from '../../../../shared/types';
-import {
-  OPEN_POSITION_COMMISSION_RATE,
-  MARGIN_HOUR_COMMISSION_RATE,
-} from '../../../configs/trading';
 import { Candle } from '../../../models/Candle';
 import { Trade } from '../../../models/Trade';
 import { measureTime } from '../../../utils/performance';
@@ -14,11 +11,14 @@ import { TTimeEnvironment } from '../types';
 import { FakeDataProvider, FakeStreamDataProvider } from '../fakes';
 import { MeanReversionStrategy, TPositionDirection, TSignal } from './strategy';
 import { timeframeToMilliseconds } from '../../../utils/timeframe';
+import { calculateRoi } from './roi';
 
 type TOpenTrade = {
+  direction: TPositionDirection;
   symbolA: string;
   symbolB: string;
-  direction: TPositionDirection;
+  quantityA: number;
+  quantityB: number;
   openPriceA: number;
   openPriceB: number;
   openTime: number;
@@ -30,13 +30,15 @@ type TCompleteTrade = {
   direction: TPositionDirection;
   symbolA: string;
   symbolB: string;
+  quantityA: number;
+  quantityB: number;
   openPriceA: number;
   closePriceA: number;
   openPriceB: number;
   closePriceB: number;
   openTime: number;
   closeTime: number;
-  profitPercent: number;
+  roi: number;
   openReason: string;
   closeReason: string;
 };
@@ -189,33 +191,6 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
   return trades;
 };
 
-const calculateProfitPercent = (
-  direction: TPositionDirection,
-  openPriceA: number,
-  openPriceB: number,
-  closePriceA: number,
-  closePriceB: number,
-  durationMs: number,
-) => {
-  let pnlA = 0;
-  let pnlB = 0;
-
-  if (direction === 'buy-sell') {
-    pnlA = (closePriceA - openPriceA) / openPriceA;
-    pnlB = (openPriceB - closePriceB) / openPriceB;
-  } else {
-    pnlA = (openPriceA - closePriceA) / openPriceA;
-    pnlB = (closePriceB - openPriceB) / openPriceB;
-  }
-
-  const grossProfitPercent = pnlA + pnlB;
-  const openingCommission = 4 * OPEN_POSITION_COMMISSION_RATE;
-  const holdingCommission =
-    (Math.ceil(durationMs / (60 * 60 * 1000)) * MARGIN_HOUR_COMMISSION_RATE) / 2;
-
-  return (grossProfitPercent - openingCommission - holdingCommission) * 100;
-};
-
 export const run = async (
   symbolA: string,
   symbolB: string,
@@ -223,6 +198,8 @@ export const run = async (
   startTimestamp: number,
   endTimestamp: number,
 ) => {
+  const BASE_QUANTITY = 1000;
+
   const symbols = [symbolA, symbolB];
 
   const timeEnvironment: TTimeEnvironment = {
@@ -295,15 +272,29 @@ export const run = async (
               }
 
               openTrade = {
+                direction: signal.direction,
                 symbolA,
                 symbolB,
-                direction: signal.direction,
+                quantityA: BASE_QUANTITY,
+                quantityB: BASE_QUANTITY / Math.abs(signal.beta),
                 openTime: timeEnvironment.currentTime,
                 openPriceA: signal.symbolA.price,
                 openPriceB: signal.symbolB.price,
                 reason: signal.reason,
               };
-              strategy.positionEnterAccepted(signal);
+              strategy.positionEnterAccepted(
+                R.pick(openTrade, [
+                  'direction',
+                  'symbolA',
+                  'symbolB',
+                  'quantityA',
+                  'quantityB',
+                  'openTime',
+                  'openPriceA',
+                  'openPriceB',
+                ]),
+              );
+
               break;
             case 'close':
             case 'stopLoss':
@@ -312,25 +303,25 @@ export const run = async (
                 return;
               }
 
-              if (timeEnvironment.currentTime - openTrade.openTime < 5 * 1000) {
-                strategy.positionExitRejected();
-                return;
-              }
-
-              const profitPercent = calculateProfitPercent(
+              const roi = calculateRoi(
                 openTrade.direction,
+                symbolA,
+                symbolB,
+                openTrade.quantityA,
+                openTrade.quantityB,
                 openTrade.openPriceA,
                 openTrade.openPriceB,
                 signal.symbolA.price,
                 signal.symbolB.price,
-                timeEnvironment.currentTime - openTrade.openTime,
               );
 
               completeTrades.push({
                 id: completeTrades.length + 1,
+                direction: openTrade.direction,
                 symbolA: openTrade.symbolA,
                 symbolB: openTrade.symbolB,
-                direction: openTrade.direction,
+                quantityA: openTrade.quantityA,
+                quantityB: openTrade.quantityB,
                 openTime: openTrade.openTime,
                 closeTime: timeEnvironment.currentTime,
                 openPriceA: openTrade.openPriceA,
@@ -339,7 +330,7 @@ export const run = async (
                 closePriceB: signal.symbolB.price,
                 openReason: openTrade.reason,
                 closeReason: signal.reason,
-                profitPercent,
+                roi,
               });
               openTrade = null;
               strategy.positionExitAccepted();
@@ -371,48 +362,6 @@ export const run = async (
 
             streamDataProvider.emit('trade', binanceTrade);
           }
-        }
-
-        if (openTrade) {
-          const currentOpenTrade = openTrade as TOpenTrade;
-
-          const lastPriceA = lastAssetATrade
-            ? parseFloat(lastAssetATrade.price)
-            : currentOpenTrade.openPriceA;
-          const lastPriceB = lastAssetBTrade
-            ? parseFloat(lastAssetBTrade.price)
-            : currentOpenTrade.openPriceB;
-          const closeTime = Math.max(
-            lastAssetATrade ? lastAssetATrade.timestamp : currentOpenTrade.openTime,
-            lastAssetBTrade ? lastAssetBTrade.timestamp : currentOpenTrade.openTime,
-            timeEnvironment.currentTime,
-          );
-
-          const profitPercent = calculateProfitPercent(
-            currentOpenTrade.direction,
-            currentOpenTrade.openPriceA,
-            currentOpenTrade.openPriceB,
-            lastPriceA,
-            lastPriceB,
-            closeTime - currentOpenTrade.openTime,
-          );
-
-          completeTrades.push({
-            id: completeTrades.length + 1,
-            symbolA: currentOpenTrade.symbolA,
-            symbolB: currentOpenTrade.symbolB,
-            direction: currentOpenTrade.direction,
-            openTime: currentOpenTrade.openTime,
-            closeTime,
-            openPriceA: currentOpenTrade.openPriceA,
-            closePriceA: lastPriceA,
-            openPriceB: currentOpenTrade.openPriceB,
-            closePriceB: lastPriceB,
-            openReason: currentOpenTrade.reason,
-            closeReason: 'force-close-at-end',
-            profitPercent,
-          });
-          openTrade = null;
         }
 
         strategy.stop();

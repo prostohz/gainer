@@ -1,15 +1,15 @@
 import EventEmitter from 'events';
-import * as R from 'remeda';
 
 import { TTimeframe } from '../../../../shared/types';
 import { timeframeToMilliseconds } from '../../../utils/timeframe';
 import { TCandle } from '../../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
-import { PearsonCorrelation } from '../../indicators/PearsonCorrelation/PearsonCorrelation';
+import { TIndicatorCandle } from '../../indicators/types';
 import { ZScore } from '../../indicators/ZScore/ZScore';
+import { BetaHedge } from '../../indicators/BetaHedge/BetaHedge';
 import { ADX } from '../../indicators/ADX/ADX';
 import { TEnvironment, TDataProvider, TStreamDataProvider } from '../types';
-import { TIndicatorCandle } from '../../indicators/types';
+import { calculateRoi } from './roi';
 
 export type TPositionDirection = 'buy-sell' | 'sell-buy';
 type TActionType = 'buy' | 'sell';
@@ -31,6 +31,7 @@ type TOpenSignal = TBaseSignal & {
   direction: TPositionDirection;
   symbolA: TSignalSymbol;
   symbolB: TSignalSymbol;
+  beta: number;
 };
 
 type TCloseSignal = TBaseSignal & {
@@ -47,13 +48,23 @@ type TStopLossSignal = TBaseSignal & {
   symbolB: TSignalSymbol;
 };
 
+type TOpenPosition = {
+  direction: TPositionDirection;
+  quantityA: number;
+  quantityB: number;
+  openPriceA: number;
+  openPriceB: number;
+  openTime: number;
+};
+
 export type TSignal = TOpenSignal | TCloseSignal | TStopLossSignal;
 
 type TState =
   | 'scanningForEntry' // Сканирование для возможности выставить прямую сделку
   | 'waitingForEntry' // Ожидание выставления прямой сделки
   | 'scanningForExit' // Сканирование для возможности выставить обратную сделку
-  | 'waitingForExit'; // Ожидание выставления обратной сделки
+  | 'waitingForExit' // Ожидание выставления обратной сделки
+  | 'suspended'; // Стратегия приостановлена
 
 export class MeanReversionStrategy extends EventEmitter {
   private readonly dataProvider: TDataProvider;
@@ -64,33 +75,29 @@ export class MeanReversionStrategy extends EventEmitter {
   private readonly symbolB: string;
   private readonly timeframe: TTimeframe;
 
-  private readonly pearsonCorrelation: PearsonCorrelation;
-  private readonly zScore: ZScore;
-  private readonly adx: ADX;
-
   // Параметры стратегии
-  private readonly CANDLES_COUNT = 30;
+  private readonly CANDLES_COUNT = 288;
+  private readonly CANDLES_COUNT_FOR_BETA = 60;
+  private readonly CANDLES_COUNT_FOR_Z_SCORE = 60;
+  private readonly CANDLES_COUNT_FOR_ADX = 288;
 
-  private readonly Z_SCORE_ENTRY = 2.0;
+  private readonly Z_SCORE_ENTRY = 3.0;
   private readonly Z_SCORE_EXIT = 0.0;
   private readonly Z_SCORE_STOP_LOSS = 5.0;
 
-  private readonly STOP_LOSS_RATE = 0.01;
+  private readonly STOP_LOSS_RATE_PERCENT = 1.0;
 
-  private readonly CORRELATION_THRESHOLD = 0.9;
-
-  private readonly ADX_TREND_THRESHOLD = 25; // Минимальный ADX для определения тренда
-  private readonly ADX_STRONG_TREND_THRESHOLD = 40; // Сильный тренд - не входим в сделку
-
-  private state: TState = 'scanningForEntry';
+  private state: TState = 'suspended';
 
   private candlesA: TIndicatorCandle[] = [];
   private candlesB: TIndicatorCandle[] = [];
 
-  private position: TOpenSignal | null = null;
+  private position: TOpenPosition | null = null;
 
-  private readonly ANALYSIS_THROTTLE_MS = 15_000;
+  private readonly ANALYSIS_THROTTLE_MS = 1_000;
   private lastAnalysisTime = 0;
+
+  private adx: ADX;
 
   constructor(symbolA: string, symbolB: string, timeframe: TTimeframe, environment: TEnvironment) {
     super();
@@ -98,12 +105,10 @@ export class MeanReversionStrategy extends EventEmitter {
     this.symbolB = symbolB;
     this.timeframe = timeframe;
 
-    this.pearsonCorrelation = new PearsonCorrelation();
-    this.zScore = new ZScore();
-    this.adx = new ADX();
-
     this.dataProvider = environment.dataProvider;
     this.streamDataProvider = environment.streamDataProvider;
+
+    this.adx = new ADX();
   }
 
   private formatCandle(candles: TCandle[]): TIndicatorCandle[] {
@@ -118,7 +123,7 @@ export class MeanReversionStrategy extends EventEmitter {
     }));
   }
 
-  private async updateHistoricalCandles(): Promise<void> {
+  private async loadHistoricalCandles(): Promise<void> {
     try {
       const [newCandlesA, newCandlesB] = await Promise.all([
         this.dataProvider.fetchAssetCandles({
@@ -186,6 +191,25 @@ export class MeanReversionStrategy extends EventEmitter {
     }
   }
 
+  private calculateBeta(): number | null {
+    return new BetaHedge().calculateBeta(
+      this.candlesA.slice(-this.CANDLES_COUNT_FOR_BETA),
+      this.candlesB.slice(-this.CANDLES_COUNT_FOR_BETA),
+    );
+  }
+
+  private calculateZScore(beta: number): number | null {
+    return new ZScore().zScoreByPrices(
+      this.candlesA.slice(-this.CANDLES_COUNT_FOR_Z_SCORE),
+      this.candlesB.slice(-this.CANDLES_COUNT_FOR_Z_SCORE),
+      beta,
+    );
+  }
+
+  private calculateADX(): number | null {
+    return this.adx.calculateADX(this.candlesA.slice(-this.CANDLES_COUNT_FOR_ADX)) ?? null;
+  }
+
   private onPriceUpdate = (trade: TBinanceTrade) => {
     try {
       if (this.candlesA.length === 0 || this.candlesB.length === 0) {
@@ -222,70 +246,6 @@ export class MeanReversionStrategy extends EventEmitter {
     }
   }
 
-  /**
-   * Проверяет наличие подходящего тренда с помощью ADX
-   * Возвращает true, если тренд подходит для входа в mean reversion сделку
-   */
-  private hasAcceptableTrend(): boolean {
-    if (this.candlesA.length < 30 || this.candlesB.length < 30) {
-      return true; // Недостаточно данных для ADX - разрешаем торговлю
-    }
-
-    // Конвертируем свечи в формат для ADX
-    const convertToIndicatorCandles = (candles: TIndicatorCandle[]) =>
-      R.pipe(
-        candles,
-        R.map(R.pick(['openTime', 'closeTime', 'open', 'close', 'high', 'low', 'volume'])),
-      );
-
-    const adxDataA = this.adx.calculateFullADX(convertToIndicatorCandles(this.candlesA));
-    const adxDataB = this.adx.calculateFullADX(convertToIndicatorCandles(this.candlesB));
-
-    // Если не можем рассчитать ADX, разрешаем торговлю
-    if (!adxDataA.adx || !adxDataB.adx) {
-      return true;
-    }
-
-    // Проверяем силу тренда на обоих активах
-    const strongTrendA = adxDataA.adx > this.ADX_STRONG_TREND_THRESHOLD;
-    const strongTrendB = adxDataB.adx > this.ADX_STRONG_TREND_THRESHOLD;
-
-    // Если на любом из активов сильный тренд, не входим в сделку
-    if (strongTrendA || strongTrendB) {
-      return false;
-    }
-
-    // Дополнительная проверка: если тренды умеренные, проверяем направление
-    if (
-      (adxDataA.adx > this.ADX_TREND_THRESHOLD || adxDataB.adx > this.ADX_TREND_THRESHOLD) &&
-      typeof adxDataA.diPlus === 'number' &&
-      typeof adxDataA.diMinus === 'number' &&
-      typeof adxDataB.diPlus === 'number' &&
-      typeof adxDataB.diMinus === 'number'
-    ) {
-      const trendDirectionA = this.adx.getTrendDirection(adxDataA.diPlus, adxDataA.diMinus);
-      const trendDirectionB = this.adx.getTrendDirection(adxDataB.diPlus, adxDataB.diMinus);
-
-      // Не торгуем если тренды в одном направлении и не боковые
-      if (trendDirectionA === trendDirectionB && trendDirectionA !== 'sideways') {
-        return false;
-      }
-    }
-
-    // Если дошли до сюда - тренд подходит для mean reversion
-    return true;
-  }
-
-  private hasAcceptableCorrelation(): boolean {
-    const correlation = this.pearsonCorrelation.correlationByPrices(this.candlesA, this.candlesB);
-
-    if (!correlation) {
-      return false;
-    }
-
-    return correlation > this.CORRELATION_THRESHOLD;
-  }
-
   private analyzeScanningForEntry(): void {
     const lastCandleA = this.candlesA.at(-1);
     const lastCandleB = this.candlesB.at(-1);
@@ -294,23 +254,31 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
+    const adx = this.calculateADX();
+    if (!adx) {
+      throw new Error('ADX is null');
+    }
+
+    if (this.adx.getTrendStrength(adx) !== 'weak') {
+      return;
+    }
+
+    const beta = this.calculateBeta();
+    if (!beta) {
+      throw new Error('Beta is null');
+    }
+
+    const zScore = this.calculateZScore(beta);
+    if (!zScore) {
+      throw new Error('Z-score is null');
+    }
+
+    if (zScore >= this.Z_SCORE_STOP_LOSS || zScore <= -this.Z_SCORE_STOP_LOSS) {
+      return;
+    }
+
     const lastCloseA = lastCandleA.close;
     const lastCloseB = lastCandleB.close;
-
-    // Проверяем наличие тренда с помощью ADX
-    if (!this.hasAcceptableTrend()) {
-      return;
-    }
-
-    // Проверяем наличие корреляции
-    if (!this.hasAcceptableCorrelation()) {
-      return;
-    }
-
-    const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
-    if (!zScore) {
-      return;
-    }
 
     if (zScore >= this.Z_SCORE_ENTRY) {
       // Сигнал на открытие: Short A / Long B
@@ -319,6 +287,7 @@ export class MeanReversionStrategy extends EventEmitter {
         direction: 'sell-buy',
         symbolA: { symbol: this.symbolA, action: 'sell', price: lastCloseA },
         symbolB: { symbol: this.symbolB, action: 'buy', price: lastCloseB },
+        beta,
         reason: `High Z-score: ${zScore.toFixed(2)}`,
       } as TOpenSignal);
 
@@ -330,6 +299,7 @@ export class MeanReversionStrategy extends EventEmitter {
         direction: 'buy-sell',
         symbolA: { symbol: this.symbolA, action: 'buy', price: lastCloseA },
         symbolB: { symbol: this.symbolB, action: 'sell', price: lastCloseB },
+        beta,
         reason: `Low Z-score: ${zScore.toFixed(2)}`,
       } as TOpenSignal);
 
@@ -358,23 +328,19 @@ export class MeanReversionStrategy extends EventEmitter {
 
     const { direction } = this.position;
 
-    // Проверка на выход по стоп-лоссу по цене (STOP_LOSS_RATE)
-    const entryPriceA = this.position.symbolA.price;
-    const entryPriceB = this.position.symbolB.price;
+    const roi = calculateRoi(
+      direction,
+      this.symbolA,
+      this.symbolB,
+      this.position.quantityA,
+      this.position.quantityB,
+      this.position.openPriceA,
+      this.position.openPriceB,
+      priceA,
+      priceB,
+    );
 
-    let pnl = 0;
-    if (direction === 'sell-buy') {
-      // Short A, Long B
-      pnl = entryPriceA - priceA + (priceB - entryPriceB);
-    } else {
-      // Long A, Short B
-      pnl = priceA - entryPriceA + (entryPriceB - priceB);
-    }
-
-    const base = Math.abs(entryPriceA) + Math.abs(entryPriceB);
-    const pnlRate = pnl / base;
-
-    if (pnlRate <= -this.STOP_LOSS_RATE) {
+    if (roi <= -this.STOP_LOSS_RATE_PERCENT) {
       this.emit('signal', {
         type: 'stopLoss',
         direction: direction,
@@ -388,7 +354,7 @@ export class MeanReversionStrategy extends EventEmitter {
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
-        reason: `Stop-loss triggered by price loss: ${(pnlRate * 100).toFixed(2)}%`,
+        reason: `Stop-loss triggered by price loss: ${roi.toFixed(2)}%`,
       } as TStopLossSignal);
 
       this.state = 'waitingForExit';
@@ -396,9 +362,14 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
-    const zScore = this.zScore.zScoreByPrices(this.candlesA, this.candlesB);
+    const beta = this.calculateBeta();
+    if (!beta) {
+      throw new Error('Beta is null');
+    }
+
+    const zScore = this.calculateZScore(beta);
     if (!zScore) {
-      return;
+      throw new Error('Z-score is null');
     }
 
     const shouldZScoreStopLoss =
@@ -460,8 +431,8 @@ export class MeanReversionStrategy extends EventEmitter {
     }
   }
 
-  public positionEnterAccepted(signal: TOpenSignal): void {
-    this.position = signal;
+  public positionEnterAccepted(position: TOpenPosition): void {
+    this.position = position;
     this.state = 'scanningForExit';
   }
 
@@ -485,7 +456,9 @@ export class MeanReversionStrategy extends EventEmitter {
       { symbol: this.symbolB, type: 'trade' },
     ]);
 
-    await this.updateHistoricalCandles();
+    await this.loadHistoricalCandles();
+
+    this.state = 'scanningForEntry';
   }
 
   public stop(): void {
@@ -494,5 +467,8 @@ export class MeanReversionStrategy extends EventEmitter {
       { symbol: this.symbolB, type: 'trade' },
     ]);
     this.removeAllListeners();
+
+    this.position = null;
+    this.state = 'suspended';
   }
 }

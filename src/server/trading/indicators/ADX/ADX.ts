@@ -239,7 +239,9 @@ export class ADX {
    */
   public getTrendDirection(diPlus: number, diMinus: number): 'bullish' | 'bearish' | 'sideways' {
     const diff = Math.abs(diPlus - diMinus);
-    if (diff < 5) return 'sideways'; // Слабая разница - боковое движение
+    if (diff < 5) {
+      return 'sideways'; // Слабая разница - боковое движение
+    }
 
     return diPlus > diMinus ? 'bullish' : 'bearish';
   }

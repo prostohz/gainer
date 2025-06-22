@@ -5,13 +5,15 @@ export type TBacktestTrade = {
   direction: TPositionDirection;
   symbolA: string;
   symbolB: string;
+  quantityA: number;
+  quantityB: number;
   openPriceA: number;
   closePriceA: number;
   openPriceB: number;
   closePriceB: number;
   openTime: number;
   closeTime: number;
-  profitPercent: number;
+  roi: number;
   openReason: string;
   closeReason: string;
 };

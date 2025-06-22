@@ -26,6 +26,11 @@ export type TPairReportEntry = {
   correlationByReturns: number | null;
   beta: number | null;
   crossings: number | null;
+  spread: {
+    mean: number;
+    median: number;
+    std: number;
+  } | null;
 } | null;
 export type TPairReportList = ({
   pair: string;

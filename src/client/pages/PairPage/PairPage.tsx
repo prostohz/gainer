@@ -69,7 +69,7 @@ export const PairPage = () => {
           />
         </div>
 
-        <div className="flex flex-col gap-4 flex-grow">
+        <div className="flex flex-col gap-4 flex-grow min-w-0">
           <div role="tablist" className="mb-2 bg-base-200 rounded-lg p-1 inline-flex">
             {TABS.map((tab) => (
               <a

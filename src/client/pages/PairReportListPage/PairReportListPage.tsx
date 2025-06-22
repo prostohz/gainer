@@ -86,7 +86,7 @@ export const PairReportListPage = () => {
               }}
             >
               <div className="flex gap-2 items-center text-sm text-secondary">
-                {format(new Date(report.date), 'dd.MM.yyyy hh:mm')}
+                {format(new Date(report.date), 'dd.MM.yyyy HH:mm')}
               </div>
 
               <div className="flex gap-2">

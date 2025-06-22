@@ -94,108 +94,108 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
   }, [symbolA, symbolB]);
 
   return (
-    <div className="bg-base-200 rounded-lg p-4">
-      <div className="space-y-4">
-        <div className="flex items-top gap-4">
-          <div className="flex-1">
-            <TimeframeSelector
-              selectedTimeFrame={timeframe}
-              setSelectedTimeFrame={(newTimeframe) => {
-                setTimeframe(newTimeframe);
-              }}
-              disabled={isBacktestRunning}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <DateTimePicker
-              value={new Date(startDate)}
-              maxDate={new Date()}
-              onChange={(date) => {
-                setStartDate((date as Date).getTime());
-              }}
-              placeholder="Start time"
-              timeIntervals={15}
-              disabled={isBacktestRunning}
-            />
-
-            <DateTimePicker
-              value={new Date(endDate)}
-              minDate={new Date(startDate)}
-              maxDate={new Date()}
-              onChange={(date) => {
-                const selectedDate = date as Date;
-                if (startDate && dayjs(selectedDate).isBefore(startDate)) {
-                  setEndDate(startDate);
-                } else {
-                  setEndDate(selectedDate.getTime());
-                }
-              }}
-              placeholder="End time"
-              timeIntervals={15}
-              disabled={isBacktestRunning}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              className="btn btn-primary w-48"
-              onClick={() => runBacktest()}
-              disabled={!symbolA || !symbolB || !startDate || !endDate || isBacktestRunning}
-            >
-              {isBacktestRunning ? 'Running...' : 'Run backtest'}
-            </button>
-          </div>
+    <div className="bg-base-200 rounded-lg p-4 w-full min-w-0">
+      <div className="flex items-top gap-4">
+        <div className="flex-1">
+          <TimeframeSelector
+            selectedTimeFrame={timeframe}
+            setSelectedTimeFrame={(newTimeframe) => {
+              setTimeframe(newTimeframe);
+            }}
+            disabled={isBacktestRunning}
+          />
         </div>
 
-        {backtestError && (
-          <div className="alert alert-error">
-            <span>Error during backtest: {backtestError.message}</span>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <DateTimePicker
+            value={new Date(startDate)}
+            maxDate={new Date()}
+            onChange={(date) => {
+              setStartDate((date as Date).getTime());
+            }}
+            placeholder="Start time"
+            timeIntervals={15}
+            disabled={isBacktestRunning}
+          />
 
-        {backtestResults && (
-          <>
-            <BacktestResults results={backtestResults} />
+          <DateTimePicker
+            value={new Date(endDate)}
+            minDate={new Date(startDate)}
+            maxDate={new Date()}
+            onChange={(date) => {
+              const selectedDate = date as Date;
+              if (startDate && dayjs(selectedDate).isBefore(startDate)) {
+                setEndDate(startDate);
+              } else {
+                setEndDate(selectedDate.getTime());
+              }
+            }}
+            placeholder="End time"
+            timeIntervals={15}
+            disabled={isBacktestRunning}
+          />
+        </div>
 
-            <div className="bg-base-300 rounded-lg p-4">
-              <SyncedChartsContainer>
-                <div className="flex gap-4">
-                  {assetA && assetACandles.length > 0 && (
-                    <div className="h-96 w-1/2">
-                      <SyncedTradeChart
-                        candles={assetACandles}
-                        trades={backtestResults}
-                        precision={assetA.pricePrecision}
-                        symbol={assetA.symbol}
-                        title={`A: ${assetA.symbol}`}
-                      />
-                    </div>
-                  )}
-
-                  {assetB && assetBCandles.length > 0 && (
-                    <div className="h-96 w-1/2">
-                      <SyncedTradeChart
-                        candles={assetBCandles}
-                        trades={backtestResults}
-                        precision={assetB.pricePrecision}
-                        symbol={assetB.symbol}
-                        title={`B: ${assetB.symbol}`}
-                      />
-                    </div>
-                  )}
-                </div>
-              </SyncedChartsContainer>
-
-              {(isLoadingAssetACandles || isLoadingAssetBCandles) && (
-                <div className="h-96 flex items-center justify-center bg-base-100 rounded-lg">
-                  <span className="text-base-content/60">Loading chart data...</span>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        <div className="flex gap-2">
+          <button
+            className="btn btn-primary w-48"
+            onClick={() => runBacktest()}
+            disabled={!symbolA || !symbolB || !startDate || !endDate || isBacktestRunning}
+          >
+            {isBacktestRunning ? 'Running...' : 'Run backtest'}
+          </button>
+        </div>
       </div>
+
+      {backtestError && (
+        <div className="alert alert-error">
+          <span>Error during backtest: {backtestError.message}</span>
+        </div>
+      )}
+
+      {backtestResults && (
+        <>
+          <div className="mb-4 w-full min-w-0">
+            <BacktestResults results={backtestResults} />
+          </div>
+
+          <div className="bg-base-300 rounded-lg p-4 max-w-full">
+            <SyncedChartsContainer>
+              <div className="flex gap-4">
+                {assetA && assetACandles.length > 0 && (
+                  <div className="h-96 w-1/2">
+                    <SyncedTradeChart
+                      candles={assetACandles}
+                      trades={backtestResults}
+                      precision={assetA.pricePrecision}
+                      symbol={assetA.symbol}
+                      title={`A: ${assetA.symbol}`}
+                    />
+                  </div>
+                )}
+
+                {assetB && assetBCandles.length > 0 && (
+                  <div className="h-96 w-1/2">
+                    <SyncedTradeChart
+                      candles={assetBCandles}
+                      trades={backtestResults}
+                      precision={assetB.pricePrecision}
+                      symbol={assetB.symbol}
+                      title={`B: ${assetB.symbol}`}
+                    />
+                  </div>
+                )}
+              </div>
+            </SyncedChartsContainer>
+
+            {(isLoadingAssetACandles || isLoadingAssetBCandles) && (
+              <div className="h-96 flex items-center justify-center bg-base-100 rounded-lg">
+                <span className="text-base-content/60">Loading chart data...</span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

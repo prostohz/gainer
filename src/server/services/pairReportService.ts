@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import * as R from 'remeda';
 import { Op } from 'sequelize';
-import { mean } from 'mathjs';
+import { mean, std, median } from 'mathjs';
 
 import dayjs from '../../shared/utils/daytime';
 import { TPairReportEntry, TPairReportMap, TPairReportMeta, TTimeframe } from '../../shared/types';
@@ -19,11 +19,12 @@ import { HurstExponent } from '../trading/indicators/HurstExponent/HurstExponent
 
 const MIN_USDT_VOLUME = 1_000_000;
 
-const CANDLE_COUNT_FOR_CORRELATION = 50;
+const CANDLE_COUNT_FOR_CORRELATION = 90;
 const CANDLE_COUNT_FOR_CORRELATION_ROLLING = 300;
-const CANDLE_COUNT_FOR_COINTEGRATION = 1000;
-const CANDLE_COUNT_FOR_HURST_EXPONENT = 1000;
-const CANDLE_COUNT_FOR_HALF_LIFE = 500;
+const CANDLE_COUNT_FOR_COINTEGRATION = 1200;
+const CANDLE_COUNT_FOR_HURST_EXPONENT = 1200;
+const CANDLE_COUNT_FOR_HALF_LIFE = 600;
+const CANDLE_COUNT_FOR_SPREAD = 120;
 
 const MIN_CORRELATION_BY_PRICES = 0.5;
 const MAX_CORRELATION_BY_PRICES = 0.99;
@@ -38,7 +39,7 @@ const MAX_COINTEGRATION_P_VALUE = 0.01;
 
 const MAX_HURST_EXPONENT = 0.5;
 
-const MIN_HALF_LIFE_DURATION_MS = 1 * 60 * 1000;
+const MIN_HALF_LIFE_DURATION_MS = 5 * 60 * 1000;
 const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
 
 const pairReportFolder = path.resolve(process.cwd(), 'data', 'pairReports');
@@ -154,6 +155,8 @@ export const createReport = measureTime('Report creation', async (date: number) 
           continue;
         }
 
+        const spread = checkSpread(oneMinuteCandlesA, oneMinuteCandlesB, beta);
+
         report.set(pairName, {
           pValue: oneMinuteCointegration.pValue,
           halfLife,
@@ -162,6 +165,7 @@ export const createReport = measureTime('Report creation', async (date: number) 
           correlationByReturns: correlation.correlationByReturns,
           beta,
           crossings,
+          spread,
         });
       } catch (error) {
         console.error(pairName, error);
@@ -432,4 +436,25 @@ const checkCrossings = (
   }
 
   return crossings;
+};
+
+const checkSpread = (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[], beta: number) => {
+  if (candlesA.length !== candlesB.length) {
+    return null;
+  }
+
+  // Вычисляем спред как разность цен с учетом коэффициента бета
+  const spread = candlesA
+    .slice(-CANDLE_COUNT_FOR_SPREAD)
+    .map((candle, index) => candle.close - (candlesB.at(index)?.close || 0) * beta);
+
+  const spreadMean = mean(spread);
+  const spreadMedian = median(spread);
+  const spreadStd = std(spread) as unknown as number;
+
+  return {
+    mean: spreadMean,
+    median: spreadMedian,
+    std: spreadStd,
+  };
 };
