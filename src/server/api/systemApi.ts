@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 
-import { getSystemInfo, flushDatabase, loadCandles } from '../services/systemService';
+import { getSystemInfo, flushDatabase, flushTrades, loadCandles } from '../services/systemService';
 import { asyncHandler, sendResponse } from '../utils/apiHandler';
 
 const router = express.Router();
@@ -18,6 +18,14 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     await flushDatabase();
     sendResponse(res, { message: 'Database flushed successfully' });
+  }),
+);
+
+router.post(
+  '/flushTrades',
+  asyncHandler(async (req: Request, res: Response) => {
+    await flushTrades();
+    sendResponse(res, { message: 'Trades flushed successfully' });
   }),
 );
 

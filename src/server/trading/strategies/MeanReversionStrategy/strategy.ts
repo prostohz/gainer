@@ -67,13 +67,14 @@ type TState =
   | 'suspended'; // Стратегия приостановлена
 
 export class MeanReversionStrategy extends EventEmitter {
+  private readonly timeframe: TTimeframe = '1m';
+
   private readonly dataProvider: TDataProvider;
   private readonly streamDataProvider: TStreamDataProvider;
 
   // Параметры торговой пары
-  private readonly symbolA: string;
-  private readonly symbolB: string;
-  private readonly timeframe: TTimeframe;
+  private symbolA: string | null = null;
+  private symbolB: string | null = null;
 
   // Параметры стратегии
   private readonly CANDLES_COUNT = 1440;
@@ -94,18 +95,12 @@ export class MeanReversionStrategy extends EventEmitter {
 
   private position: TOpenPosition | null = null;
 
-  private readonly ANALYSIS_THROTTLE_MS = 1_000;
-  private lastAnalysisTime = 0;
-
   private adx: ADX;
   private betaHedge: BetaHedge;
   private zScore: ZScore;
 
-  constructor(symbolA: string, symbolB: string, timeframe: TTimeframe, environment: TEnvironment) {
+  constructor(environment: TEnvironment) {
     super();
-    this.symbolA = symbolA;
-    this.symbolB = symbolB;
-    this.timeframe = timeframe;
 
     this.dataProvider = environment.dataProvider;
     this.streamDataProvider = environment.streamDataProvider;
@@ -113,6 +108,51 @@ export class MeanReversionStrategy extends EventEmitter {
     this.adx = new ADX();
     this.betaHedge = new BetaHedge();
     this.zScore = new ZScore();
+  }
+
+  public positionEnterAccepted(position: TOpenPosition): void {
+    this.position = position;
+    this.state = 'scanningForExit';
+  }
+
+  public positionEnterRejected(): void {
+    this.state = 'scanningForEntry';
+  }
+
+  public positionExitAccepted(): void {
+    this.position = null;
+    this.state = 'scanningForEntry';
+  }
+
+  public positionExitRejected(): void {
+    this.state = 'scanningForExit';
+  }
+
+  public async start(symbolA: string, symbolB: string): Promise<void> {
+    this.symbolA = symbolA;
+    this.symbolB = symbolB;
+
+    this.streamDataProvider.on('trade', this.onPriceUpdate);
+    this.streamDataProvider.subscribeMultiple([
+      { symbol: this.symbolA, type: 'trade' },
+      { symbol: this.symbolB, type: 'trade' },
+    ]);
+
+    await this.loadHistoricalCandles();
+
+    this.state = 'scanningForEntry';
+  }
+
+  public stop(): void {
+    this.streamDataProvider.unsubscribeMultiple([
+      { symbol: this.symbolA!, type: 'trade' },
+      { symbol: this.symbolB!, type: 'trade' },
+    ]);
+    this.streamDataProvider.off('trade', this.onPriceUpdate);
+    this.removeAllListeners();
+
+    this.position = null;
+    this.state = 'suspended';
   }
 
   private formatCandle(candles: TCandle[]): TIndicatorCandle[] {
@@ -127,16 +167,16 @@ export class MeanReversionStrategy extends EventEmitter {
     }));
   }
 
-  private async loadHistoricalCandles(): Promise<void> {
+  private async loadHistoricalCandles() {
     try {
       const [newCandlesA, newCandlesB] = await Promise.all([
         this.dataProvider.fetchAssetCandles({
-          symbol: this.symbolA,
+          symbol: this.symbolA!,
           timeframe: this.timeframe,
           limit: this.CANDLES_COUNT,
         }),
         this.dataProvider.fetchAssetCandles({
-          symbol: this.symbolB,
+          symbol: this.symbolB!,
           timeframe: this.timeframe,
           limit: this.CANDLES_COUNT,
         }),
@@ -195,20 +235,38 @@ export class MeanReversionStrategy extends EventEmitter {
     }
   }
 
-  private calculateBeta(): number | null {
+  private checkTrendAcceptable = () => {
+    const candlesAAdx = this.adx.calculateADX(this.candlesA.slice(-this.CANDLES_COUNT_FOR_ADX));
+    const candlesBAdx = this.adx.calculateADX(this.candlesB.slice(-this.CANDLES_COUNT_FOR_ADX));
+    if (!candlesAAdx || !candlesBAdx) {
+      console.warn('ADX is null');
+      return false;
+    }
+
+    if (
+      this.adx.getTrendStrength(candlesAAdx) !== 'weak' ||
+      this.adx.getTrendStrength(candlesBAdx) !== 'weak'
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  private calculateBeta = () => {
     return this.betaHedge.calculateBeta(
       this.candlesA.slice(-this.CANDLES_COUNT_FOR_BETA),
       this.candlesB.slice(-this.CANDLES_COUNT_FOR_BETA),
     );
-  }
+  };
 
-  private calculateZScore(beta: number): number | null {
+  private calculateZScore = (beta: number) => {
     return this.zScore.zScoreByPrices(
       this.candlesA.slice(-this.CANDLES_COUNT_FOR_Z_SCORE),
       this.candlesB.slice(-this.CANDLES_COUNT_FOR_Z_SCORE),
       beta,
     );
-  }
+  };
 
   private onPriceUpdate = (trade: TBinanceTrade) => {
     try {
@@ -217,13 +275,7 @@ export class MeanReversionStrategy extends EventEmitter {
       }
 
       this.updateLastCandle(trade);
-
-      // Throttling анализа
-      const tradeTime = trade.T;
-      if (tradeTime - this.lastAnalysisTime >= this.ANALYSIS_THROTTLE_MS) {
-        this.performAnalysis();
-        this.lastAnalysisTime = tradeTime;
-      }
+      this.performAnalysis();
     } catch (error) {
       console.error('Ошибка при обработке обновления цены:', error);
     }
@@ -254,20 +306,6 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
-    const candlesAAdx = this.adx.calculateADX(this.candlesA.slice(-this.CANDLES_COUNT_FOR_ADX));
-    const candlesBAdx = this.adx.calculateADX(this.candlesB.slice(-this.CANDLES_COUNT_FOR_ADX));
-    if (!candlesAAdx || !candlesBAdx) {
-      console.warn('ADX is null');
-      return;
-    }
-
-    if (
-      this.adx.getTrendStrength(candlesAAdx) !== 'weak' ||
-      this.adx.getTrendStrength(candlesBAdx) !== 'weak'
-    ) {
-      return;
-    }
-
     const beta = this.calculateBeta();
     if (!beta) {
       console.warn('Beta is null');
@@ -280,7 +318,15 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
+    if (zScore <= this.Z_SCORE_ENTRY && zScore >= -this.Z_SCORE_ENTRY) {
+      return;
+    }
+
     if (zScore >= this.Z_SCORE_STOP_LOSS || zScore <= -this.Z_SCORE_STOP_LOSS) {
+      return;
+    }
+
+    if (!this.checkTrendAcceptable()) {
       return;
     }
 
@@ -337,8 +383,8 @@ export class MeanReversionStrategy extends EventEmitter {
 
     const roi = calculateRoi(
       direction,
-      this.symbolA,
-      this.symbolB,
+      this.symbolA!,
+      this.symbolB!,
       this.position.quantityA,
       this.position.quantityB,
       this.position.openPriceA,
@@ -352,12 +398,12 @@ export class MeanReversionStrategy extends EventEmitter {
         type: 'stopLoss',
         direction: direction,
         symbolA: {
-          symbol: this.symbolA,
+          symbol: this.symbolA!,
           action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
-          symbol: this.symbolB,
+          symbol: this.symbolB!,
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
@@ -390,12 +436,12 @@ export class MeanReversionStrategy extends EventEmitter {
         type: 'stopLoss',
         direction: direction,
         symbolA: {
-          symbol: this.symbolA,
+          symbol: this.symbolA!,
           action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
-          symbol: this.symbolB,
+          symbol: this.symbolB!,
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
@@ -416,12 +462,12 @@ export class MeanReversionStrategy extends EventEmitter {
         type: 'close',
         direction: direction,
         symbolA: {
-          symbol: this.symbolA,
+          symbol: this.symbolA!,
           action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
-          symbol: this.symbolB,
+          symbol: this.symbolB!,
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
@@ -438,46 +484,5 @@ export class MeanReversionStrategy extends EventEmitter {
     if (!this.position) {
       this.state = 'scanningForEntry';
     }
-  }
-
-  public positionEnterAccepted(position: TOpenPosition): void {
-    this.position = position;
-    this.state = 'scanningForExit';
-  }
-
-  public positionEnterRejected(): void {
-    this.state = 'scanningForEntry';
-  }
-
-  public positionExitAccepted(): void {
-    this.position = null;
-    this.state = 'scanningForEntry';
-  }
-
-  public positionExitRejected(): void {
-    this.state = 'scanningForExit';
-  }
-
-  public async start(): Promise<void> {
-    this.streamDataProvider.on('trade', this.onPriceUpdate);
-    this.streamDataProvider.subscribeMultiple([
-      { symbol: this.symbolA, type: 'trade' },
-      { symbol: this.symbolB, type: 'trade' },
-    ]);
-
-    await this.loadHistoricalCandles();
-
-    this.state = 'scanningForEntry';
-  }
-
-  public stop(): void {
-    this.streamDataProvider.unsubscribeMultiple([
-      { symbol: this.symbolA, type: 'trade' },
-      { symbol: this.symbolB, type: 'trade' },
-    ]);
-    this.removeAllListeners();
-
-    this.position = null;
-    this.state = 'suspended';
   }
 }

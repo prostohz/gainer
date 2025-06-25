@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
@@ -12,7 +13,7 @@ export const PairReportPage = () => {
 
   const {
     data: report,
-    isLoading,
+    isLoading: isReportLoading,
     refetch,
   } = useQuery({
     queryKey: ['report', id],
@@ -34,7 +35,7 @@ export const PairReportPage = () => {
   });
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isReportLoading) {
       return <Loader />;
     }
 
@@ -50,12 +51,17 @@ export const PairReportPage = () => {
       <Title value={`Pair Report (${id})`} />
 
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Pair Report</h1>
+        <h1 className="text-2xl font-bold">
+          <Link to="/pairReport" className="link link-hover link-primary">
+            Pair Report
+          </Link>{' '}
+          / {report ? dayjs(report.date).format('DD.MM.YYYY HH:mm') : ''}
+        </h1>
 
         {id && (
           <div className="flex gap-2">
             <button
-              className="btn btn-primary btn-outline"
+              className="btn btn-primary"
               onClick={() => updateReport(id)}
               disabled={isUpdating}
             >
@@ -63,7 +69,7 @@ export const PairReportPage = () => {
             </button>
 
             <Link
-              className="btn btn-secondary btn-outline"
+              className="btn btn-secondary"
               to={`/pairReport/${id}/backtest`}
               onClick={(event) => {
                 event.stopPropagation();
@@ -72,7 +78,7 @@ export const PairReportPage = () => {
               Backtest
             </Link>
 
-            <button className="btn btn-error btn-outline" onClick={() => deleteReport(id)}>
+            <button className="btn btn-error" onClick={() => deleteReport(id)}>
               Delete
             </button>
           </div>

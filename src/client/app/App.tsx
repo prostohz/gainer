@@ -23,7 +23,7 @@ export const App = () => {
               <Route path="/pair" element={<PairPage />} />
               <Route path="/assetPriceLevels" element={<AssetPriceLevelsPage />} />
               <Route path="/system" element={<SystemPage />} />
-              <Route path="/" element={<Navigate to="/pair" />} />
+              <Route path="/" element={<Navigate to="/pairReport" />} />
             </Routes>
           </div>
         </main>

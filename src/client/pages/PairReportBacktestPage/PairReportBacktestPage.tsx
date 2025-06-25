@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { TCompleteTrade } from '../../../server/trading/strategies/MeanReversionStrategy/backtest';
@@ -10,7 +10,7 @@ import { Title } from '../../shared/utils/Title';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { BacktestResults } from '../../widgets/BacktestResults';
 import { Loader } from '../../shared/ui/Loader';
-import { TradeDistributionCharts } from './TradeDistributionCharts';
+import { TradeDistributionHistogram } from './TradeDistributionHistogram';
 
 export const PairReportBacktestPage = () => {
   const { id } = useParams();
@@ -72,7 +72,7 @@ export const PairReportBacktestPage = () => {
 
     return (
       <div className="space-y-4">
-        <TradeDistributionCharts trades={backtest} />
+        <TradeDistributionHistogram trades={backtest} />
         <div className="bg-base-200 rounded-lg p-4">
           <BacktestResults results={backtest} />
         </div>
@@ -89,12 +89,29 @@ export const PairReportBacktestPage = () => {
       return <div className="text-center p-4">No report found</div>;
     }
 
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex justify-between">
-          <div className="flex gap-4">
+    return <div className="flex flex-col gap-4">{renderBacktest()}</div>;
+  };
+
+  return (
+    <div className="flex flex-col">
+      <Title value={`Pair Report Backtest (${id})`} />
+
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">
+          <Link to="/pairReport" className="link link-hover link-primary">
+            Pair Report
+          </Link>{' '}
+          /{' '}
+          <Link to={`/pairReport/${id}`} className="link link-hover link-primary">
+            {report ? dayjs(report.date).format('DD.MM.YYYY HH:mm') : ''}
+          </Link>{' '}
+          / Backtest
+        </h1>
+
+        <div className="flex justify-between gap-4">
+          <div className="flex gap-2">
             <DateTimePicker
-              value={new Date(startDate)}
+              value={startDate ? new Date(startDate) : null}
               maxDate={new Date()}
               onChange={(date) => {
                 setStartDate((date as Date).getTime());
@@ -105,8 +122,8 @@ export const PairReportBacktestPage = () => {
             />
 
             <DateTimePicker
-              value={new Date(endDate)}
-              minDate={new Date(startDate)}
+              value={endDate ? new Date(endDate) : null}
+              minDate={startDate ? new Date(startDate) : undefined}
               maxDate={new Date()}
               onChange={(date) => {
                 const selectedDate = date as Date;
@@ -123,30 +140,13 @@ export const PairReportBacktestPage = () => {
           </div>
 
           <button
-            className="btn btn-primary"
+            className="btn btn-secondary"
             onClick={() => runBacktest()}
             disabled={isBacktestRunning}
           >
             {isBacktestRunning ? 'Running backtest...' : 'Run backtest'}
           </button>
         </div>
-
-        {renderBacktest()}
-      </div>
-    );
-  };
-
-  return (
-    <div className="flex flex-col">
-      <Title value={`Pair Report Backtest (${id})`} />
-
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Pair Report Backtest</h1>
-        {report && (
-          <div className="text-md text-info font-semibold">
-            Report: {dayjs(report.date).format('DD.MM.YYYY HH:mm')}
-          </div>
-        )}
       </div>
 
       {renderContent()}

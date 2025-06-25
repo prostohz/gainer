@@ -7,7 +7,8 @@ import { mean, std, median } from 'mathjs';
 import { dayjs } from '../../shared/utils/daytime';
 import { TTimeframe, TPairReport, TPairReportEntry } from '../../shared/types';
 import { timeframeToMilliseconds } from '../utils/timeframe';
-import { measureTime } from '../utils/performance';
+import { measureTime } from '../utils/performance/measureTime';
+import { PerformanceTracker } from '../utils/performance/PerformanceTracker';
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
 import { run } from '../trading/strategies/MeanReversionStrategy/backtest';
@@ -51,84 +52,7 @@ const pairReportMetaDataFilePath = (id: string) => path.join(pairReportFolder, i
 const pairReportDataFilePath = (id: string) => path.join(pairReportFolder, id, 'data.json');
 const pairReportBacktestFilePath = (id: string) => path.join(pairReportFolder, id, 'backtest.json');
 
-// Статистика времени выполнения функций check*
-interface PerformanceStats {
-  totalTime: number;
-  calls: number;
-  minTime: number;
-  maxTime: number;
-  avgTime: number;
-}
-
-const performanceStats: Record<string, PerformanceStats> = {};
-
-const measureCheckTime = <T extends unknown[], R>(funcName: string, fn: (...args: T) => R) => {
-  return (...args: T): R => {
-    const start = performance.now();
-    const result = fn(...args);
-    const end = performance.now();
-
-    const duration = end - start;
-
-    if (!performanceStats[funcName]) {
-      performanceStats[funcName] = {
-        totalTime: 0,
-        calls: 0,
-        minTime: Infinity,
-        maxTime: 0,
-        avgTime: 0,
-      };
-    }
-
-    const stats = performanceStats[funcName];
-    stats.totalTime += duration;
-    stats.calls += 1;
-    stats.minTime = Math.min(stats.minTime, duration);
-    stats.maxTime = Math.max(stats.maxTime, duration);
-    stats.avgTime = stats.totalTime / stats.calls;
-
-    return result;
-  };
-};
-
-const printPerformanceStats = () => {
-  console.log('\n=== СТАТИСТИКА ВРЕМЕНИ ВЫПОЛНЕНИЯ ФУНКЦИЙ CHECK* ===');
-  console.log(
-    '┌─────────────────────────┬──────────┬─────────────┬─────────────┬─────────────┬─────────────┐',
-  );
-  console.log(
-    '│ Функция                 │ Вызовов  │ Общее (мс)  │ Мин (мс)    │ Макс (мс)   │ Сред (мс)   │',
-  );
-  console.log(
-    '├─────────────────────────┼──────────┼─────────────┼─────────────┼─────────────┼─────────────┤',
-  );
-
-  for (const [funcName, stats] of Object.entries(performanceStats)) {
-    const name = funcName.padEnd(23);
-    const calls = stats.calls.toString().padStart(8);
-    const total = stats.totalTime.toFixed(2).padStart(11);
-    const min = stats.minTime.toFixed(2).padStart(11);
-    const max = stats.maxTime.toFixed(2).padStart(11);
-    const avg = stats.avgTime.toFixed(2).padStart(11);
-
-    console.log(`│ ${name} │ ${calls} │ ${total} │ ${min} │ ${max} │ ${avg} │`);
-  }
-
-  console.log(
-    '└─────────────────────────┴──────────┴─────────────┴─────────────┴─────────────┴─────────────┘',
-  );
-
-  const totalTime = Object.values(performanceStats).reduce(
-    (sum, stats) => sum + stats.totalTime,
-    0,
-  );
-  const totalCalls = Object.values(performanceStats).reduce((sum, stats) => sum + stats.calls, 0);
-
-  console.log(`\nИтого: ${totalCalls} вызовов, ${totalTime.toFixed(2)} мс общего времени`);
-
-  // Очищаем статистику для следующего запуска
-  Object.keys(performanceStats).forEach((key) => delete performanceStats[key]);
-};
+const performanceTracker = new PerformanceTracker();
 
 export const getReportList = async () => {
   const entries = fs.readdirSync(pairReportFolder);
@@ -287,7 +211,7 @@ export const createReport = measureTime('Report creation', async (date: number) 
   fs.writeFileSync(pairReportDataFilePath(id), JSON.stringify(reportData, null, 2));
 
   // Выводим статистику времени выполнения функций check*
-  printPerformanceStats();
+  performanceTracker.printStats('СТАТИСТИКА ВРЕМЕНИ ВЫПОЛНЕНИЯ ФУНКЦИЙ CHECK*');
 });
 
 export const getReport = async (id: string) => {
@@ -375,7 +299,7 @@ const getCandlesCache = async (
   return cache;
 };
 
-const checkCorrelation = measureCheckTime(
+const checkCorrelation = performanceTracker.measureTime(
   'checkCorrelation',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) => {
     const correlationCandlesA = candlesA.slice(-CANDLE_COUNT_FOR_CORRELATION);
@@ -415,7 +339,7 @@ const checkCorrelation = measureCheckTime(
   },
 );
 
-const checkCointegration = measureCheckTime(
+const checkCointegration = performanceTracker.measureTime(
   'checkCointegration',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) => {
     const cointegrationCandlesA = candlesA.slice(-CANDLE_COUNT_FOR_COINTEGRATION);
@@ -437,7 +361,7 @@ const checkCointegration = measureCheckTime(
   },
 );
 
-const checkRollingCorrelation = measureCheckTime(
+const checkRollingCorrelation = performanceTracker.measureTime(
   'checkRollingCorrelation',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) => {
     const pearsonCorrelation = new PearsonCorrelation();
@@ -472,7 +396,7 @@ const checkRollingCorrelation = measureCheckTime(
   },
 );
 
-const checkHurstExponent = measureCheckTime(
+const checkHurstExponent = performanceTracker.measureTime(
   'checkHurstExponent',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) => {
     const hurstExponentCandlesA = candlesA.slice(-CANDLE_COUNT_FOR_HURST_EXPONENT);
@@ -494,7 +418,7 @@ const checkHurstExponent = measureCheckTime(
   },
 );
 
-const checkHalfLife = measureCheckTime(
+const checkHalfLife = performanceTracker.measureTime(
   'checkHalfLife',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) => {
     const halfLifeCandlesA = candlesA.slice(-CANDLE_COUNT_FOR_HALF_LIFE);
@@ -516,7 +440,7 @@ const checkHalfLife = measureCheckTime(
   },
 );
 
-const checkBetaHedge = measureCheckTime(
+const checkBetaHedge = performanceTracker.measureTime(
   'checkBetaHedge',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) => {
     const betaHedge = new BetaHedge();
@@ -529,7 +453,7 @@ const checkBetaHedge = measureCheckTime(
   },
 );
 
-const checkCrossings = measureCheckTime(
+const checkCrossings = performanceTracker.measureTime(
   'checkCrossings',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[], beta: number) => {
     if (candlesA.length !== candlesB.length) {
@@ -555,7 +479,7 @@ const checkCrossings = measureCheckTime(
   },
 );
 
-const checkSpread = measureCheckTime(
+const checkSpread = performanceTracker.measureTime(
   'checkSpread',
   (candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[], beta: number) => {
     if (candlesA.length !== candlesB.length) {

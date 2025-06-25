@@ -9,13 +9,17 @@ import BinanceHTTPClient, {
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
 import { Trade } from '../models/Trade';
-import { measureTime } from '../utils/performance';
+import { measureTime } from '../utils/performance/measureTime';
 
 const binanceHttpClient = BinanceHTTPClient.getInstance();
 
 export const flushDatabase = async () => {
   await Asset.destroy({ where: {} });
   await Candle.destroy({ where: {} });
+  await Trade.destroy({ where: {} });
+};
+
+export const flushTrades = async () => {
   await Trade.destroy({ where: {} });
 };
 

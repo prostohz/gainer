@@ -20,26 +20,24 @@ type MinuteDataItem = {
   minute: string;
   successful: number;
   unsuccessful: number;
-  unsuccessfulNegative: number; // Отрицательное значение для отображения вниз
+  unsuccessfulNegative: number;
   total: number;
   time: string;
 };
 
-export const TradeDistributionCharts = ({ trades }: TTradeDistributionChartsProps) => {
+export const TradeDistributionHistogram = ({ trades }: TTradeDistributionChartsProps) => {
   const distributionData = useMemo(() => {
     if (!trades.length) return null;
 
-    // Находим диапазон времени всех сделок
     const allTimes = trades.map((trade) => new Date(trade.openTime));
     const minTime = new Date(Math.min(...allTimes.map((t) => t.getTime())));
     const maxTime = new Date(Math.max(...allTimes.map((t) => t.getTime())));
 
-    // Создаем полный список всех минут в диапазоне
     const allMinutes: Record<string, { successful: number; unsuccessful: number; total: number }> =
       {};
 
     const currentTime = new Date(minTime);
-    currentTime.setSeconds(0, 0); // Округляем до минуты
+    currentTime.setSeconds(0, 0);
 
     while (currentTime <= maxTime) {
       const timeKey = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
@@ -47,7 +45,6 @@ export const TradeDistributionCharts = ({ trades }: TTradeDistributionChartsProp
       currentTime.setMinutes(currentTime.getMinutes() + 1);
     }
 
-    // Заполняем данными сделок
     trades.forEach((trade) => {
       const openDate = new Date(trade.openTime);
       const hours = openDate.getHours();
@@ -64,13 +61,12 @@ export const TradeDistributionCharts = ({ trades }: TTradeDistributionChartsProp
       }
     });
 
-    // Преобразуем в массив для гистограммы
     const chartData: MinuteDataItem[] = Object.entries(allMinutes)
       .map(([timeKey, stats]) => ({
         minute: timeKey,
         successful: stats.successful,
         unsuccessful: stats.unsuccessful,
-        unsuccessfulNegative: -stats.unsuccessful, // Отрицательное значение для отображения вниз
+        unsuccessfulNegative: -stats.unsuccessful,
         total: stats.total,
         time: timeKey,
       }))
@@ -80,20 +76,14 @@ export const TradeDistributionCharts = ({ trades }: TTradeDistributionChartsProp
         return aHours * 60 + aMinutes - (bHours * 60 + bMinutes);
       });
 
-    // Вычисляем границы для симметричной шкалы
-    const maxValue = Math.max(...chartData.map((item) => item.successful));
-    const minValue = Math.min(...chartData.map((item) => item.unsuccessfulNegative));
-    const maxAbsValue = Math.max(maxValue, Math.abs(minValue));
-    const yAxisDomain = [-maxAbsValue * 1.1, maxAbsValue * 1.1];
-
-    return { chartData, yAxisDomain };
+    return { chartData };
   }, [trades]);
 
   if (!distributionData) {
     return <div className="text-center p-4">Нет данных для отображения</div>;
   }
 
-  const { chartData, yAxisDomain } = distributionData;
+  const { chartData } = distributionData;
 
   const CustomTooltip = ({
     active,
@@ -150,17 +140,10 @@ export const TradeDistributionCharts = ({ trades }: TTradeDistributionChartsProp
             <YAxis
               tick={{ fontSize: 12, fill: 'currentColor' }}
               axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-              domain={yAxisDomain}
+              tickFormatter={(value) => Math.abs(value).toString()}
             />
             <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine
-              y={0}
-              stroke="currentColor"
-              strokeDasharray="5 5"
-              opacity={0.6}
-              strokeWidth={1}
-            />
-            {/* Успешные сделки - растут вверх */}
+            <ReferenceLine y={0} stroke="currentColor" opacity={0.2} />
             <Bar
               dataKey="successful"
               radius={[2, 2, 0, 0]}
@@ -168,7 +151,6 @@ export const TradeDistributionCharts = ({ trades }: TTradeDistributionChartsProp
               fill="#10b981"
               fillOpacity={0.8}
             />
-            {/* Неуспешные сделки - растут вниз */}
             <Bar
               dataKey="unsuccessfulNegative"
               radius={[0, 0, 2, 2]}

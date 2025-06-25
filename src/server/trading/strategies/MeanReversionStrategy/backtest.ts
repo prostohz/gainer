@@ -1,16 +1,11 @@
-import { Op } from 'sequelize';
 import * as R from 'remeda';
 
-import { TTimeframe } from '../../../../shared/types';
-import { Candle } from '../../../models/Candle';
-import { Trade } from '../../../models/Trade';
-import { measureTime } from '../../../utils/performance';
-import BinanceHTTPClient, { TTrade, TCandle } from '../../providers/Binance/BinanceHTTPClient';
+import { measureTime } from '../../../utils/performance/measureTime';
+import BinanceHTTPClient, { TTrade } from '../../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
 import { TTimeEnvironment } from '../types';
 import { FakeDataProvider, FakeStreamDataProvider } from '../fakes';
 import { MeanReversionStrategy, TPositionDirection, TSignal } from './strategy';
-import { timeframeToMilliseconds } from '../../../utils/timeframe';
 import { calculateRoi } from './roi';
 
 type TOpenTrade = {
@@ -43,17 +38,18 @@ export type TCompleteTrade = {
   closeReason: string;
 };
 
-const loadTrades = measureTime(
-  'Загрузка сделок из Binance',
+const buildTradesCache = measureTime(
+  'Построение кеша сделок',
   async (symbols: string[], startTimestamp: number, endTimestamp: number) => {
     const BATCH_SIZE = 1000;
 
     const binanceHttpClient = BinanceHTTPClient.getInstance();
 
+    const cache = new Map<string, TTrade[]>();
+
     await Promise.all(
       symbols.map(async (symbol) => {
         let symbolTrades: TTrade[] = [];
-
         let lastTradeId: number | undefined;
 
         while (true) {
@@ -77,93 +73,16 @@ const loadTrades = measureTime(
           lastTradeId = batchTradesFiltered[batchTradesFiltered.length - 1].tradeId;
         }
 
-        return Trade.bulkCreate(symbolTrades, { ignoreDuplicates: true });
+        cache.set(symbol, symbolTrades);
       }),
     );
-  },
-);
-
-const loadCandles = measureTime(
-  'Загрузка свечей из Binance',
-  async (
-    symbols: string[],
-    timeframe: TTimeframe,
-    startTimestamp: number,
-    endTimestamp: number,
-  ) => {
-    const BATCH_SIZE = 1000;
-
-    const binanceHttpClient = BinanceHTTPClient.getInstance();
-
-    await Promise.all(
-      symbols.map(async (symbol) => {
-        const allCandles: TCandle[] = [];
-
-        let fetchFrom = startTimestamp;
-
-        while (true) {
-          const fetchTo = fetchFrom + BATCH_SIZE * timeframeToMilliseconds(timeframe);
-
-          const candles = await binanceHttpClient.fetchAssetCandles({
-            symbol,
-            timeframe,
-            startTime: fetchFrom,
-            endTime: fetchTo,
-          });
-
-          if (!candles.length) {
-            break;
-          }
-
-          allCandles.push(...candles);
-          fetchFrom = fetchTo + 1;
-
-          if (fetchTo >= endTimestamp) {
-            break;
-          }
-        }
-
-        const candlesWithMetadata: (TCandle & { symbol: string; timeframe: string })[] =
-          allCandles.map((candle) => ({
-            ...candle,
-            symbol,
-            timeframe,
-          }));
-
-        return Candle.bulkCreate(candlesWithMetadata, { ignoreDuplicates: true });
-      }),
-    );
-  },
-);
-
-const buildTradesCache = measureTime(
-  'Построение кеша сделок',
-  async (symbols: string[], startTimestamp: number, endTimestamp: number) => {
-    const cache = new Map<string, Trade[]>();
-    const symbolTrades = await Promise.all(
-      symbols.map(async (symbol) => ({
-        symbol,
-        trades: await Trade.findAll({
-          where: {
-            symbol,
-            timestamp: {
-              [Op.gte]: startTimestamp,
-              [Op.lte]: endTimestamp,
-            },
-          },
-          order: [['timestamp', 'ASC']],
-        }),
-      })),
-    );
-
-    symbolTrades.forEach(({ symbol, trades }) => cache.set(symbol, trades));
 
     return cache;
   },
 );
 
-const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
-  const trades: Trade[] = [];
+const mergeTrades = (assetATrades: TTrade[], assetBTrades: TTrade[]) => {
+  const trades: TTrade[] = [];
   let i = 0;
   let j = 0;
   while (i < assetATrades.length && j < assetBTrades.length) {
@@ -187,62 +106,32 @@ const mergeTrades = (assetATrades: Trade[], assetBTrades: Trade[]) => {
   return trades;
 };
 
-export const run = async (pairs: string[], startTimestamp: number, endTimestamp: number) => {
-  const TIMEFRAME = '1m';
-  const BASE_QUANTITY = 1000;
+export const run = measureTime(
+  'Запуск бэктеста',
+  async (pairs: string[], startTimestamp: number, endTimestamp: number) => {
+    const BASE_QUANTITY = 1000;
 
-  const tradedPairs = pairs.map((pair) => pair.split('-'));
-  const symbols = Array.from(new Set(tradedPairs.flat()));
+    const tradedPairs = pairs.map((pair) => pair.split('-'));
+    const symbols = Array.from(new Set(tradedPairs.flat()));
+    const tradesCache = await buildTradesCache(symbols, startTimestamp, endTimestamp);
 
-  const timeEnvironment: TTimeEnvironment = {
-    currentTime: startTimestamp,
-  };
+    const timeEnvironment: TTimeEnvironment = {
+      currentTime: startTimestamp,
+    };
 
-  await loadTrades(symbols, startTimestamp, endTimestamp);
-  await loadCandles(symbols, TIMEFRAME, startTimestamp, endTimestamp);
-
-  const tradesCache = await buildTradesCache(symbols, startTimestamp, endTimestamp);
-
-  const processedPairs = {
-    pairsMap: new Map<string, number>(),
-    normalizePair(symbolA: string, symbolB: string): string {
-      return [symbolA, symbolB].sort().join('-');
-    },
-    isPairProcessed(symbolA: string, symbolB: string): boolean {
-      const pair = this.normalizePair(symbolA, symbolB);
-
-      if (this.pairsMap.has(pair)) {
-        return true;
-      }
-      return false;
-    },
-    setPairProcessed(symbolA: string, symbolB: string): void {
-      const pair = this.normalizePair(symbolA, symbolB);
-      this.pairsMap.set(pair, 1);
-    },
-  };
-
-  const backtestCompleteTrades = await measureTime('Расчёт сделок', async () => {
     const completeTrades: TCompleteTrade[] = [];
 
-    let processedPairsCount = 0;
+    const dataProvider = new FakeDataProvider(timeEnvironment);
+    const streamDataProvider = new FakeStreamDataProvider();
+    const strategy = new MeanReversionStrategy({
+      dataProvider,
+      streamDataProvider,
+    });
 
-    for (const [symbolA, symbolB] of tradedPairs) {
-      if (symbolA === symbolB) continue;
-      if (processedPairs.isPairProcessed(symbolA, symbolB)) {
-        continue;
-      } else {
-        processedPairs.setPairProcessed(symbolA, symbolB);
-      }
+    for (let i = 0; i < tradedPairs.length; i++) {
+      const [symbolA, symbolB] = tradedPairs[i];
 
       timeEnvironment.currentTime = startTimestamp;
-
-      const dataProvider = new FakeDataProvider(timeEnvironment);
-      const streamDataProvider = new FakeStreamDataProvider();
-      const strategy = new MeanReversionStrategy(symbolA, symbolB, TIMEFRAME, {
-        dataProvider,
-        streamDataProvider,
-      });
 
       const assetATrades = tradesCache.get(symbolA) ?? [];
       const assetBTrades = tradesCache.get(symbolB) ?? [];
@@ -330,11 +219,11 @@ export const run = async (pairs: string[], startTimestamp: number, endTimestamp:
         }
       });
 
-      await strategy.start();
+      await strategy.start(symbolA, symbolB);
 
-      const allTrades = mergeTrades(assetATrades, assetBTrades);
+      const pairTrades = mergeTrades(assetATrades, assetBTrades);
 
-      for (const trade of allTrades) {
+      for (const trade of pairTrades) {
         if (trade.timestamp >= timeEnvironment.currentTime) {
           timeEnvironment.currentTime = trade.timestamp;
 
@@ -358,14 +247,9 @@ export const run = async (pairs: string[], startTimestamp: number, endTimestamp:
 
       strategy.stop();
 
-      processedPairsCount++;
-      console.log(
-        `Processed ${((processedPairsCount / tradedPairs.length) * 100).toFixed(2)}% pairs`,
-      );
+      console.log(`Processed ${(((i + 1) / tradedPairs.length) * 100).toFixed(2)}% pairs`);
     }
 
     return completeTrades;
-  })();
-
-  return backtestCompleteTrades;
-};
+  },
+);

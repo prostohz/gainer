@@ -17,6 +17,12 @@ export const SystemPage = () => {
     },
   });
 
+  const { mutate: flushTrades, isPending: isFlushTradesPending } = useMutation({
+    mutationFn: () => {
+      return http.post('/api/system/flushTrades');
+    },
+  });
+
   const { mutate: loadCandles, isPending: isLoadCandlesPending } = useMutation({
     mutationFn: () => {
       return http.post('/api/system/loadCandles');
@@ -80,6 +86,14 @@ export const SystemPage = () => {
             disabled={isFlushDatabasePending}
           >
             {isFlushDatabasePending ? 'Flushing...' : 'Flush Database'}
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => flushTrades()}
+            disabled={isFlushTradesPending}
+          >
+            {isFlushTradesPending ? 'Flushing...' : 'Flush Trades'}
           </button>
         </div>
 

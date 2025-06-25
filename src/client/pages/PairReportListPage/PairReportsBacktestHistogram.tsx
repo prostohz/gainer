@@ -40,7 +40,7 @@ export const PairReportsBacktestHistogram = ({
       // Случай 1: бэктест не проведён
       if (!backtest) {
         return {
-          date: dayjs(report.date).format('DD.MM HH:mm'),
+          date: dayjs(report.date).format('DD/MM HH:mm'),
           fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
           profitability: 0,
           tradesCount: 0,
@@ -51,7 +51,7 @@ export const PairReportsBacktestHistogram = ({
       // Случай 2: бэктест проведён, но сделок нет
       if (backtest.length === 0) {
         return {
-          date: dayjs(report.date).format('DD.MM HH:mm'),
+          date: dayjs(report.date).format('DD/MM HH:mm'),
           fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
           profitability: 0,
           tradesCount: 0,
@@ -63,7 +63,7 @@ export const PairReportsBacktestHistogram = ({
       const totalProfitability = backtest.reduce((sum, trade) => sum + trade.roi, 0);
 
       return {
-        date: dayjs(report.date).format('DD.MM HH:mm'),
+        date: dayjs(report.date).format('DD/MM HH:mm'),
         fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
         profitability: totalProfitability,
         tradesCount: backtest.length,
@@ -169,49 +169,40 @@ export const PairReportsBacktestHistogram = ({
   };
 
   return (
-    <div className="p-4 bg-base-200 rounded-lg">
-      <h3 className="text-lg font-semibold mb-4">Distribution Of Backtest Results</h3>
-      <div className="w-full h-64 bg-base-300 rounded p-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 12, fill: 'currentColor' }}
-              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            />
-            <YAxis
-              tick={{ fontSize: 12, fill: 'currentColor' }}
-              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-              domain={yAxisDomain}
-              tickFormatter={(value) => `${value.toFixed(1)}%`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine
-              y={0}
-              stroke="currentColor"
-              strokeDasharray="5 5"
-              opacity={0.6}
-              strokeWidth={1}
-            />
-            <Bar
-              dataKey="profitability"
-              radius={[2, 2, 2, 2]}
-              style={{ filter: 'none' }}
-              isAnimationActive={false}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={getBarColor(entry.status)}
-                  opacity={0.8}
-                  style={{ filter: 'none' }}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+    <div className="w-full h-64 bg-base-300 rounded p-4">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 12, fill: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+          />
+          <YAxis
+            tick={{ fontSize: 12, fill: 'currentColor' }}
+            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+            domain={yAxisDomain}
+            tickFormatter={(value) => `${value.toFixed(1)}%`}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <ReferenceLine y={0} stroke="currentColor" opacity={0.2} />
+          <Bar
+            dataKey="profitability"
+            radius={[2, 2, 2, 2]}
+            style={{ filter: 'none' }}
+            isAnimationActive={false}
+          >
+            {chartData.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={getBarColor(entry.status)}
+                opacity={0.8}
+                style={{ filter: 'none' }}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 };
