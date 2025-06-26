@@ -1,6 +1,6 @@
 import { mean } from 'mathjs';
 
-import { TIndicatorCandle } from '../types';
+import { TIndicatorShortCandle } from '../types';
 
 export class HalfLife {
   /** Считает OLS-наклон Y = α + β·X (возвращает β). */
@@ -29,8 +29,10 @@ export class HalfLife {
    * @returns   half-life в тех же барах, что входные данные.
    *            Infinity → mean-reversion не подтверждена.
    */
-  public calculate(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
-    if (candlesA.length !== candlesB.length || candlesA.length < 3) {
+  public calculate(candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[]) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+
+    if (minLength < 3) {
       console.warn(
         'HalfLife: prices series have different lengths or less than 3 observations:',
         candlesA.length,
@@ -40,8 +42,8 @@ export class HalfLife {
       return null;
     }
 
-    const pricesA = candlesA.slice(-candlesA.length).map((candle) => candle.close);
-    const pricesB = candlesB.slice(-candlesB.length).map((candle) => candle.close);
+    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
 
     /* ---------- 1. Лог-цены ---------- */
     const log1 = pricesA.map(Math.log);

@@ -1,4 +1,4 @@
-import { TIndicatorCandle } from '../types';
+import { TIndicatorShortCandle } from '../types';
 
 export class PearsonCorrelation {
   private calculate(x: number[], y: number[]) {
@@ -45,10 +45,11 @@ export class PearsonCorrelation {
     return numerator / denominator;
   }
 
-  public correlationByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
-    if (!candlesA.length || !candlesB.length) {
+  public correlationByPrices(candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[]) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+    if (minLength < 2) {
       console.warn(
-        'PearsonCorrelation: prices series have no observations:',
+        'PearsonCorrelation: prices series have less than 2 observations:',
         candlesA.length,
         candlesB.length,
       );
@@ -56,17 +57,15 @@ export class PearsonCorrelation {
       return null;
     }
 
-    const minLength = Math.min(candlesA.length, candlesB.length);
-
-    const pricesA = candlesA.slice(0, minLength).map((candle) => candle.close);
-    const pricesB = candlesB.slice(0, minLength).map((candle) => candle.close);
+    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
 
     return this.calculate(pricesA, pricesB);
   }
 
   public rollingCorrelationByPrices(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
     window: number = 100,
   ) {
     const minLength = Math.min(candlesA.length, candlesB.length);
@@ -93,7 +92,7 @@ export class PearsonCorrelation {
   /**
    * Вычисляет логарифмические доходности по массиву свечей
    */
-  private getLogReturns(candles: TIndicatorCandle[]) {
+  private getLogReturns(candles: TIndicatorShortCandle[]) {
     const returns: number[] = [];
 
     for (let i = 1; i < candles.length; i++) {
@@ -113,8 +112,12 @@ export class PearsonCorrelation {
   /**
    * Корреляция по доходностям
    */
-  public correlationByReturns(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
-    if (candlesA.length < 2 || candlesB.length < 2) {
+  public correlationByReturns(
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
+  ) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+    if (minLength < 2) {
       console.warn(
         'PearsonCorrelation: prices series have less than 2 observations:',
         candlesA.length,
@@ -124,10 +127,8 @@ export class PearsonCorrelation {
       return null;
     }
 
-    const minLength = Math.min(candlesA.length, candlesB.length);
-
-    const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
-    const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
+    const returnsA = this.getLogReturns(candlesA.slice(-minLength));
+    const returnsB = this.getLogReturns(candlesB.slice(-minLength));
 
     // returnsA и returnsB на 1 короче, поэтому подравниваем
     const finalLength = Math.min(returnsA.length, returnsB.length);
@@ -139,8 +140,8 @@ export class PearsonCorrelation {
    * Скользящая корреляция по доходностям
    */
   public rollingCorrelationByReturns(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
     window: number = 100,
   ) {
     const minLength = Math.min(candlesA.length, candlesB.length);

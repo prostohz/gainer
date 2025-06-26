@@ -2,7 +2,7 @@ import { Op } from 'sequelize';
 
 import { TTimeframe } from '../../shared/types';
 import { PearsonCorrelation } from '../trading/indicators/PearsonCorrelation/PearsonCorrelation';
-import { TIndicatorCandle } from '../trading/indicators/types';
+import { TIndicatorShortCandle } from '../trading/indicators/types';
 import { ZScore } from '../trading/indicators/ZScore/ZScore';
 import {
   TCointegrationResult,
@@ -23,7 +23,7 @@ const findCandles = async (
   timeframe: TTimeframe,
   limit: number,
   date: number,
-): Promise<TIndicatorCandle[]> => {
+): Promise<TIndicatorShortCandle[]> => {
   const candles = await Candle.findAll({
     where: {
       symbol,
@@ -92,8 +92,14 @@ export const getPairCorrelation = async (symbolA: string, symbolB: string, date:
     );
 
     if (!beta) {
-      console.warn('BetaHedge: beta is null');
+      console.warn('BetaHedge: beta is null for', symbolA, symbolB, timeframe);
 
+      correlationByPrices[timeframe] = null;
+      correlationByReturns[timeframe] = null;
+      zScoreByPrices[timeframe] = null;
+      zScoreByReturns[timeframe] = null;
+      cointegration[timeframe] = null;
+      betaHedge[timeframe] = null;
       continue;
     }
 

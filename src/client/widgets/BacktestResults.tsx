@@ -3,6 +3,7 @@ import cn from 'classnames';
 import { TCompleteTrade } from '../../server/trading/strategies/MeanReversionStrategy/backtest';
 import { dayjs } from '../../shared/utils/daytime';
 import { useAssets } from '../entities/assets';
+import { BacktestResultStats } from './BacktestResultStats';
 
 export const BacktestResults = ({ results }: { results: TCompleteTrade[] }) => {
   const { assetMap, isLoading } = useAssets();
@@ -11,23 +12,13 @@ export const BacktestResults = ({ results }: { results: TCompleteTrade[] }) => {
     return null;
   }
 
-  const totalTrades = results.length;
-  const profitableTrades = results.filter((trade) => trade.roi > 0).length;
-  const unprofitableTrades = totalTrades - profitableTrades;
-  const totalProfit = results.reduce((sum, trade) => sum + trade.roi, 0);
-  const avgProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
-  const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
-
-  const maxProfit = Math.max(...results.map((trade) => trade.roi), 0);
-  const maxLoss = Math.min(...results.map((trade) => trade.roi), 0);
-
   const renderContent = () => {
     if (results.length === 0) {
       return <div className="text-base-content text-center p-4">No trades</div>;
     }
 
     return (
-      <div className="bg-base-300 rounded-lg p-4">
+      <div className="bg-base-200 rounded-lg p-4">
         <h4 className="text-md font-semibold mb-3">Trade history</h4>
         <div className="max-h-96 overflow-auto w-full">
           <div className="overflow-x-scroll w-full">
@@ -110,64 +101,9 @@ export const BacktestResults = ({ results }: { results: TCompleteTrade[] }) => {
 
   return (
     <div className="w-full">
-      <div className="bg-base-300 rounded-lg p-4 mb-4">
+      <div className="bg-base-200 rounded-lg p-4 mb-4">
         <h3 className="text-lg font-semibold mb-3">Backtest results</h3>
-
-        <div className="grid grid-cols-8 gap-4 mb-4">
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Total trades</div>
-            <div className="stat-value text-lg">{totalTrades}</div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Profitable</div>
-            <div className="stat-value text-lg text-success">{profitableTrades}</div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Unprofitable</div>
-            <div className="stat-value text-lg text-error">{unprofitableTrades}</div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Win rate</div>
-            <div className="stat-value text-lg">{winRate.toFixed(1)}%</div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Total profit</div>
-            <div
-              className={cn('stat-value text-lg', {
-                'text-success': totalProfit >= 0,
-                'text-error': totalProfit < 0,
-              })}
-            >
-              {totalProfit.toFixed(2)}%
-            </div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Average profit</div>
-            <div
-              className={cn('stat-value text-lg', {
-                'text-success': avgProfit >= 0,
-                'text-error': avgProfit < 0,
-              })}
-            >
-              {avgProfit.toFixed(2)}%
-            </div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Max profit</div>
-            <div className="stat-value text-lg text-success">{maxProfit.toFixed(2)}%</div>
-          </div>
-
-          <div className="stat bg-base-100 rounded-lg p-3">
-            <div className="stat-title text-xs">Max loss</div>
-            <div className="stat-value text-lg text-error">{maxLoss.toFixed(2)}%</div>
-          </div>
-        </div>
+        <BacktestResultStats results={results} />
       </div>
 
       {renderContent()}

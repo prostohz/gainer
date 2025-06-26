@@ -21,19 +21,25 @@ export type TCorrelation = {
 };
 
 export type TPairReportEntry = {
-  pair: string;
-  pValue: number | null;
-  halfLife: number | null;
-  hurstExponent: number | null;
-  correlationByPrices: number | null;
-  correlationByReturns: number | null;
-  beta: number | null;
-  crossings: number | null;
+  assetA: {
+    baseAsset: string;
+    quoteAsset: string;
+  };
+  assetB: {
+    baseAsset: string;
+    quoteAsset: string;
+  };
+  pValue: number;
+  halfLife: number;
+  hurstExponent: number;
+  correlationByPrices: number;
+  correlationByReturns: number;
+  crossings: number;
   spread: {
     mean: number;
     median: number;
     std: number;
-  } | null;
+  };
 };
 export type TPairReport = {
   id: string;

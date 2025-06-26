@@ -1,12 +1,8 @@
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
 
-import { PATH } from '../configs/database';
+import { DATABASE_CONFIG } from '../configs/database';
 
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: PATH,
-  logging: false,
-});
+const sequelize = new Sequelize(DATABASE_CONFIG);
 
 interface CandleAttributes {
   id: number;
@@ -65,10 +61,18 @@ Candle.init(
     openTime: {
       type: DataTypes.BIGINT,
       allowNull: false,
+      get() {
+        const value = this.getDataValue('openTime');
+        return typeof value === 'string' ? parseInt(value, 10) : value;
+      },
     },
     closeTime: {
       type: DataTypes.BIGINT,
       allowNull: false,
+      get() {
+        const value = this.getDataValue('closeTime');
+        return typeof value === 'string' ? parseInt(value, 10) : value;
+      },
     },
     open: {
       type: DataTypes.STRING,
@@ -116,10 +120,6 @@ Candle.init(
         fields: ['symbol', 'timeframe', 'openTime'],
         name: 'idx_candles_symbol_timeframe_openTime',
         unique: true,
-      },
-      {
-        fields: ['symbol', 'timeframe', { name: 'openTime', order: 'DESC' }],
-        name: 'idx_candles_symbol_timeframe_openTime_desc',
       },
     ],
   },

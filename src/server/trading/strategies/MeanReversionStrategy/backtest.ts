@@ -1,12 +1,28 @@
+import { Op } from 'sequelize';
 import * as R from 'remeda';
 
+import { dayjs } from '../../../../shared/utils/daytime';
 import { measureTime } from '../../../utils/performance/measureTime';
+import { backtestLogger as logger } from '../../../utils/logger';
+import { Asset } from '../../../models/Asset';
+import { Candle } from '../../../models/Candle';
 import BinanceHTTPClient, { TTrade } from '../../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
 import { TTimeEnvironment } from '../types';
 import { FakeDataProvider, FakeStreamDataProvider } from '../fakes';
 import { MeanReversionStrategy, TPositionDirection, TSignal } from './strategy';
 import { calculateRoi } from './roi';
+
+type TPair = {
+  assetA: {
+    baseAsset: string;
+    quoteAsset: string;
+  };
+  assetB: {
+    baseAsset: string;
+    quoteAsset: string;
+  };
+};
 
 type TOpenTrade = {
   direction: TPositionDirection;
@@ -79,6 +95,7 @@ const buildTradesCache = measureTime(
 
     return cache;
   },
+  logger.info,
 );
 
 const mergeTrades = (assetATrades: TTrade[], assetBTrades: TTrade[]) => {
@@ -106,13 +123,81 @@ const mergeTrades = (assetATrades: TTrade[], assetBTrades: TTrade[]) => {
   return trades;
 };
 
+const getAssetSymbol = (asset: { baseAsset: string; quoteAsset: string }) =>
+  `${asset.baseAsset}${asset.quoteAsset}`;
+
+const getPairSymbol = (
+  assetA: { baseAsset: string; quoteAsset: string },
+  assetB: { baseAsset: string; quoteAsset: string },
+) => `${getAssetSymbol(assetA)}-${getAssetSymbol(assetB)}`;
+
+const loadAssetPrices = measureTime(
+  'Загрузка цен активов',
+  async (currentTime: number) => {
+    const usdtAssets = await Asset.findAll({
+      where: {
+        [Op.or]: [{ baseAsset: 'USDT' }, { quoteAsset: 'USDT' }],
+        status: 'TRADING',
+        isSpotTradingAllowed: true,
+      },
+    });
+
+    const assetCandles = await Promise.all(
+      usdtAssets.map(async (asset) => {
+        try {
+          const latestCandle = await Candle.findOne({
+            where: {
+              symbol: asset.symbol,
+              timeframe: '1m',
+              openTime: {
+                [Op.lt]: currentTime,
+              },
+            },
+            order: [['openTime', 'DESC']],
+          });
+
+          return {
+            symbol: asset.symbol,
+            latestCandle,
+          };
+        } catch (error) {
+          return {
+            symbol: asset.symbol,
+            latestCandle: null,
+          };
+        }
+      }),
+    );
+
+    const assetPrices = R.pipe(
+      assetCandles,
+      R.filter((item) => !!item.latestCandle),
+      R.map((item) => ({
+        symbol: item.symbol,
+        price: Number(item.latestCandle?.close ?? 0),
+      })),
+      R.reduce(
+        (acc, item) => ({ ...acc, [item.symbol]: item.price }),
+        {} as Record<string, number>,
+      ),
+    );
+
+    return assetPrices;
+  },
+  logger.info,
+);
+
 export const run = measureTime(
   'Запуск бэктеста',
-  async (pairs: string[], startTimestamp: number, endTimestamp: number) => {
+  async (pairs: TPair[], startTimestamp: number, endTimestamp: number) => {
     const BASE_QUANTITY = 1000;
 
-    const tradedPairs = pairs.map((pair) => pair.split('-'));
-    const symbols = Array.from(new Set(tradedPairs.flat()));
+    const symbols = Array.from(
+      new Set(
+        pairs.map(({ assetA, assetB }) => [getAssetSymbol(assetA), getAssetSymbol(assetB)]).flat(),
+      ),
+    );
+
     const tradesCache = await buildTradesCache(symbols, startTimestamp, endTimestamp);
 
     const timeEnvironment: TTimeEnvironment = {
@@ -128,8 +213,20 @@ export const run = measureTime(
       streamDataProvider,
     });
 
-    for (let i = 0; i < tradedPairs.length; i++) {
-      const [symbolA, symbolB] = tradedPairs[i];
+    const ifPairTradingMap = new Map<string, boolean>();
+    pairs.forEach(({ assetA, assetB }) => {
+      ifPairTradingMap.set(getPairSymbol(assetA, assetB), true);
+    });
+
+    let lastHourlyUpdate = startTimestamp;
+    let assetPrices = await loadAssetPrices(startTimestamp);
+    strategy.setAssetPrices(assetPrices);
+
+    for (let i = 0; i < pairs.length; i++) {
+      const { assetA, assetB } = pairs[i];
+      const symbolA = getAssetSymbol(assetA);
+      const symbolB = getAssetSymbol(assetB);
+      const pairSymbol = getPairSymbol(assetA, assetB);
 
       timeEnvironment.currentTime = startTimestamp;
 
@@ -144,6 +241,11 @@ export const run = measureTime(
       strategy.on('signal', (signal: TSignal) => {
         switch (signal.type) {
           case 'open':
+            if (!ifPairTradingMap.get(pairSymbol)) {
+              strategy.positionEnterRejected();
+              return;
+            }
+
             if (
               timeEnvironment.currentTime >= lastAssetATrade.timestamp ||
               timeEnvironment.currentTime >= lastAssetBTrade.timestamp
@@ -185,15 +287,18 @@ export const run = measureTime(
             }
 
             const roi = calculateRoi(
-              openTrade.direction,
-              symbolA,
-              symbolB,
-              openTrade.quantityA,
-              openTrade.quantityB,
-              openTrade.openPriceA,
-              openTrade.openPriceB,
-              signal.symbolA.price,
-              signal.symbolB.price,
+              {
+                direction: openTrade.direction,
+                assetA: assetA,
+                assetB: assetB,
+                quantityA: openTrade.quantityA,
+                quantityB: openTrade.quantityB,
+                openPriceA: openTrade.openPriceA,
+                openPriceB: openTrade.openPriceB,
+                closePriceA: signal.symbolA.price,
+                closePriceB: signal.symbolB.price,
+              },
+              assetPrices,
             );
 
             completeTrades.push({
@@ -215,17 +320,29 @@ export const run = measureTime(
             });
             openTrade = null;
             strategy.positionExitAccepted();
+
+            if (signal.type === 'stopLoss') {
+              ifPairTradingMap.set(pairSymbol, false);
+            }
+
             break;
         }
       });
 
-      await strategy.start(symbolA, symbolB);
+      await strategy.start(assetA, assetB);
+      strategy.setAssetPrices(assetPrices);
 
       const pairTrades = mergeTrades(assetATrades, assetBTrades);
 
       for (const trade of pairTrades) {
         if (trade.timestamp >= timeEnvironment.currentTime) {
           timeEnvironment.currentTime = trade.timestamp;
+
+          if (dayjs.duration(timeEnvironment.currentTime - lastHourlyUpdate).asHours() > 1) {
+            assetPrices = await loadAssetPrices(timeEnvironment.currentTime);
+            lastHourlyUpdate = timeEnvironment.currentTime;
+            strategy.setAssetPrices(assetPrices);
+          }
 
           const binanceTrade: TBinanceTrade = {
             e: 'trade',
@@ -247,9 +364,10 @@ export const run = measureTime(
 
       strategy.stop();
 
-      console.log(`Processed ${(((i + 1) / tradedPairs.length) * 100).toFixed(2)}% pairs`);
+      logger.verbose(`Processed ${(((i + 1) / pairs.length) * 100).toFixed(2)}% pairs`);
     }
 
     return completeTrades;
   },
+  logger.info,
 );

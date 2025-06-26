@@ -53,14 +53,13 @@ export const getAssetCandles = async ({
     query.openTime = openTimeQuery;
   }
 
-  if (limit) {
-    query.limit = limit;
-  }
-
-  return Candle.findAll({
+  const candles = await Candle.findAll({
     where: query,
-    order: [['openTime', 'ASC']],
+    order: [['openTime', 'DESC']],
+    limit: limit || undefined,
   });
+
+  return candles.reverse();
 };
 
 export const getAssetPrice = async (symbol: string) => {

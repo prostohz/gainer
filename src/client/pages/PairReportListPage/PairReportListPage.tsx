@@ -11,6 +11,7 @@ import { TPairReport } from '../../../shared/types';
 import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
+import { BacktestResultStats } from '../../widgets/BacktestResultStats';
 import { PairReportsHistogram } from './PairReportsHistogram';
 import { PairReportsBacktestHistogram } from './PairReportsBacktestHistogram';
 
@@ -172,6 +173,8 @@ export const PairReportListPage = () => {
         return;
       }
 
+      let count = 0;
+
       for (const report of pairReports) {
         if (report.backtest) {
           continue;
@@ -179,8 +182,29 @@ export const PairReportListPage = () => {
 
         await http.post(`/api/pairReport/${report.id}/backtest`, {
           startTimestamp: report.date,
-          endTimestamp: dayjs(report.date).add(30, 'minutes').valueOf(),
+          endTimestamp: dayjs(report.date).add(1, 'hour').valueOf(),
         });
+
+        if (++count % 20 === 0) {
+          await refetch();
+        }
+      }
+    },
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const { mutate: removeAllBacktests, isPending: isRemoving } = useMutation({
+    mutationFn: async () => {
+      if (!pairReports) {
+        return;
+      }
+
+      for (const report of pairReports) {
+        if (report.backtest) {
+          await http.delete(`/api/pairReport/${report.id}/backtest`);
+        }
       }
     },
     onSuccess: () => {
@@ -217,8 +241,6 @@ export const PairReportListPage = () => {
           },
         });
       }
-
-      backtestAllReports();
     },
     onSuccess: () => {
       refetch();
@@ -254,13 +276,17 @@ export const PairReportListPage = () => {
         <h1 className="text-2xl font-bold">Pair Report</h1>
 
         <div className="flex gap-4 justify-between">
-          <div className="flex">
+          <div className="flex gap-2">
             <DateTimePicker
               value={new Date(selectedDate)}
               onChange={(date) => setSelectedDate((date as Date).getTime())}
               placeholder="Select date"
               disabled={isPending}
             />
+
+            <button className="btn btn-primary" onClick={() => createReport()} disabled={isPending}>
+              {isPending ? 'Creating...' : 'Create New Report'}
+            </button>
           </div>
 
           <div className="flex gap-2">
@@ -277,35 +303,58 @@ export const PairReportListPage = () => {
             </button>
 
             <button
-              className="btn btn-primary"
-              onClick={() => createReport()}
-              disabled={isBacktesting}
+              className="btn btn-error"
+              onClick={() => removeAllBacktests()}
+              disabled={isRemoving}
             >
-              {isPending ? 'Creating...' : 'Create New Report'}
+              {isRemoving ? 'Removing...' : 'Remove All Backtests'}
             </button>
 
-            <button className="btn btn-outline" onClick={() => downloadAllReports()}>
-              Download All Reports
+            <button
+              className="btn btn-outline btn-square"
+              onClick={() => downloadAllReports()}
+              title="Download All Reports"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="p-4 bg-base-200 rounded-lg flex flex-col gap-2 mb-4">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold">Distribution Of Pairs By Date</h3>
-          <PairReportsHistogram pairReports={pairReports || []} />
+      {pairReports && pairReports.length > 0 ? (
+        <div className="flex flex-col gap-4 mb-4">
+          <h2 className="text-lg font-semibold">Distribution Of Pairs By Date</h2>
+          <PairReportsHistogram pairReports={pairReports} />
+          <h2 className="text-lg font-semibold">Distribution Of Backtest By Date</h2>
+          <PairReportsBacktestHistogram pairReports={pairReports} />
+          <h2 className="text-lg font-semibold">Backtest Results</h2>
+          <div className="bg-base-200 rounded-lg p-4">
+            <BacktestResultStats results={pairReports.flatMap((report) => report.backtest || [])} />
+          </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold">Distribution Of Backtest By Date</h3>
-          <PairReportsBacktestHistogram pairReports={pairReports || []} />
-        </div>
-      </div>
+      ) : (
+        <div className="text-center p-4">No reports found</div>
+      )}
 
-      <div className="bg-base-200 rounded-lg">
-        {pairReports && pairReports.length > 0 ? (
-          <>
-            <div className="flex items-center bg-base-300 px-4 py-2 font-medium text-sm border-b border-base-300">
+      {pairReports && pairReports.length > 0 && (
+        <div className="rounded-lg">
+          <h2 className="text-lg font-semibold mb-4">Pair Report List</h2>
+
+          <div className="bg-base-200 rounded-lg">
+            <div className="flex items-center px-4 py-2 font-medium text-sm border-b border-base-100">
               <div className="w-40 flex-shrink-0">ID</div>
               <div className="w-40 flex-shrink-0">Date</div>
               <div className="w-20 flex-shrink-0">Pairs</div>
@@ -330,11 +379,9 @@ export const PairReportListPage = () => {
                 {TableRow}
               </List>
             </div>
-          </>
-        ) : (
-          <div className="text-center p-4">No reports found</div>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

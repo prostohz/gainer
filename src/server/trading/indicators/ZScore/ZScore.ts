@@ -1,7 +1,7 @@
 import { mean, std } from 'mathjs';
 
 import { BetaHedge } from '../BetaHedge/BetaHedge';
-import { TIndicatorCandle } from '../types';
+import { TIndicatorShortCandle } from '../types';
 
 export class ZScore {
   private betaHedge: BetaHedge;
@@ -26,15 +26,20 @@ export class ZScore {
     return (spreadSeries[spreadSeries.length - 1] - spreadMean) / spreadStd;
   }
 
-  public zScoreByPrices(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[], beta: number) {
-    if (!candlesA.length || !candlesB.length) {
-      console.warn('ZScore: prices series have no observations:', candlesA.length, candlesB.length);
+  public zScoreByPrices(
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
+    beta: number,
+  ) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+    if (minLength < 2) {
+      console.warn('ZScore: prices series have less than 2 observations:', minLength);
 
       return null;
     }
 
-    const candlesAClosePrices = candlesA.map((candle) => candle.close);
-    const candlesBClosePrices = candlesB.map((candle) => candle.close);
+    const candlesAClosePrices = candlesA.slice(-minLength).map((candle) => candle.close);
+    const candlesBClosePrices = candlesB.slice(-minLength).map((candle) => candle.close);
 
     if (!beta) {
       console.warn('ZScore: beta is null');
@@ -48,7 +53,7 @@ export class ZScore {
   /**
    * Вычисляет логарифмические доходности по массиву свечей
    */
-  private getLogReturns(candles: TIndicatorCandle[]) {
+  private getLogReturns(candles: TIndicatorShortCandle[]) {
     const returns: number[] = [];
     for (let i = 1; i < candles.length; i++) {
       const prev = candles[i - 1].close;
@@ -65,8 +70,13 @@ export class ZScore {
   /**
    * Рассчитывает Z-Score по доходностям (логарифмическим)
    */
-  public zScoreByReturns(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[], beta: number) {
-    if (candlesA.length < 2 || candlesB.length < 2) {
+  public zScoreByReturns(
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
+    beta: number,
+  ) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+    if (minLength < 2) {
       console.warn(
         'ZScore: prices series have less than 2 observations:',
         candlesA.length,
@@ -75,9 +85,9 @@ export class ZScore {
 
       return null;
     }
-    const minLength = Math.min(candlesA.length, candlesB.length);
-    const returnsA = this.getLogReturns(candlesA.slice(0, minLength));
-    const returnsB = this.getLogReturns(candlesB.slice(0, minLength));
+
+    const returnsA = this.getLogReturns(candlesA.slice(-minLength));
+    const returnsB = this.getLogReturns(candlesB.slice(-minLength));
 
     if (!beta) {
       console.warn('ZScore: beta is null');
@@ -89,8 +99,8 @@ export class ZScore {
   }
 
   public rollingZScoreByPrices(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
     window: number = 100,
   ) {
     const minLength = Math.min(candlesA.length, candlesB.length);
@@ -129,8 +139,8 @@ export class ZScore {
    * Рассчитывает скользящий Z-Score по доходностям (логарифмическим)
    */
   public rollingZScoreByReturns(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
     window: number = 100,
   ) {
     const minLength = Math.min(candlesA.length, candlesB.length);

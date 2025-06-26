@@ -122,12 +122,12 @@ export const TradeDistributionHistogram = ({ trades }: TTradeDistributionChartsP
   };
 
   return (
-    <div className="bg-base-200 rounded-lg p-4">
+    <>
       <h3 className="text-lg font-semibold mb-4">
         Trade Distribution By Opening Time (Per Minute)
       </h3>
 
-      <div className="w-full h-80 bg-base-300 rounded p-4 mb-6">
+      <div className="w-full h-80 bg-base-200 rounded p-4 mb-6">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
@@ -161,6 +161,6 @@ export const TradeDistributionHistogram = ({ trades }: TTradeDistributionChartsP
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </>
   );
 };

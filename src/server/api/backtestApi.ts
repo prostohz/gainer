@@ -9,15 +9,23 @@ router.post(
   '/',
   validateParams(['pairs', 'startTimestamp', 'endTimestamp']),
   asyncHandler(async (req: Request, res: Response) => {
-    const pairsParam = req.body.pairs as string[];
+    const pairsParam = req.body.pairs as {
+      assetA: {
+        baseAsset: string;
+        quoteAsset: string;
+      };
+      assetB: {
+        baseAsset: string;
+        quoteAsset: string;
+      };
+    }[];
     const startTimestampParam = req.body.startTimestamp as string;
     const endTimestampParam = req.body.endTimestamp as string;
 
-    const pairs = Array.isArray(pairsParam) ? pairsParam : [pairsParam];
     const startTimestamp = Number(startTimestampParam);
     const endTimestamp = Number(endTimestampParam);
 
-    const result = await backtest(pairs, startTimestamp, endTimestamp);
+    const result = await backtest(pairsParam, startTimestamp, endTimestamp);
 
     sendResponse(res, result);
   }),

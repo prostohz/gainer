@@ -1,6 +1,6 @@
 import { mean } from 'mathjs';
 
-import { TIndicatorCandle } from '../types';
+import { TIndicatorShortCandle } from '../types';
 
 export type TCointegrationResult = {
   isCointegrated: boolean;
@@ -16,28 +16,11 @@ export class EngleGrangerTest {
    * @returns Результат теста коинтеграции
    */
   private testCointegration(pricesA: number[], pricesB: number[]) {
-    const minLength = Math.min(pricesA.length, pricesB.length);
-
-    const pA = pricesA.slice(-minLength);
-    const pB = pricesB.slice(-minLength);
-
-    if (pA.length !== pB.length) {
-      console.warn('EngleGrangerTest: prices series have different lengths:', pA.length, pB.length);
-
-      return null;
-    }
-
-    if (pA.length < 30) {
-      console.warn('EngleGrangerTest: prices series have less than 30 observations:', pA.length);
-
-      return null;
-    }
-
     // Шаг 1: Оценка коинтеграционного соотношения (регрессия)
-    const { slope: beta, intercept: alpha } = this.linearRegression(pA, pB);
+    const { slope: beta, intercept: alpha } = this.linearRegression(pricesA, pricesB);
 
     // Шаг 2: Вычисление остатков
-    const residuals = pB.map((y, i) => y - (alpha + beta * pA[i]));
+    const residuals = pricesB.map((y, i) => y - (alpha + beta * pricesA[i]));
 
     // Шаг 3: Проверка стационарности остатков (тест Дики-Фуллера)
     const adfResult = this.augmentedDickeyFullerTest(residuals);
@@ -156,9 +139,24 @@ export class EngleGrangerTest {
   /**
    * Рассчитывает коинтеграцию для нескольких таймфреймов
    */
-  public calculateCointegration(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
-    const pricesA = candlesA.map((candle) => candle.close);
-    const pricesB = candlesB.map((candle) => candle.close);
+  public calculateCointegration(
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
+  ) {
+    const minLength = Math.min(candlesA.length, candlesB.length);
+
+    if (minLength < 30) {
+      console.warn(
+        'EngleGrangerTest: prices series have less than 30 observations:',
+        candlesA.length,
+        candlesB.length,
+      );
+
+      return null;
+    }
+
+    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
 
     return this.testCointegration(pricesA, pricesB);
   }

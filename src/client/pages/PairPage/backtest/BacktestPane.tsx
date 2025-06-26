@@ -26,8 +26,8 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
 
   const { assetMap } = useAssets();
 
-  const assetA = symbolA ? assetMap[symbolA]! : null;
-  const assetB = symbolB ? assetMap[symbolB]! : null;
+  const assetA = symbolA ? assetMap[symbolA] : null;
+  const assetB = symbolB ? assetMap[symbolB] : null;
 
   const {
     data: assetACandles = [],
@@ -42,6 +42,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       urlParams.set('timeframe', timeframe);
       urlParams.set('startTimestamp', startDate.toString());
       urlParams.set('endTimestamp', endDate.toString());
+      urlParams.set('limit', String(1000));
 
       return http.get(`/api/asset/candles?${urlParams.toString()}`).then((res) => res.data);
     },
@@ -61,6 +62,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       urlParams.set('timeframe', timeframe);
       urlParams.set('startTimestamp', startDate.toString());
       urlParams.set('endTimestamp', endDate.toString());
+      urlParams.set('limit', String(1000));
 
       return http.get(`/api/asset/candles?${urlParams.toString()}`).then((res) => res.data);
     },
@@ -72,12 +74,28 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
     isPending: isBacktestRunning,
     error: backtestError,
   } = useMutation({
-    mutationFn: () =>
-      http.post('/api/backtest', {
-        pairs: [`${symbolA}-${symbolB}`],
+    mutationFn: () => {
+      if (!assetA || !assetB) {
+        throw new Error('Asset A or B is not found');
+      }
+
+      return http.post('/api/backtest', {
+        pairs: [
+          {
+            assetA: {
+              baseAsset: assetA.baseAsset,
+              quoteAsset: assetA.quoteAsset,
+            },
+            assetB: {
+              baseAsset: assetB.baseAsset,
+              quoteAsset: assetB.quoteAsset,
+            },
+          },
+        ],
         startTimestamp: startDate,
         endTimestamp: endDate,
-      }),
+      });
+    },
     onSuccess: (response) => {
       setBacktestResults(response.data);
       refetchAssetACandles();

@@ -1,6 +1,6 @@
 import { mean } from 'mathjs';
 
-import { TIndicatorCandle } from '../types';
+import { TIndicatorShortCandle } from '../types';
 
 export class HurstExponent {
   /**
@@ -18,25 +18,22 @@ export class HurstExponent {
    * @returns экспонента Херста
    */
   public calculate(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
     minPeriod: number = 10,
     maxPeriod?: number,
     useLogPrices: boolean = true,
     applyDifferencing: boolean = true,
   ) {
-    if (candlesA.length !== candlesB.length) {
-      console.warn(
-        'HurstExponent: price arrays must have the same length:',
-        candlesA.length,
-        candlesB.length,
-      );
+    const minLength = Math.min(candlesA.length, candlesB.length);
+    if (minLength < 20) {
+      console.warn('HurstExponent: length less than 20:', candlesA.length, candlesB.length);
 
       return null;
     }
 
-    const pricesA = candlesA.slice(-candlesA.length).map((candle) => candle.close);
-    const pricesB = candlesB.slice(-candlesB.length).map((candle) => candle.close);
+    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
 
     // При необходимости конвертируем в логарифмы, чтобы нивелировать экспоненциальный рост цен
     const series1 = useLogPrices ? pricesA.map((v) => Math.log(v)) : pricesA;

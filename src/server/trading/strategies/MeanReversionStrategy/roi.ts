@@ -1,40 +1,59 @@
 import { OPEN_POSITION_COMMISSION_RATE } from '../../../configs/trading';
 import { TPositionDirection } from './strategy';
 
-// Список основных стейблкоинов и их коэффициент к USDT (предполагаем паритет 1:1)
-const STABLE_TO_USDT_RATE: Record<string, number> = {
-  USDT: 1,
-  USDC: 1,
-  BUSD: 1,
-  TUSD: 1,
-  FDUSD: 1,
-};
+const USDT_QUOTE = 'USDT';
 
-// Выделяем котируемую валюту из символа Binance (например, BTCUSDT → USDT)
-const getQuoteCurrency = (symbol: string): string => {
-  const quotes = Object.keys(STABLE_TO_USDT_RATE).sort((a, b) => b.length - a.length); // длинные суффиксы сначала
-  for (const q of quotes) {
-    if (symbol.endsWith(q)) return q;
+const convertToUsdt = (
+  value: number,
+  quote: string,
+  assetPrices: Record<string, number>,
+): number => {
+  if (quote === USDT_QUOTE) {
+    return value;
   }
-  return 'USDT'; // по умолчанию считаем USDT
-};
 
-// Конвертация стоимости из котируемой валюты в USDT
-const convertToUsdt = (value: number, quote: string): number => {
-  const rate = STABLE_TO_USDT_RATE[quote];
-  return value * (rate ?? 1);
+  const directPrice = assetPrices[`${quote}${USDT_QUOTE}`];
+  if (directPrice) {
+    return value * directPrice;
+  }
+
+  const reversePrice = assetPrices[`${USDT_QUOTE}${quote}`];
+  if (reversePrice) {
+    return value * reversePrice;
+  }
+
+  throw new Error(`Price for ${quote} not found`);
 };
 
 export const calculateRoi = (
-  direction: TPositionDirection,
-  symbolA: string,
-  symbolB: string,
-  quantityA: number,
-  quantityB: number,
-  openPriceA: number,
-  openPriceB: number,
-  closePriceA: number,
-  closePriceB: number,
+  {
+    direction,
+    assetA,
+    assetB,
+    quantityA,
+    quantityB,
+    openPriceA,
+    openPriceB,
+    closePriceA,
+    closePriceB,
+  }: {
+    direction: TPositionDirection;
+    assetA: {
+      baseAsset: string;
+      quoteAsset: string;
+    };
+    assetB: {
+      baseAsset: string;
+      quoteAsset: string;
+    };
+    quantityA: number;
+    quantityB: number;
+    openPriceA: number;
+    openPriceB: number;
+    closePriceA: number;
+    closePriceB: number;
+  },
+  assetPrices: Record<string, number>,
 ) => {
   // Доходность по каждой из legs
   const pnlA =
@@ -48,21 +67,21 @@ export const calculateRoi = (
       : (closePriceB - openPriceB) * quantityB;
 
   // Получаем котируемые валюты
-  const quoteA = getQuoteCurrency(symbolA);
-  const quoteB = getQuoteCurrency(symbolB);
+  const quoteA = assetA.quoteAsset;
+  const quoteB = assetB.quoteAsset;
 
   // Переводим PnL и обороты в USDT
-  const pnlAUsdt = convertToUsdt(pnlA, quoteA);
-  const pnlBUsdt = convertToUsdt(pnlB, quoteB);
+  const pnlAUsdt = convertToUsdt(pnlA, quoteA, assetPrices);
+  const pnlBUsdt = convertToUsdt(pnlB, quoteB, assetPrices);
 
   // Оборот при открытии и закрытии позиции (в USDT)
   const turnoverOpenUsdt =
-    Math.abs(convertToUsdt(quantityA * openPriceA, quoteA)) +
-    Math.abs(convertToUsdt(quantityB * openPriceB, quoteB));
+    Math.abs(convertToUsdt(quantityA * openPriceA, quoteA, assetPrices)) +
+    Math.abs(convertToUsdt(quantityB * openPriceB, quoteB, assetPrices));
 
   const turnoverCloseUsdt =
-    Math.abs(convertToUsdt(quantityA * closePriceA, quoteA)) +
-    Math.abs(convertToUsdt(quantityB * closePriceB, quoteB));
+    Math.abs(convertToUsdt(quantityA * closePriceA, quoteA, assetPrices)) +
+    Math.abs(convertToUsdt(quantityB * closePriceB, quoteB, assetPrices));
 
   // Комиссия биржи (опен + клоуз)
   const commission = (turnoverOpenUsdt + turnoverCloseUsdt) * OPEN_POSITION_COMMISSION_RATE;

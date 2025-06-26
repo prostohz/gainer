@@ -31,3 +31,5 @@ The application we are working on uses the following tech stack:
 - Write straightforward, readable, and maintainable code
 - Follow SOLID principles and design patterns
 - Use strong typing and avoid 'any'
+- Use TypeScript types instead of interfaces always when it is possible
+- Don't use double nested ternary operator

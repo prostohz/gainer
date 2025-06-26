@@ -16,7 +16,6 @@ type TActionType = 'buy' | 'sell';
 type TSignalType = 'open' | 'close' | 'stopLoss';
 
 type TSignalSymbol = {
-  symbol: string;
   action: TActionType;
   price: number;
 };
@@ -73,10 +72,11 @@ export class MeanReversionStrategy extends EventEmitter {
   private readonly streamDataProvider: TStreamDataProvider;
 
   // Параметры торговой пары
-  private symbolA: string | null = null;
-  private symbolB: string | null = null;
+  private assetA: { baseAsset: string; quoteAsset: string } | null = null;
+  private assetB: { baseAsset: string; quoteAsset: string } | null = null;
 
-  // Параметры стратегии
+  private assetPrices: Record<string, number> = {};
+
   private readonly CANDLES_COUNT = 1440;
   private readonly CANDLES_COUNT_FOR_BETA = 60;
   private readonly CANDLES_COUNT_FOR_Z_SCORE = 60;
@@ -98,6 +98,22 @@ export class MeanReversionStrategy extends EventEmitter {
   private adx: ADX;
   private betaHedge: BetaHedge;
   private zScore: ZScore;
+
+  get symbolA() {
+    if (!this.assetA) {
+      throw new Error('Asset A is not set');
+    }
+
+    return `${this.assetA.baseAsset}${this.assetA.quoteAsset}`;
+  }
+
+  get symbolB() {
+    if (!this.assetB) {
+      throw new Error('Asset B is not set');
+    }
+
+    return `${this.assetB.baseAsset}${this.assetB.quoteAsset}`;
+  }
 
   constructor(environment: TEnvironment) {
     super();
@@ -128,9 +144,16 @@ export class MeanReversionStrategy extends EventEmitter {
     this.state = 'scanningForExit';
   }
 
-  public async start(symbolA: string, symbolB: string): Promise<void> {
-    this.symbolA = symbolA;
-    this.symbolB = symbolB;
+  public setAssetPrices(assetPrices: Record<string, number>): void {
+    this.assetPrices = assetPrices;
+  }
+
+  public async start(
+    assetA: { baseAsset: string; quoteAsset: string },
+    assetB: { baseAsset: string; quoteAsset: string },
+  ): Promise<void> {
+    this.assetA = assetA;
+    this.assetB = assetB;
 
     this.streamDataProvider.on('trade', this.onPriceUpdate);
     this.streamDataProvider.subscribeMultiple([
@@ -145,8 +168,8 @@ export class MeanReversionStrategy extends EventEmitter {
 
   public stop(): void {
     this.streamDataProvider.unsubscribeMultiple([
-      { symbol: this.symbolA!, type: 'trade' },
-      { symbol: this.symbolB!, type: 'trade' },
+      { symbol: this.symbolA, type: 'trade' },
+      { symbol: this.symbolB, type: 'trade' },
     ]);
     this.streamDataProvider.off('trade', this.onPriceUpdate);
     this.removeAllListeners();
@@ -171,31 +194,30 @@ export class MeanReversionStrategy extends EventEmitter {
     try {
       const [newCandlesA, newCandlesB] = await Promise.all([
         this.dataProvider.fetchAssetCandles({
-          symbol: this.symbolA!,
+          symbol: this.symbolA,
           timeframe: this.timeframe,
           limit: this.CANDLES_COUNT,
         }),
         this.dataProvider.fetchAssetCandles({
-          symbol: this.symbolB!,
+          symbol: this.symbolB,
           timeframe: this.timeframe,
           limit: this.CANDLES_COUNT,
         }),
       ]);
 
       if (newCandlesA.length === 0 || newCandlesB.length === 0) {
-        throw new Error('Нет свечей для стратегии');
+        throw new Error('No candles for strategy');
       }
 
       this.candlesA = this.formatCandle(newCandlesA);
       this.candlesB = this.formatCandle(newCandlesB);
     } catch (error) {
-      console.error('Ошибка при обновлении исторических данных:', error);
+      console.error('Error updating historical data:', error);
     }
   }
 
   private updateLastCandle(trade: TBinanceTrade): void {
     const candles = trade.s === this.symbolA ? this.candlesA : this.candlesB;
-
     if (candles.length === 0) {
       return;
     }
@@ -239,7 +261,7 @@ export class MeanReversionStrategy extends EventEmitter {
     const candlesAAdx = this.adx.calculateADX(this.candlesA.slice(-this.CANDLES_COUNT_FOR_ADX));
     const candlesBAdx = this.adx.calculateADX(this.candlesB.slice(-this.CANDLES_COUNT_FOR_ADX));
     if (!candlesAAdx || !candlesBAdx) {
-      console.warn('ADX is null');
+      console.warn('ADX is null, trend is not acceptable');
       return false;
     }
 
@@ -277,7 +299,7 @@ export class MeanReversionStrategy extends EventEmitter {
       this.updateLastCandle(trade);
       this.performAnalysis();
     } catch (error) {
-      console.error('Ошибка при обработке обновления цены:', error);
+      console.error('Error updating price:', error);
     }
   };
 
@@ -308,13 +330,13 @@ export class MeanReversionStrategy extends EventEmitter {
 
     const beta = this.calculateBeta();
     if (!beta) {
-      console.warn('Beta is null');
+      console.warn('Beta is null, stop-loss is not triggered');
       return;
     }
 
     const zScore = this.calculateZScore(beta);
     if (!zScore) {
-      console.warn('Z-score is null');
+      console.warn('Z-score is null, stop-loss is not triggered');
       return;
     }
 
@@ -338,8 +360,14 @@ export class MeanReversionStrategy extends EventEmitter {
       this.emit('signal', {
         type: 'open',
         direction: 'sell-buy',
-        symbolA: { symbol: this.symbolA, action: 'sell', price: lastCloseA },
-        symbolB: { symbol: this.symbolB, action: 'buy', price: lastCloseB },
+        symbolA: {
+          action: 'sell',
+          price: lastCloseA,
+        },
+        symbolB: {
+          action: 'buy',
+          price: lastCloseB,
+        },
         beta,
         reason: `High Z-score: ${zScore.toFixed(2)}`,
       } as TOpenSignal);
@@ -350,8 +378,14 @@ export class MeanReversionStrategy extends EventEmitter {
       this.emit('signal', {
         type: 'open',
         direction: 'buy-sell',
-        symbolA: { symbol: this.symbolA, action: 'buy', price: lastCloseA },
-        symbolB: { symbol: this.symbolB, action: 'sell', price: lastCloseB },
+        symbolA: {
+          action: 'buy',
+          price: lastCloseA,
+        },
+        symbolB: {
+          action: 'sell',
+          price: lastCloseB,
+        },
         beta,
         reason: `Low Z-score: ${zScore.toFixed(2)}`,
       } as TOpenSignal);
@@ -382,15 +416,18 @@ export class MeanReversionStrategy extends EventEmitter {
     const { direction } = this.position;
 
     const roi = calculateRoi(
-      direction,
-      this.symbolA!,
-      this.symbolB!,
-      this.position.quantityA,
-      this.position.quantityB,
-      this.position.openPriceA,
-      this.position.openPriceB,
-      priceA,
-      priceB,
+      {
+        direction,
+        assetA: this.assetA!,
+        assetB: this.assetB!,
+        quantityA: this.position.quantityA,
+        quantityB: this.position.quantityB,
+        openPriceA: this.position.openPriceA,
+        openPriceB: this.position.openPriceB,
+        closePriceA: priceA,
+        closePriceB: priceB,
+      },
+      this.assetPrices,
     );
 
     if (roi <= -this.STOP_LOSS_RATE_PERCENT) {
@@ -398,12 +435,10 @@ export class MeanReversionStrategy extends EventEmitter {
         type: 'stopLoss',
         direction: direction,
         symbolA: {
-          symbol: this.symbolA!,
           action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
-          symbol: this.symbolB!,
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
@@ -417,13 +452,13 @@ export class MeanReversionStrategy extends EventEmitter {
 
     const beta = this.calculateBeta();
     if (!beta) {
-      console.warn('Beta is null');
+      console.warn('Beta is null, stop-loss is not triggered');
       return;
     }
 
     const zScore = this.calculateZScore(beta);
     if (!zScore) {
-      console.warn('Z-score is null');
+      console.warn('Z-score is null, stop-loss is not triggered');
       return;
     }
 
@@ -436,12 +471,10 @@ export class MeanReversionStrategy extends EventEmitter {
         type: 'stopLoss',
         direction: direction,
         symbolA: {
-          symbol: this.symbolA!,
           action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
-          symbol: this.symbolB!,
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
@@ -462,12 +495,10 @@ export class MeanReversionStrategy extends EventEmitter {
         type: 'close',
         direction: direction,
         symbolA: {
-          symbol: this.symbolA!,
           action: direction === 'sell-buy' ? 'buy' : 'sell',
           price: priceA,
         },
         symbolB: {
-          symbol: this.symbolB!,
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },

@@ -14,6 +14,8 @@ type TProps = {
   };
 };
 
+type TSortField = keyof TPairReportEntry | 'pair';
+
 export const PairReport = ({ report }: TProps) => {
   const { id, date, data } = report;
 
@@ -22,12 +24,12 @@ export const PairReport = ({ report }: TProps) => {
 
   const [search, setSearch] = useState('');
 
-  const [sortField, setSortField] = useState<keyof TPairReportEntry>('pair');
+  const [sortField, setSortField] = useState<TSortField>('pair');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const columns: {
     label: string;
-    field: typeof sortField;
+    field: TSortField;
     align: 'right' | 'left';
     sortable: boolean;
   }[] = [
@@ -37,12 +39,11 @@ export const PairReport = ({ report }: TProps) => {
     { label: 'Hurst', field: 'hurstExponent', align: 'right', sortable: true },
     { label: 'Corr (prices)', field: 'correlationByPrices', align: 'right', sortable: true },
     { label: 'Corr (returns)', field: 'correlationByReturns', align: 'right', sortable: true },
-    { label: 'Beta', field: 'beta', align: 'right', sortable: true },
     { label: 'Crossings', field: 'crossings', align: 'right', sortable: true },
     { label: 'Spread', field: 'spread', align: 'right', sortable: false },
   ];
 
-  const handleSort = (field: typeof sortField) => {
+  const handleSort = (field: TSortField) => {
     if (field === sortField) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -53,19 +54,30 @@ export const PairReport = ({ report }: TProps) => {
 
   const filteredData = useMemo(() => {
     return data.filter((item) => {
-      const [first, second] = item.pair.split('-');
+      const { assetA, assetB } = item;
 
-      return (
-        first.toLowerCase().includes(search.toLowerCase()) &&
-        second.toLowerCase().includes(search.toLowerCase())
-      );
+      const pairName = `${assetA.baseAsset}${assetA.quoteAsset}-${assetB.baseAsset}${assetB.quoteAsset}`;
+
+      return pairName.toLowerCase().includes(search.toLowerCase());
     });
   }, [data, search]);
 
   const sortedData = useMemo(() => {
     const compare = (a: (typeof filteredData)[0], b: (typeof filteredData)[0]) => {
-      const valA = a[sortField];
-      const valB = b[sortField];
+      let valA: TPairReportEntry[keyof TPairReportEntry] | string | null = null;
+      let valB: TPairReportEntry[keyof TPairReportEntry] | string | null = null;
+
+      if (sortField === 'pair') {
+        valA = `${a.assetA.baseAsset}${a.assetA.quoteAsset}-${a.assetB.baseAsset}${a.assetB.quoteAsset}`;
+        valB = `${b.assetA.baseAsset}${b.assetA.quoteAsset}-${b.assetB.baseAsset}${b.assetB.quoteAsset}`;
+      } else {
+        if (sortField in a && sortField in b) {
+          valA = a[sortField];
+          valB = b[sortField];
+        } else {
+          return 0;
+        }
+      }
 
       const isNullA = valA === null || valA === undefined;
       const isNullB = valB === null || valB === undefined;
@@ -82,7 +94,12 @@ export const PairReport = ({ report }: TProps) => {
     return [...filteredData].sort(compare);
   }, [filteredData, sortField, sortDirection]);
 
-  const uniqueAssetsCount = new Set(data.map((item) => item.pair.split('-')[0])).size;
+  const uniqueAssetsCount = new Set(
+    data.flatMap((item) => [
+      `${item.assetA.baseAsset}${item.assetA.quoteAsset}`,
+      `${item.assetB.baseAsset}${item.assetB.quoteAsset}`,
+    ]),
+  ).size;
 
   const renderSafeValue = (value: number | null) => {
     if (value === null) return 'N/A';
@@ -106,22 +123,24 @@ export const PairReport = ({ report }: TProps) => {
     }
 
     const {
-      pair,
+      assetA,
+      assetB,
       pValue,
       halfLife,
       hurstExponent,
       correlationByPrices,
       correlationByReturns,
-      beta,
       crossings,
       spread,
     } = item;
-    const [symbolA, symbolB] = pair.split('-');
+
+    const symbolA = `${assetA.baseAsset}${assetA.quoteAsset}`;
+    const symbolB = `${assetB.baseAsset}${assetB.quoteAsset}`;
 
     return (
       <div
         style={style}
-        className="grid grid-cols-[1fr_repeat(8,130px)] gap-2 items-center px-4 hover:bg-base-300/70 text-sm"
+        className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 items-center px-4 hover:bg-base-300/70 text-sm"
       >
         <Link
           to={`/pair?tickerA=${symbolA}&tickerB=${symbolB}&date=${date}`}
@@ -135,7 +154,6 @@ export const PairReport = ({ report }: TProps) => {
         <div className="text-right font-mono">{renderSafeValue(hurstExponent)}</div>
         <div className="text-right font-mono">{renderSafeValue(correlationByPrices)}</div>
         <div className="text-right font-mono">{renderSafeValue(correlationByReturns)}</div>
-        <div className="text-right font-mono">{renderSafeValue(beta)}</div>
         <div className="text-right font-mono">{crossings}</div>
         <div className="text-right font-mono">
           {spread && (
@@ -171,7 +189,7 @@ export const PairReport = ({ report }: TProps) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_repeat(8,130px)] gap-2 bg-base-300 p-4">
+        <div className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 bg-base-300 p-4">
           {columns.map(({ label, field, align, sortable }) => (
             <div
               key={field}
