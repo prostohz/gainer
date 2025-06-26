@@ -27,7 +27,6 @@ export type TPairReportEntry = {
   hurstExponent: number | null;
   correlationByPrices: number | null;
   correlationByReturns: number | null;
-  beta: number | null;
   crossings: number | null;
   spread: {
     mean: number;

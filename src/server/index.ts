@@ -1,11 +1,13 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 
 import api from './api';
 import { Asset } from './models/Asset';
-import { Candle } from './models/Candle';
-import { Trade } from './models/Trade';
+// Импортируем для инициализации, но не используем напрямую
+import './models/Candle';
+import './models/Trade';
 import { errorHandler } from './utils/apiHandler';
 
 const app = express();
@@ -21,12 +23,22 @@ app.use('/api', api);
 app.use(errorHandler);
 
 (async () => {
-  await Promise.all([Asset.sync(), Candle.sync(), Trade.sync()]);
+  try {
+    console.log('Checking database connection...');
 
-  // Start server
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+    const sequelize = Asset.sequelize!;
+    await sequelize.authenticate();
+
+    console.log('Database connection successful');
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Critical database connection error:', error);
+    process.exit(1);
+  }
 })();
 
 export default app;

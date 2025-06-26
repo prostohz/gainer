@@ -9,6 +9,8 @@ interface PerformanceStats {
 export class PerformanceTracker {
   private performanceStats: Record<string, PerformanceStats> = {};
 
+  constructor(private readonly enabled: boolean = false) {}
+
   /**
    * Создает обертку для функции, которая измеряет время ее выполнения
    */
@@ -50,6 +52,10 @@ export class PerformanceTracker {
    * Выводит статистику производительности в консоль
    */
   printStats(title: string = 'СТАТИСТИКА ВРЕМЕНИ ВЫПОЛНЕНИЯ ФУНКЦИЙ'): void {
+    if (!this.enabled) {
+      return;
+    }
+
     console.log(`\n=== ${title} ===`);
     console.log(
       '┌─────────────────────────┬──────────┬─────────────┬─────────────┬─────────────┬─────────────┐',

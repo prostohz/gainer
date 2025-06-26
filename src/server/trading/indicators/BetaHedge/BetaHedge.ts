@@ -1,17 +1,20 @@
-import { TIndicatorCandle } from '../types';
+import { TIndicatorShortCandle } from '../types';
 
 export class BetaHedge {
-  public calculateBeta(candlesA: TIndicatorCandle[], candlesB: TIndicatorCandle[]) {
+  public calculateBeta(candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[]) {
     const minLength = Math.min(candlesA.length, candlesB.length);
-
-    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
-    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
-
-    if (pricesA.length < 2) {
-      console.warn('BetaHedge: prices series have less than 2 observations:', pricesA.length);
+    if (minLength < 2) {
+      console.warn(
+        'BetaHedge: prices series have less than 2 observations:',
+        candlesA.length,
+        candlesB.length,
+      );
 
       return null;
     }
+
+    const pricesA = candlesA.slice(-minLength).map((candle) => candle.close);
+    const pricesB = candlesB.slice(-minLength).map((candle) => candle.close);
 
     const mean = (values: number[]): number =>
       values.reduce((acc, v) => acc + v, 0) / values.length;
@@ -41,8 +44,8 @@ export class BetaHedge {
   }
 
   public rollingBeta(
-    candlesA: TIndicatorCandle[],
-    candlesB: TIndicatorCandle[],
+    candlesA: TIndicatorShortCandle[],
+    candlesB: TIndicatorShortCandle[],
     window: number = 100,
   ) {
     const minLength = Math.min(candlesA.length, candlesB.length);

@@ -1,12 +1,8 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
 
-import { PATH } from '../configs/database';
+import { DATABASE_CONFIG } from '../configs/database';
 
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: PATH,
-  logging: false,
-});
+const sequelize = new Sequelize(DATABASE_CONFIG);
 
 interface TradeAttributes {
   symbol: string;

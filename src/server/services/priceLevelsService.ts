@@ -26,8 +26,11 @@ export const getAssetPriceLevels = async (symbol: string) => {
             symbol: asset.symbol,
             timeframe,
           },
+          order: [['openTime', 'DESC']],
           limit: CANDLE_LIMIT,
         });
+
+        candles.reverse();
 
         return candles.map((candle) => ({
           openTime: candle.openTime,

@@ -1,6 +1,7 @@
 import * as R from 'remeda';
 
 import { measureTime } from '../../../utils/performance/measureTime';
+import { backtestLogger as logger } from '../../../utils/logger';
 import BinanceHTTPClient, { TTrade } from '../../providers/Binance/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
 import { TTimeEnvironment } from '../types';
@@ -79,6 +80,7 @@ const buildTradesCache = measureTime(
 
     return cache;
   },
+  logger.info,
 );
 
 const mergeTrades = (assetATrades: TTrade[], assetBTrades: TTrade[]) => {
@@ -128,8 +130,14 @@ export const run = measureTime(
       streamDataProvider,
     });
 
-    for (let i = 0; i < tradedPairs.length; i++) {
-      const [symbolA, symbolB] = tradedPairs[i];
+    const ifPairTradingMap = new Map<string, boolean>();
+    pairs.forEach((pair) => {
+      ifPairTradingMap.set(pair, true);
+    });
+
+    for (let i = 0; i < pairs.length; i++) {
+      const pair = pairs[i];
+      const [symbolA, symbolB] = pair.split('-');
 
       timeEnvironment.currentTime = startTimestamp;
 
@@ -144,6 +152,11 @@ export const run = measureTime(
       strategy.on('signal', (signal: TSignal) => {
         switch (signal.type) {
           case 'open':
+            if (!ifPairTradingMap.get(pair)) {
+              strategy.positionEnterRejected();
+              return;
+            }
+
             if (
               timeEnvironment.currentTime >= lastAssetATrade.timestamp ||
               timeEnvironment.currentTime >= lastAssetBTrade.timestamp
@@ -215,6 +228,11 @@ export const run = measureTime(
             });
             openTrade = null;
             strategy.positionExitAccepted();
+
+            if (signal.type === 'stopLoss') {
+              ifPairTradingMap.set(pair, false);
+            }
+
             break;
         }
       });
@@ -247,9 +265,10 @@ export const run = measureTime(
 
       strategy.stop();
 
-      console.log(`Processed ${(((i + 1) / tradedPairs.length) * 100).toFixed(2)}% pairs`);
+      logger.verbose(`Processed ${(((i + 1) / tradedPairs.length) * 100).toFixed(2)}% pairs`);
     }
 
     return completeTrades;
   },
+  logger.info,
 );

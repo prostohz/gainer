@@ -13,6 +13,16 @@ import { measureTime } from '../utils/performance/measureTime';
 
 const binanceHttpClient = BinanceHTTPClient.getInstance();
 
+const TIMEFRAME_LIMITS: Record<TTimeframe, number> = {
+  '1m': dayjs.duration(30, 'day').asMinutes(),
+  '5m': dayjs.duration(40, 'day').asMinutes() / 5,
+  '15m': dayjs.duration(10, 'day').asMinutes() / 15,
+  '30m': dayjs.duration(10, 'day').asMinutes() / 30,
+  '1h': dayjs.duration(30, 'day').asHours(),
+  '4h': dayjs.duration(60, 'day').asHours() / 4,
+  '1d': dayjs.duration(100, 'day').asDays(),
+};
+
 export const flushDatabase = async () => {
   await Asset.destroy({ where: {} });
   await Candle.destroy({ where: {} });
@@ -25,23 +35,31 @@ export const flushTrades = async () => {
 
 export const getSystemInfo = async () => {
   const assetCount = await Asset.count();
-  const firstCandle = await Candle.findOne({
-    where: { symbol: 'BTCUSDT', timeframe: '1m' },
-    order: [['openTime', 'ASC']],
-    attributes: ['openTime'],
-    limit: 1,
-  });
-  const lastCandle = await Candle.findOne({
-    where: { symbol: 'BTCUSDT', timeframe: '1m' },
-    order: [['openTime', 'DESC']],
-    attributes: ['openTime'],
-    limit: 1,
-  });
+
+  const timeframeCandles: Record<TTimeframe, { first: number | null; last: number | null }> =
+    {} as Record<TTimeframe, { first: number | null; last: number | null }>;
+
+  for (const timeframe of Object.keys(TIMEFRAME_LIMITS) as TTimeframe[]) {
+    const firstCandle = await Candle.findOne({
+      where: { symbol: 'BTCUSDT', timeframe },
+      order: [['openTime', 'ASC']],
+      attributes: ['openTime'],
+    });
+    const lastCandle = await Candle.findOne({
+      where: { symbol: 'BTCUSDT', timeframe },
+      order: [['openTime', 'DESC']],
+      attributes: ['openTime'],
+    });
+
+    timeframeCandles[timeframe] = {
+      first: firstCandle ? firstCandle.openTime : null,
+      last: lastCandle ? lastCandle.openTime : null,
+    };
+  }
 
   return {
     assetCount,
-    firstCandleTime: firstCandle?.openTime,
-    lastCandleTime: lastCandle?.openTime,
+    timeframeCandles,
   };
 };
 
@@ -69,16 +87,6 @@ const getAssetVolumePrecision = (asset: TBinanceAsset): number => {
 };
 
 const CANDLES_LIMIT = 1000;
-
-const TIMEFRAME_LIMITS: Record<TTimeframe, number> = {
-  '1m': dayjs.duration(30, 'day').asMinutes(),
-  '5m': dayjs.duration(30, 'day').asMinutes() / 5,
-  '15m': dayjs.duration(10, 'day').asMinutes() / 15,
-  '30m': dayjs.duration(10, 'day').asMinutes() / 30,
-  '1h': dayjs.duration(10, 'day').asHours(),
-  '4h': dayjs.duration(10, 'day').asHours() / 4,
-  '1d': dayjs.duration(10, 'day').asDays(),
-};
 
 const fetchCandlesInBatches = async ({
   symbol,
@@ -174,11 +182,11 @@ export const loadCandles = measureTime('Candles loading', async () => {
 
   await Asset.bulkCreate(assetsToSave);
 
-  const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
+  const timeframes: TTimeframe[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'] as const;
 
-  const initialTime = Date.now();
+  const initialTime = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf();
 
-  const chunks = R.chunk(binanceAssetsSymbols, 10);
+  const chunks = R.chunk(binanceAssetsSymbols, 20);
 
   for (const chunk of chunks) {
     await Promise.all(
@@ -204,6 +212,9 @@ export const loadCandles = measureTime('Candles loading', async () => {
                     symbol,
                     timeframe,
                   })),
+                  {
+                    ignoreDuplicates: true,
+                  },
                 );
               }
 

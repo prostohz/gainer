@@ -76,7 +76,6 @@ export class MeanReversionStrategy extends EventEmitter {
   private symbolA: string | null = null;
   private symbolB: string | null = null;
 
-  // Параметры стратегии
   private readonly CANDLES_COUNT = 1440;
   private readonly CANDLES_COUNT_FOR_BETA = 60;
   private readonly CANDLES_COUNT_FOR_Z_SCORE = 60;

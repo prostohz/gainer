@@ -53,7 +53,7 @@ export const MetricsPane = ({ symbolA, symbolB, date }: TProps) => {
     queryFn: () =>
       http
         .get(
-          `/api/asset/candles?symbol=${symbolA}&timeframe=${selectedTimeframe}&endTimestamp=${date}`,
+          `/api/asset/candles?symbol=${symbolA}&timeframe=${selectedTimeframe}&endTimestamp=${date}&limit=1000`,
         )
         .then((res) => res.data),
     enabled: Boolean(symbolA) && Boolean(selectedTimeframe) && Boolean(date),
@@ -64,7 +64,7 @@ export const MetricsPane = ({ symbolA, symbolB, date }: TProps) => {
     queryFn: () =>
       http
         .get(
-          `/api/asset/candles?symbol=${symbolB}&timeframe=${selectedTimeframe}&endTimestamp=${date}`,
+          `/api/asset/candles?symbol=${symbolB}&timeframe=${selectedTimeframe}&endTimestamp=${date}&limit=1000`,
         )
         .then((res) => res.data),
     enabled: Boolean(symbolB) && Boolean(selectedTimeframe) && Boolean(date),

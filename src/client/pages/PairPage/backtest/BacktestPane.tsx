@@ -42,6 +42,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       urlParams.set('timeframe', timeframe);
       urlParams.set('startTimestamp', startDate.toString());
       urlParams.set('endTimestamp', endDate.toString());
+      urlParams.set('limit', String(1000));
 
       return http.get(`/api/asset/candles?${urlParams.toString()}`).then((res) => res.data);
     },
@@ -61,6 +62,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       urlParams.set('timeframe', timeframe);
       urlParams.set('startTimestamp', startDate.toString());
       urlParams.set('endTimestamp', endDate.toString());
+      urlParams.set('limit', String(1000));
 
       return http.get(`/api/asset/candles?${urlParams.toString()}`).then((res) => res.data);
     },

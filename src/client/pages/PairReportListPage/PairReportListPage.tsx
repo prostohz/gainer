@@ -11,6 +11,7 @@ import { TPairReport } from '../../../shared/types';
 import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
+import { BacktestResultStats } from '../../widgets/BacktestResultStats';
 import { PairReportsHistogram } from './PairReportsHistogram';
 import { PairReportsBacktestHistogram } from './PairReportsBacktestHistogram';
 
@@ -179,7 +180,7 @@ export const PairReportListPage = () => {
 
         await http.post(`/api/pairReport/${report.id}/backtest`, {
           startTimestamp: report.date,
-          endTimestamp: dayjs(report.date).add(30, 'minutes').valueOf(),
+          endTimestamp: dayjs(report.date).add(1, 'hour').valueOf(),
         });
       }
     },
@@ -217,8 +218,6 @@ export const PairReportListPage = () => {
           },
         });
       }
-
-      backtestAllReports();
     },
     onSuccess: () => {
       refetch();
@@ -292,49 +291,54 @@ export const PairReportListPage = () => {
       </div>
 
       <div className="p-4 bg-base-200 rounded-lg flex flex-col gap-2 mb-4">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold">Distribution Of Pairs By Date</h3>
-          <PairReportsHistogram pairReports={pairReports || []} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold">Distribution Of Backtest By Date</h3>
-          <PairReportsBacktestHistogram pairReports={pairReports || []} />
-        </div>
-      </div>
-
-      <div className="bg-base-200 rounded-lg">
         {pairReports && pairReports.length > 0 ? (
           <>
-            <div className="flex items-center bg-base-300 px-4 py-2 font-medium text-sm border-b border-base-300">
-              <div className="w-40 flex-shrink-0">ID</div>
-              <div className="w-40 flex-shrink-0">Date</div>
-              <div className="w-20 flex-shrink-0">Pairs</div>
-              <div className="flex-1 min-w-0">Backtest</div>
-              <div className="flex-shrink-0 ml-4 text-right">Actions</div>
-            </div>
+            <h3 className="text-lg font-semibold">Distribution Of Pairs By Date</h3>
+            <PairReportsHistogram pairReports={pairReports} />
+            <h3 className="text-lg font-semibold">Distribution Of Backtest By Date</h3>
+            <PairReportsBacktestHistogram pairReports={pairReports} />
+            <h3 className="text-lg font-semibold">Backtest Results</h3>
 
-            <div className="overflow-hidden">
-              <List
-                height={Math.min(600, pairReports.length * 80)}
-                width="100%"
-                itemCount={pairReports.length}
-                itemSize={80}
-                itemData={{
-                  items: pairReports,
-                  updateReport,
-                  deleteReport,
-                  isUpdating,
-                  isDeleting,
-                }}
-              >
-                {TableRow}
-              </List>
+            <div className="bg-base-300 rounded-lg p-4">
+              <BacktestResultStats
+                results={pairReports.flatMap((report) => report.backtest || [])}
+              />
             </div>
           </>
         ) : (
           <div className="text-center p-4">No reports found</div>
         )}
       </div>
+
+      {pairReports && pairReports.length > 0 && (
+        <div className="bg-base-200 rounded-lg">
+          <div className="flex items-center bg-base-300 px-4 py-2 font-medium text-sm border-b border-base-300">
+            <div className="w-40 flex-shrink-0">ID</div>
+            <div className="w-40 flex-shrink-0">Date</div>
+            <div className="w-20 flex-shrink-0">Pairs</div>
+            <div className="flex-1 min-w-0">Backtest</div>
+            <div className="flex-shrink-0 ml-4 text-right">Actions</div>
+          </div>
+
+          <div className="overflow-hidden">
+            <List
+              height={Math.min(600, pairReports.length * 80)}
+              width="100%"
+              itemCount={pairReports.length}
+              itemSize={80}
+              itemData={{
+                items: pairReports,
+                updateReport,
+                deleteReport,
+                isUpdating,
+                isDeleting,
+              }}
+            >
+              {TableRow}
+            </List>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

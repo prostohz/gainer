@@ -25,6 +25,7 @@
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@types/react-window": "^1.8.8",
+    "@types/winston": "^2.4.4",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
@@ -51,6 +52,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.76.1",
+    "@types/pg": "^8.15.4",
     "@types/react-datepicker": "^7.0.0",
     "axios": "^1.9.0",
     "body-parser": "^2.2.0",
@@ -58,9 +60,11 @@
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "lightweight-charts": "^5.0.6",
     "mathjs": "^14.5.2",
+    "pg": "^8.16.2",
     "react": "^18.2.0",
     "react-datepicker": "^8.4.0",
     "react-dom": "^18.2.0",
@@ -69,7 +73,7 @@
     "recharts": "^3.0.0",
     "remeda": "^2.21.4",
     "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7",
+    "winston": "^3.17.0",
     "ws": "^8.18.2"
   }
 }

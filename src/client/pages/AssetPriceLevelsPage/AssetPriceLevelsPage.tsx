@@ -31,7 +31,7 @@ export const AssetPriceLevelsPage = () => {
     queryKey: ['assetCandles', assetSymbol, timeframe],
     queryFn: () =>
       http
-        .get(`/api/asset/candles?symbol=${assetSymbol}&timeframe=${timeframe}`)
+        .get(`/api/asset/candles?symbol=${assetSymbol}&timeframe=${timeframe}&limit=1000`)
         .then((res) => res.data),
   });
 

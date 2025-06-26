@@ -1,3 +1,8 @@
+export type TIndicatorShortCandle = {
+  openTime: number;
+  close: number;
+};
+
 export type TIndicatorCandle = {
   openTime: number;
   closeTime: number;
