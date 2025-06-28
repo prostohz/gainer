@@ -5,9 +5,9 @@ import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
-import { PairReport } from './PairReport';
+import { MRReport } from './MRReport';
 
-export const PairReportPage = () => {
+export const MRReportPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -17,20 +17,20 @@ export const PairReportPage = () => {
     refetch,
   } = useQuery({
     queryKey: ['report', id],
-    queryFn: () => http.get(`/api/pairReport/${id}`).then((response) => response.data),
+    queryFn: () => http.get(`/api/mrReport/${id}`).then((response) => response.data),
   });
 
   const { mutate: updateReport, isPending: isUpdating } = useMutation({
-    mutationFn: (id: string) => http.put(`/api/pairReport/${id}`),
+    mutationFn: (id: string) => http.put(`/api/mrReport/${id}`),
     onSuccess: () => {
       refetch();
     },
   });
 
   const { mutate: deleteReport } = useMutation({
-    mutationFn: (id: string) => http.delete(`/api/pairReport/${id}`),
+    mutationFn: (id: string) => http.delete(`/api/mrReport/${id}`),
     onSuccess: () => {
-      navigate('/pairReport');
+      navigate('/mrReport');
     },
   });
 
@@ -43,17 +43,17 @@ export const PairReportPage = () => {
       return <div>No report found</div>;
     }
 
-    return <PairReport report={report} />;
+    return <MRReport report={report} />;
   };
 
   return (
     <div className="flex flex-col flex-grow">
-      <Title value={`Pair Report (${id})`} />
+      <Title value={`Mean Reversion Report (${id})`} />
 
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">
-          <Link to="/pairReport" className="link link-hover link-primary">
-            Pair Report
+          <Link to="/mrReport" className="link link-hover link-primary">
+            Mean Reversion Reports
           </Link>{' '}
           / {report ? dayjs(report.date).format('DD.MM.YYYY HH:mm') : ''}
         </h1>
@@ -70,7 +70,7 @@ export const PairReportPage = () => {
 
             <Link
               className="btn btn-secondary"
-              to={`/pairReport/${id}/backtest`}
+              to={`/mrReport/${id}/backtest`}
               onClick={(event) => {
                 event.stopPropagation();
               }}

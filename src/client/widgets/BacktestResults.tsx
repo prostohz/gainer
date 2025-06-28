@@ -1,6 +1,6 @@
 import cn from 'classnames';
 
-import { TCompleteTrade } from '../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 import { dayjs } from '../../shared/utils/daytime';
 import { useAssets } from '../entities/assets';
 import { BacktestResultStats } from './BacktestResultStats';

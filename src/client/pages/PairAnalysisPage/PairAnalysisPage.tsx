@@ -21,7 +21,7 @@ const TABS = [
   },
 ] as const;
 
-export const PairPage = () => {
+export const PairAnalysisPage = () => {
   const [activeTab, setActiveTab] = useLSState<(typeof TABS)[number]['id']>(
     'pairActiveTab',
     'metrics',
@@ -34,7 +34,7 @@ export const PairPage = () => {
 
   const title = useMemo(() => {
     if (!symbolA || !symbolB) return 'Pair';
-    return `Correlation Pair ${symbolA} - ${symbolB}`;
+    return `Pair Analysis ${symbolA} - ${symbolB}`;
   }, [symbolA, symbolB]);
 
   return (
@@ -45,11 +45,11 @@ export const PairPage = () => {
         <h1 className="text-2xl font-bold mb-4">
           {symbolA && symbolB ? (
             <span>
-              Correlation Pair <span className="text-primary">{symbolA}</span> -{' '}
+              Pair Analysis <span className="text-primary">{symbolA}</span> -{' '}
               <span className="text-primary">{symbolB}</span>
             </span>
           ) : (
-            'Pair'
+            'Pair Analysis'
           )}
         </h1>
 

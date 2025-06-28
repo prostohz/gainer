@@ -2,7 +2,7 @@ import cn from 'classnames';
 import * as math from 'mathjs';
 
 import { dayjs } from '../../shared/utils/daytime';
-import { TCompleteTrade } from '../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 
 type TBacktestResultStatsProps = {
   results: TCompleteTrade[];

@@ -1,19 +1,19 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 import { dayjs } from '../../../shared/utils/daytime';
-import { TPairReport } from '../../../shared/types';
+import { TMRReport } from '../../../shared/types';
 
-type TPairReportsHistogramProps = {
-  pairReports: TPairReport[];
+type TProps = {
+  reports: TMRReport[];
 };
 
-export const PairReportsHistogram = ({ pairReports }: TPairReportsHistogramProps) => {
-  if (!pairReports || pairReports.length === 0) {
+export const MRReportsHistogram = ({ reports }: TProps) => {
+  if (!reports || reports.length === 0) {
     return null;
   }
 
   const chartData = (() => {
-    const groupedData = pairReports.reduce(
+    const groupedData = reports.reduce(
       (acc, item) => {
         const dateKey = dayjs(item.date).format('DD.MM.YYYY HH:mm');
 

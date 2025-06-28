@@ -3,23 +3,23 @@ import { FixedSizeList as List } from 'react-window';
 import * as R from 'remeda';
 import cn from 'classnames';
 
-import { TCompleteTrade } from '../../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Loader } from '../../shared/ui/Loader';
-import { TPairReport } from '../../../shared/types';
+import { TMRReport } from '../../../shared/types';
 import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
 import { BacktestResultStats } from '../../widgets/BacktestResultStats';
-import { PairReportsHistogram } from './PairReportsHistogram';
-import { PairReportsBacktestHistogram } from './PairReportsBacktestHistogram';
+import { MRReportsHistogram } from './MRReportsHistogram';
+import { MRReportsBacktestHistogram } from './MRReportsBacktestHistogram';
 
 type TTableRowProps = {
   index: number;
   style: React.CSSProperties;
   data: {
-    items: TPairReport[];
+    items: TMRReport[];
     updateReport: (id: string) => void;
     deleteReport: (id: string) => void;
     isUpdating: boolean;
@@ -85,7 +85,7 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
       style={style}
       className="flex items-center border-b border-base-300 hover:bg-base-300/50 px-4 hover:cursor-pointer"
       onClick={() => {
-        window.open(`/pairReport/${item.id}`, '_blank');
+        window.open(`/mrReport/${item.id}`, '_blank');
       }}
     >
       <div className="w-40 flex-shrink-0">{item.id}</div>
@@ -98,7 +98,7 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
             className="btn btn-secondary btn-outline btn-sm"
             onClick={(event) => {
               event.stopPropagation();
-              window.open(`/pairReport/${item.id}/backtest`, '_blank');
+              window.open(`/mrReport/${item.id}/backtest`, '_blank');
             }}
           >
             Backtest
@@ -131,21 +131,21 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
   );
 };
 
-export const PairReportListPage = () => {
+export const MRReportListPage = () => {
   const [selectedDate, setSelectedDate] = useLSState<number>('reportSelectedDate', Date.now());
 
   const {
-    data: pairReports,
+    data: reports,
     isLoading,
     refetch,
-  } = useQuery<TPairReport[]>({
-    queryKey: ['pairReportList'],
-    queryFn: () => http.get('/api/pairReport').then((response) => response.data),
+  } = useQuery<TMRReport[]>({
+    queryKey: ['mrReportList'],
+    queryFn: () => http.get('/api/mrReport').then((response) => response.data),
   });
 
   const { mutate: createReport, isPending } = useMutation({
     mutationFn: () =>
-      http.post('/api/pairReport', null, {
+      http.post('/api/mrReport', null, {
         params: { date: selectedDate },
       }),
     onSuccess: () => {
@@ -154,14 +154,14 @@ export const PairReportListPage = () => {
   });
 
   const { mutate: updateReport, isPending: isUpdating } = useMutation({
-    mutationFn: (id: string) => http.put(`/api/pairReport/${id}`),
+    mutationFn: (id: string) => http.put(`/api/mrReport/${id}`),
     onSuccess: () => {
       refetch();
     },
   });
 
   const { mutate: deleteReport, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => http.delete(`/api/pairReport/${id}`),
+    mutationFn: (id: string) => http.delete(`/api/mrReport/${id}`),
     onSuccess: () => {
       refetch();
     },
@@ -169,18 +169,18 @@ export const PairReportListPage = () => {
 
   const { mutate: backtestAllReports, isPending: isBacktesting } = useMutation({
     mutationFn: async () => {
-      if (!pairReports) {
+      if (!reports) {
         return;
       }
 
       let count = 0;
 
-      for (const report of pairReports) {
+      for (const report of reports) {
         if (report.backtest) {
           continue;
         }
 
-        await http.post(`/api/pairReport/${report.id}/backtest`, {
+        await http.post(`/api/mrReport/${report.id}/backtest`, {
           startTimestamp: report.date,
           endTimestamp: dayjs(report.date).add(1, 'hour').valueOf(),
         });
@@ -197,13 +197,13 @@ export const PairReportListPage = () => {
 
   const { mutate: removeAllBacktests, isPending: isRemoving } = useMutation({
     mutationFn: async () => {
-      if (!pairReports) {
+      if (!reports) {
         return;
       }
 
-      for (const report of pairReports) {
+      for (const report of reports) {
         if (report.backtest) {
-          await http.delete(`/api/pairReport/${report.id}/backtest`);
+          await http.delete(`/api/mrReport/${report.id}/backtest`);
         }
       }
     },
@@ -215,7 +215,7 @@ export const PairReportListPage = () => {
   const { mutate: createMissingReports } = useMutation({
     mutationFn: async () => {
       const existingReports = R.pipe(
-        pairReports || [],
+        reports || [],
         R.map((report) => Number(report.date)),
       );
 
@@ -235,7 +235,7 @@ export const PairReportListPage = () => {
           continue;
         }
 
-        await http.post('/api/pairReport', null, {
+        await http.post('/api/mrReport', null, {
           params: {
             date,
           },
@@ -248,14 +248,14 @@ export const PairReportListPage = () => {
   });
 
   const downloadAllReports = () => {
-    const reports = (pairReports || []).map((item) => ({
+    const reportsToDownload = (reports || []).map((item) => ({
       id: item.id,
       date: dayjs(item.date).format('DD.MM.YYYY HH:mm'),
       pairs: item.data.length,
       backtest: item.backtest,
     }));
 
-    const jsonContent = JSON.stringify(reports, null, 2);
+    const jsonContent = JSON.stringify(reportsToDownload, null, 2);
     const blob = new Blob([jsonContent], { type: 'text/json;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -270,10 +270,10 @@ export const PairReportListPage = () => {
 
   return (
     <div className="flex flex-col">
-      <Title value="Pair Report" />
+      <Title value="Mean Reversion Reports" />
 
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Pair Report</h1>
+        <h1 className="text-2xl font-bold">Mean Reversion Report</h1>
 
         <div className="flex gap-4 justify-between">
           <div className="flex gap-2">
@@ -334,22 +334,22 @@ export const PairReportListPage = () => {
         </div>
       </div>
 
-      {pairReports && pairReports.length > 0 ? (
+      {reports && reports.length > 0 ? (
         <div className="flex flex-col gap-4 mb-4">
           <h2 className="text-lg font-semibold">Distribution Of Pairs By Date</h2>
-          <PairReportsHistogram pairReports={pairReports} />
+          <MRReportsHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Distribution Of Backtest By Date</h2>
-          <PairReportsBacktestHistogram pairReports={pairReports} />
+          <MRReportsBacktestHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest Results</h2>
           <div className="bg-base-200 rounded-lg p-4">
-            <BacktestResultStats results={pairReports.flatMap((report) => report.backtest || [])} />
+            <BacktestResultStats results={reports.flatMap((report) => report.backtest || [])} />
           </div>
         </div>
       ) : (
         <div className="text-center p-4">No reports found</div>
       )}
 
-      {pairReports && pairReports.length > 0 && (
+      {reports && reports.length > 0 && (
         <div className="rounded-lg">
           <h2 className="text-lg font-semibold mb-4">Pair Report List</h2>
 
@@ -364,12 +364,12 @@ export const PairReportListPage = () => {
 
             <div className="overflow-hidden">
               <List
-                height={Math.min(600, pairReports.length * 80)}
+                height={Math.min(600, reports.length * 80)}
                 width="100%"
-                itemCount={pairReports.length}
+                itemCount={reports.length}
                 itemSize={80}
                 itemData={{
-                  items: pairReports,
+                  items: reports,
                   updateReport,
                   deleteReport,
                   isUpdating,

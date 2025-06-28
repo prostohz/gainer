@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { TTimeframe } from '../../../../shared/types';
-import { TCompleteTrade } from '../../../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../../../../server/trading/strategies/MRStrategy/backtest';
 import { dayjs } from '../../../../shared/utils/daytime';
 import { Candle } from '../../../../server/models/Candle';
 import { http } from '../../../shared/utils/http';

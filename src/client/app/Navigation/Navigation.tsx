@@ -4,12 +4,12 @@ import logo from './logo.png';
 
 const links = [
   {
-    to: '/pairReport',
-    label: 'Pair Report',
+    to: '/mrReport',
+    label: 'Mean Reversion Reports',
   },
   {
-    to: '/pair',
-    label: 'Pair',
+    to: '/pairAnalysis',
+    label: 'Pair Analysis',
   },
   {
     to: '/assetPriceLevels',

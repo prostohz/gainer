@@ -1,4 +1,4 @@
-import { TCompleteTrade } from '../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../server/trading/strategies/MRStrategy/backtest';
 
 export type TTimeframe = '1m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d';
 
@@ -20,7 +20,7 @@ export type TCorrelation = {
   betaHedge: TCorrelationRecord<number | null>;
 };
 
-export type TPairReportEntry = {
+export type TMRReportEntry = {
   assetA: {
     baseAsset: string;
     quoteAsset: string;
@@ -41,10 +41,10 @@ export type TPairReportEntry = {
     std: number;
   };
 };
-export type TPairReport = {
+export type TMRReport = {
   id: string;
   date: number;
-  data: TPairReportEntry[];
+  data: TMRReportEntry[];
   backtest: TCompleteTrade[] | null;
 };
 

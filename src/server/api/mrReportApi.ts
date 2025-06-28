@@ -9,7 +9,7 @@ import {
   getReportBacktest,
   createReportBacktest,
   deleteReportBacktest,
-} from '../services/pairReportService';
+} from '../services/mrReportService';
 import { asyncHandler, sendResponse, validateParams } from '../utils/apiHandler';
 
 const router = express.Router();

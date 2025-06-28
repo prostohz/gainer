@@ -12,7 +12,7 @@ import {
 } from 'lightweight-charts';
 
 import { Candle } from '../../server/models/Candle';
-import { TCompleteTrade } from '../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 
 type SyncContextType = {
   charts: Set<IChartApi>;

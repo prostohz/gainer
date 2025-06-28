@@ -11,10 +11,10 @@ import {
 } from 'recharts';
 
 import { dayjs } from '../../../shared/utils/daytime';
-import { TPairReport } from '../../../shared/types';
+import { TMRReport } from '../../../shared/types';
 
-type TPairReportsBacktestHistogramProps = {
-  pairReports: TPairReport[];
+type TMRReportsBacktestHistogramProps = {
+  reports: TMRReport[];
 };
 
 type ChartDataItem = {
@@ -25,14 +25,12 @@ type ChartDataItem = {
   status: 'no-backtest' | 'no-trades' | 'profitable' | 'unprofitable';
 };
 
-export const PairReportsBacktestHistogram = ({
-  pairReports,
-}: TPairReportsBacktestHistogramProps) => {
-  if (!pairReports || pairReports.length === 0) {
+export const MRReportsBacktestHistogram = ({ reports }: TMRReportsBacktestHistogramProps) => {
+  if (!reports || reports.length === 0) {
     return null;
   }
 
-  const chartData: ChartDataItem[] = pairReports
+  const chartData: ChartDataItem[] = reports
     .sort((a, b) => a.date - b.date)
     .map((report) => {
       const backtest = report.backtest;

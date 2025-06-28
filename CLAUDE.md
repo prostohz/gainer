@@ -9,19 +9,23 @@ This is a cryptocurrency trading system focused on arbitrage and mean reversion 
 ## Development Commands
 
 ### Main Application
+
 - `npm run dashboard` - Start both server and client in development mode
 - `npm run dashboard:server` - Start only the Express server (port 3001)
 - `npm run dashboard:client` - Start only the Vite dev server (port 3000)
 
 ### Trading Strategies
+
 - `npm run meanReversion:debug` - Debug mean reversion strategy
 - `npm run meanReversion:backtest` - Run backtest for mean reversion strategy
 
 ### Database Operations
+
 - `npm run migrate:postgres` - Migrate from SQLite to PostgreSQL
 - `npm run cleanup:sqlite` - Clean up SQLite database
 
 ### Code Quality
+
 - `npm test` - Run Jest tests
 - `npm run lint` - Run ESLint
 - `npm run typecheck` - Run TypeScript type checking
@@ -29,6 +33,7 @@ This is a cryptocurrency trading system focused on arbitrage and mean reversion 
 ## Architecture
 
 ### Tech Stack
+
 - **Backend**: Node.js, Express.js, TypeScript, Sequelize ORM
 - **Frontend**: React, Vite, TailwindCSS, DaisyUI, React Query
 - **Database**: SQLite (default) or PostgreSQL (configurable)
@@ -41,7 +46,7 @@ This is a cryptocurrency trading system focused on arbitrage and mean reversion 
 src/
 ├── client/           # React frontend
 │   ├── app/         # Main App component and Navigation
-│   ├── pages/       # Route components (PairReport, Backtest, etc.)
+│   ├── pages/       # Route components (MrReport, Backtest, etc.)
 │   ├── widgets/     # Reusable UI components (Charts, Selectors)
 │   └── shared/      # Types, utilities, UI components
 ├── server/          # Express backend
@@ -59,27 +64,31 @@ src/
 ### Key Components
 
 #### Trading System
+
 - **MeanReversionStrategy**: Core trading strategy using Z-score analysis, beta hedging, and ADX trend detection
 - **Indicators**: ADX, ZScore, BetaHedge, HurstExponent, PearsonCorrelation
 - **Data Providers**: Binance HTTP/WebSocket clients with rate limiting
 - **Backtesting**: Historical strategy performance analysis
 
 #### Database Models
+
 - **Candle**: OHLCV market data with symbol/timeframe indexing
 - **Asset**: Trading pairs and market information
 - **Trade**: Executed trade records
 
 #### Frontend Pages
-- **PairReportListPage**: Overview of trading pair performance
-- **PairReportPage**: Detailed analysis of specific trading pairs
-- **PairReportBacktestPage**: Backtest results visualization
-- **PairPage**: Real-time pair analysis and metrics
+
+- **MrReportListPage**: Overview of trading pair performance
+- **MrReportPage**: Detailed analysis of specific trading pairs
+- **MrReportBacktestPage**: Backtest results visualization
+- **PairAnalysisPage**: Real-time pair analysis and metrics
 - **AssetPriceLevelsPage**: Price level analysis
 - **SystemPage**: System monitoring and controls
 
 ## Configuration
 
 ### Database Configuration
+
 The system supports both SQLite and PostgreSQL. Configuration is handled via environment variables:
 
 ```env
@@ -92,13 +101,16 @@ DB_PASSWORD=your_password
 ```
 
 ### Trading Configuration
+
 Trading parameters are defined in `src/server/configs/trading.ts`:
+
 - Commission rates for position opening and margin
 - Risk management parameters
 
 ## Development Guidelines
 
 ### Code Style
+
 - Use TypeScript strict mode with strong typing
 - Follow SOLID principles and design patterns
 - Avoid `any` types
@@ -106,6 +118,7 @@ Trading parameters are defined in `src/server/configs/trading.ts`:
 - Use MathJS for mathematical operations
 
 ### Trading Strategy Development
+
 - Implement strategies in `src/server/trading/strategies/`
 - Use event-driven architecture with EventEmitter
 - Implement proper state management (scanning, waiting, suspended)
@@ -113,12 +126,14 @@ Trading parameters are defined in `src/server/configs/trading.ts`:
 - Follow risk management principles
 
 ### Database Operations
+
 - Use Sequelize ORM for all database operations
 - Implement proper indexing for performance
 - Support both SQLite (development) and PostgreSQL (production)
 - Use migrations for schema changes
 
 ### Testing
+
 - Use Jest for unit tests
 - Test trading indicators and strategies thoroughly
 - Mock external API calls in tests
@@ -127,6 +142,7 @@ Trading parameters are defined in `src/server/configs/trading.ts`:
 ## Python Integration
 
 The system includes Python workers for certain calculations:
+
 - Half-life calculations (`HalfLife.py`)
 - Pearson correlation analysis (`PearsonCorrelation.py`)
 - Use `PythonWorker.ts` for TypeScript-Python integration

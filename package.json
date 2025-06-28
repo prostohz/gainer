@@ -7,8 +7,8 @@
     "dashboard:server": "ts-node-dev --respawn src/server/index.ts",
     "dashboard:client": "vite",
     "dashboard": "concurrently \"npm run dashboard:server\" \"npm run dashboard:client\"",
-    "meanReversion:debug": "ts-node src/server/trading/strategies/MeanReversionStrategy/debug.ts",
-    "meanReversion:backtest": "ts-node src/server/trading/strategies/MeanReversionStrategy/backtest.ts",
+    "meanReversion:debug": "ts-node src/server/trading/strategies/MRStrategy/debug.ts",
+    "meanReversion:backtest": "ts-node src/server/trading/strategies/MRStrategy/backtest.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"

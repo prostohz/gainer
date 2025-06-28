@@ -3,20 +3,20 @@ import { FixedSizeList } from 'react-window';
 import { Link } from 'react-router-dom';
 
 import { dayjs } from '../../../shared/utils/daytime';
-import { TPairReportEntry } from '../../../shared/types';
+import { TMRReportEntry } from '../../../shared/types';
 import { useAvailableHeight } from '../../shared/utils/dom';
 
 type TProps = {
   report: {
     id: string;
     date: number;
-    data: TPairReportEntry[];
+    data: TMRReportEntry[];
   };
 };
 
-type TSortField = keyof TPairReportEntry | 'pair';
+type TSortField = keyof TMRReportEntry | 'pair';
 
-export const PairReport = ({ report }: TProps) => {
+export const MRReport = ({ report }: TProps) => {
   const { id, date, data } = report;
 
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
@@ -64,8 +64,8 @@ export const PairReport = ({ report }: TProps) => {
 
   const sortedData = useMemo(() => {
     const compare = (a: (typeof filteredData)[0], b: (typeof filteredData)[0]) => {
-      let valA: TPairReportEntry[keyof TPairReportEntry] | string | null = null;
-      let valB: TPairReportEntry[keyof TPairReportEntry] | string | null = null;
+      let valA: TMRReportEntry[keyof TMRReportEntry] | string | null = null;
+      let valB: TMRReportEntry[keyof TMRReportEntry] | string | null = null;
 
       if (sortField === 'pair') {
         valA = `${a.assetA.baseAsset}${a.assetA.quoteAsset}-${a.assetB.baseAsset}${a.assetB.quoteAsset}`;
@@ -143,7 +143,7 @@ export const PairReport = ({ report }: TProps) => {
         className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 items-center px-4 hover:bg-base-300/70 text-sm"
       >
         <Link
-          to={`/pair?tickerA=${symbolA}&tickerB=${symbolB}&date=${date}`}
+          to={`/pairAnalysis?tickerA=${symbolA}&tickerB=${symbolB}&date=${date}`}
           className="hover:underline truncate"
         >
           {symbolA} - {symbolB}

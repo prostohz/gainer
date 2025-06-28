@@ -2,8 +2,8 @@ import { Op } from 'sequelize';
 import { mean, std, median } from 'mathjs';
 
 import { dayjs } from '../../shared/utils/daytime';
-import { TTimeframe, TPairReportEntry } from '../../shared/types';
-import { pairReportLogger as logger } from '../utils/logger';
+import { TTimeframe, TMRReportEntry } from '../../shared/types';
+import { mrReportLogger as logger } from '../utils/logger';
 import { PerformanceTracker } from '../utils/performance/PerformanceTracker';
 import { timeframeToMilliseconds } from '../utils/timeframe';
 import { Asset } from '../models/Asset';
@@ -46,7 +46,7 @@ const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
 
 const performanceTracker = new PerformanceTracker(false);
 
-export const buildPairReport = async (date: number) => {
+export const buildMrReport = async (date: number) => {
   logger.info(`Creating report for: ${dayjs(date).format('DD.MM HH:mm:ss')}`);
 
   const assetsWithVolume = await filterAssetsByDailyCandleVolume(date);
@@ -54,7 +54,7 @@ export const buildPairReport = async (date: number) => {
   logger.info(`Assets with volume: ${assetsWithVolume.length}`);
   logger.info(`Pairs to process: ${(assetsWithVolume.length * (assetsWithVolume.length - 1)) / 2}`);
 
-  const tradablePairs: TPairReportEntry[] = [];
+  const tradablePairs: TMRReportEntry[] = [];
 
   const oneMinuteCandlesCache = await getOneMinuteCandlesCache(assetsWithVolume, date);
   const fiveMinuteCandlesCache = await getFiveMinuteCandlesCache(assetsWithVolume, date);
@@ -255,7 +255,7 @@ const processPair = (
   oneMinuteCandlesB: TIndicatorShortCandle[],
   fiveMinuteCandlesA: TIndicatorShortCandle[],
   fiveMinuteCandlesB: TIndicatorShortCandle[],
-): TPairReportEntry | null => {
+): TMRReportEntry | null => {
   const correlation = checkCorrelation(oneMinuteCandlesA, oneMinuteCandlesB);
   if (!correlation) {
     return null;

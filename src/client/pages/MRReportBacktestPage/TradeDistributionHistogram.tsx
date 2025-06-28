@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-import { TCompleteTrade } from '../../../server/trading/strategies/MeanReversionStrategy/backtest';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 
 type TTradeDistributionChartsProps = {
   trades: TCompleteTrade[];

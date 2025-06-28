@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { TCompleteTrade } from '../../../server/trading/strategies/MeanReversionStrategy/backtest';
-import { TPairReportEntry } from '../../../shared/types';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
+import { TMRReportEntry } from '../../../shared/types';
 import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
@@ -12,7 +12,7 @@ import { BacktestResults } from '../../widgets/BacktestResults';
 import { Loader } from '../../shared/ui/Loader';
 import { TradeDistributionHistogram } from './TradeDistributionHistogram';
 
-export const PairReportBacktestPage = () => {
+export const MRReportBacktestPage = () => {
   const { id } = useParams();
 
   const [startDate, setStartDate] = useState<number | null>(null);
@@ -21,10 +21,10 @@ export const PairReportBacktestPage = () => {
   const { data: report, isLoading } = useQuery<{
     id: string;
     date: number;
-    data: TPairReportEntry[];
+    data: TMRReportEntry[];
   }>({
     queryKey: ['report', id],
-    queryFn: () => http.get(`/api/pairReport/${id}`).then((response) => response.data),
+    queryFn: () => http.get(`/api/mrReport/${id}`).then((response) => response.data),
   });
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export const PairReportBacktestPage = () => {
 
   const { data: backtest, refetch: refetchBacktest } = useQuery<TCompleteTrade[]>({
     queryKey: ['backtest', id],
-    queryFn: () => http.get(`/api/pairReport/${id}/backtest`).then((response) => response.data),
+    queryFn: () => http.get(`/api/mrReport/${id}/backtest`).then((response) => response.data),
   });
 
   const {
@@ -45,7 +45,7 @@ export const PairReportBacktestPage = () => {
     error: backtestError,
   } = useMutation({
     mutationFn: () => {
-      return http.post(`/api/pairReport/${id}/backtest`, {
+      return http.post(`/api/mrReport/${id}/backtest`, {
         startTimestamp: startDate,
         endTimestamp: endDate,
       });
@@ -92,15 +92,15 @@ export const PairReportBacktestPage = () => {
 
   return (
     <div className="flex flex-col">
-      <Title value={`Pair Report Backtest (${id})`} />
+      <Title value={`Mean Reversion Report Backtest (${id})`} />
 
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">
-          <Link to="/pairReport" className="link link-hover link-primary">
-            Pair Report
+          <Link to="/mrReport" className="link link-hover link-primary">
+            Mean Reversion Reports
           </Link>{' '}
           /{' '}
-          <Link to={`/pairReport/${id}`} className="link link-hover link-primary">
+          <Link to={`/mrReport/${id}`} className="link link-hover link-primary">
             {report ? dayjs(report.date).format('DD.MM.YYYY HH:mm') : ''}
           </Link>{' '}
           / Backtest

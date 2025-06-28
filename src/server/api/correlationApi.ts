@@ -6,7 +6,7 @@ import { asyncHandler, sendResponse, validateParams } from '../utils/apiHandler'
 const router = express.Router();
 
 router.get(
-  '/pair',
+  '/pairAnalysis',
   validateParams(['symbolA', 'symbolB', 'date']),
   asyncHandler(async (req: Request, res: Response) => {
     const symbolA = req.query.symbolA as string;

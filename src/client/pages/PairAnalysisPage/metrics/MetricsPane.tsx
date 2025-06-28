@@ -43,7 +43,7 @@ export const MetricsPane = ({ symbolA, symbolB, date }: TProps) => {
       queryKey: ['pairCorrelation', symbolA, symbolB, date],
       queryFn: () =>
         http
-          .get(`/api/correlation/pair?symbolA=${symbolA}&symbolB=${symbolB}&date=${date}`)
+          .get(`/api/correlation/pairAnalysis?symbolA=${symbolA}&symbolB=${symbolB}&date=${date}`)
           .then((res) => res.data),
       enabled: Boolean(symbolA) && Boolean(symbolB) && Boolean(date),
     });

@@ -1,4 +1,4 @@
-import { run } from '../trading/strategies/MeanReversionStrategy/backtest';
+import { run } from '../trading/strategies/MRStrategy/backtest';
 
 export const backtest = (
   pairs: {

@@ -43,13 +43,13 @@ logger.add(
   }),
 );
 
-const pairReportLogger = winston.createLogger({
+const mrReportLogger = winston.createLogger({
   format: logFormat,
   level: 'verbose',
   transports: [
     new winston.transports.File({
       level: 'info',
-      filename: path.join(logDir, 'pairReportBuilder.log'),
+      filename: path.join(logDir, 'mrReportBuilder.log'),
     }),
     new winston.transports.Console({
       format: winston.format.combine(
@@ -77,4 +77,4 @@ const backtestLogger = winston.createLogger({
   ],
 });
 
-export { logger, pairReportLogger, backtestLogger };
+export { logger, mrReportLogger, backtestLogger };
