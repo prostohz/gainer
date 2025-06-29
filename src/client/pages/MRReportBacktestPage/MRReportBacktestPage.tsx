@@ -8,7 +8,7 @@ import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { DateTimePicker } from '../../shared/ui/Calendar';
-import { BacktestResults } from '../../widgets/BacktestResults';
+import { BacktestTrades } from '../../widgets/BacktestTrades';
 import { Loader } from '../../shared/ui/Loader';
 import { TradeDistributionHistogram } from './TradeDistributionHistogram';
 
@@ -73,7 +73,7 @@ export const MRReportBacktestPage = () => {
     return (
       <div className="space-y-4">
         <TradeDistributionHistogram trades={backtest} />
-        <BacktestResults results={backtest} />
+        <BacktestTrades results={backtest} />
       </div>
     );
   };

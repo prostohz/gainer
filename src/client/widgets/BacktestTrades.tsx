@@ -3,9 +3,9 @@ import cn from 'classnames';
 import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 import { dayjs } from '../../shared/utils/daytime';
 import { useAssets } from '../entities/assets';
-import { BacktestResultStats } from './BacktestResultStats';
+import { BacktestStats } from './BacktestStats';
 
-export const BacktestResults = ({ results }: { results: TCompleteTrade[] }) => {
+export const BacktestTrades = ({ results }: { results: TCompleteTrade[] }) => {
   const { assetMap, isLoading } = useAssets();
 
   if (isLoading) {
@@ -103,7 +103,7 @@ export const BacktestResults = ({ results }: { results: TCompleteTrade[] }) => {
     <div className="w-full">
       <div className="bg-base-200 rounded-lg p-4 mb-4">
         <h3 className="text-lg font-semibold mb-3">Backtest results</h3>
-        <BacktestResultStats results={results} />
+        <BacktestStats results={results} />
       </div>
 
       {renderContent()}

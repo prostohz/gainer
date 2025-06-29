@@ -11,7 +11,7 @@ import { TMRReport } from '../../../shared/types';
 import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
-import { BacktestResultStats } from '../../widgets/BacktestResultStats';
+import { BacktestStats } from '../../widgets/BacktestStats';
 import { MRReportsHistogram } from './MRReportsHistogram';
 import { MRReportsBacktestHistogram } from './MRReportsBacktestHistogram';
 
@@ -273,7 +273,7 @@ export const MRReportListPage = () => {
       <Title value="Mean Reversion Reports" />
 
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Mean Reversion Report</h1>
+        <h1 className="text-2xl font-bold">Mean Reversion Reports</h1>
 
         <div className="flex gap-4 justify-between">
           <div className="flex gap-2">
@@ -342,24 +342,16 @@ export const MRReportListPage = () => {
           <MRReportsBacktestHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest Results</h2>
           <div className="bg-base-200 rounded-lg p-4">
-            <BacktestResultStats results={reports.flatMap((report) => report.backtest || [])} />
+            <BacktestStats results={reports.flatMap((report) => report.backtest || [])} />
           </div>
-        </div>
-      ) : (
-        <div className="text-center p-4">No reports found</div>
-      )}
-
-      {reports && reports.length > 0 && (
-        <div className="rounded-lg">
-          <h2 className="text-lg font-semibold mb-4">Pair Report List</h2>
-
+          <h2 className="text-lg font-semibold">Pair Report List</h2>
           <div className="bg-base-200 rounded-lg">
-            <div className="flex items-center px-4 py-2 font-medium text-sm border-b border-base-100">
+            <div className="flex items-center px-4 py-3 font-medium text-sm border-b border-base-100">
               <div className="w-40 flex-shrink-0">ID</div>
               <div className="w-40 flex-shrink-0">Date</div>
               <div className="w-20 flex-shrink-0">Pairs</div>
-              <div className="flex-1 min-w-0">Backtest</div>
-              <div className="flex-shrink-0 ml-4 text-right">Actions</div>
+              <div className="flex-1">Backtest</div>
+              <div className="flex-shrink-0">Actions</div>
             </div>
 
             <div className="overflow-hidden">
@@ -381,6 +373,8 @@ export const MRReportListPage = () => {
             </div>
           </div>
         </div>
+      ) : (
+        <div className="text-center p-4">No reports found</div>
       )}
     </div>
   );

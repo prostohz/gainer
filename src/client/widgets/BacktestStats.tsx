@@ -3,10 +3,7 @@ import * as math from 'mathjs';
 
 import { dayjs } from '../../shared/utils/daytime';
 import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
-
-type TBacktestResultStatsProps = {
-  results: TCompleteTrade[];
-};
+import { BacktestPairs } from './BacktestPairs';
 
 type TStatValue = string | number;
 
@@ -21,7 +18,6 @@ type TStatItem = {
 
 type TStatSection = {
   title: string;
-  icon: string;
   items: TStatItem[];
   columns: number;
 };
@@ -249,7 +245,6 @@ const createStatSections = (
   return [
     {
       title: 'Main Metrics',
-      icon: '📊',
       columns: 5,
       items: [
         {
@@ -337,7 +332,6 @@ const createStatSections = (
     },
     {
       title: 'Risk Analysis',
-      icon: '⚠️',
       columns: 4,
       items: [
         {
@@ -378,7 +372,6 @@ const createStatSections = (
     },
     {
       title: 'Time Analysis',
-      icon: '⏱️',
       columns: 6,
       items: [
         {
@@ -433,7 +426,7 @@ const StatCard = ({ item }: { item: TStatItem }) => {
 
     switch (format) {
       case 'percentage':
-        return `${value.toFixed(2)}%`;
+        return `${value.toFixed(4)}%`;
       case 'hours':
         return `${value.toFixed(1)}h`;
       case 'minutes':
@@ -443,7 +436,7 @@ const StatCard = ({ item }: { item: TStatItem }) => {
       case 'trades_per_day':
         return `${value.toFixed(2)}`;
       default:
-        return value.toFixed(2);
+        return value.toFixed(4);
     }
   };
 
@@ -497,17 +490,14 @@ const StatGrid = ({ items, columns }: { items: TStatItem[]; columns: number }) =
 
 const StatSection = ({ section }: { section: TStatSection }) => (
   <div>
-    <h3 className="text-sm font-semibold mb-2 text-base-content/80">
-      {section.icon} {section.title}
-    </h3>
+    <h3 className="text-sm font-semibold mb-2 text-base-content/80">{section.title}</h3>
     <StatGrid items={section.items} columns={section.columns} />
   </div>
 );
 
-// Компонент для детальной статистики по причинам закрытия
 const CloseReasonSection = ({ stats }: { stats: TCloseReasonStats[] }) => (
   <div>
-    <h3 className="text-sm font-semibold mb-2 text-base-content/80">🎯 Position Close Reasons</h3>
+    <h3 className="text-sm font-semibold mb-2 text-base-content/80">Position Close Reasons</h3>
     <div className="bg-base-300 rounded-md border border-base-300 overflow-hidden">
       <table className="w-full text-sm">
         <thead className="border-b border-base-100">
@@ -550,7 +540,7 @@ const CloseReasonSection = ({ stats }: { stats: TCloseReasonStats[] }) => (
   </div>
 );
 
-export const BacktestResultStats = ({ results }: TBacktestResultStatsProps) => {
+export const BacktestStats = ({ results }: { results: TCompleteTrade[] }) => {
   const basicMetrics = calculateBasicMetrics(results);
   const detailedMetrics = calculateDetailedMetrics(results);
   const riskMetrics = calculateRiskMetrics(
@@ -570,6 +560,14 @@ export const BacktestResultStats = ({ results }: TBacktestResultStatsProps) => {
       ))}
 
       {closeReasonStats.length > 0 && <CloseReasonSection stats={closeReasonStats} />}
+
+      <div className="rounded-md">
+        <h3 className="text-sm font-semibold mb-2 text-base-content/80">Pair Stats</h3>
+
+        <div className="bg-base-300 rounded-md">
+          <BacktestPairs results={results} />
+        </div>
+      </div>
     </div>
   );
 };

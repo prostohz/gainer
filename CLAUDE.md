@@ -54,7 +54,7 @@ src/
 │   ├── models/      # Sequelize models (Asset, Candle, Trade)
 │   ├── services/    # Business logic services
 │   ├── trading/     # Trading engine
-│   │   ├── strategies/  # Trading strategies (MeanReversionStrategy)
+│   │   ├── strategies/  # Trading strategies (MRStrategy)
 │   │   ├── indicators/  # Technical indicators (ADX, ZScore, etc.)
 │   │   └── providers/   # Data providers (Binance API)
 │   └── utils/       # Helper utilities
@@ -65,7 +65,7 @@ src/
 
 #### Trading System
 
-- **MeanReversionStrategy**: Core trading strategy using Z-score analysis, beta hedging, and ADX trend detection
+- **MRStrategy**: Core trading strategy using Z-score analysis, beta hedging, and ADX trend detection
 - **Indicators**: ADX, ZScore, BetaHedge, HurstExponent, PearsonCorrelation
 - **Data Providers**: Binance HTTP/WebSocket clients with rate limiting
 - **Backtesting**: Historical strategy performance analysis

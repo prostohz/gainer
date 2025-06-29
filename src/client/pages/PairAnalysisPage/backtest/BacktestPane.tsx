@@ -10,7 +10,7 @@ import { useLSState } from '../../../shared/utils/localStorage';
 import { DateTimePicker } from '../../../shared/ui/Calendar';
 import { TimeframeSelector } from '../../../widgets/TimeframeSelector';
 import { SyncedTradeChart, SyncedChartsContainer } from '../../../widgets/SyncedTradeCharts';
-import { BacktestResults } from '../../../widgets/BacktestResults';
+import { BacktestTrades } from '../../../widgets/BacktestTrades';
 import { useAssets } from '../../../entities/assets';
 
 type BacktestPaneProps = {
@@ -160,7 +160,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       {backtestResults && (
         <div>
           <div className="mb-4 w-full min-w-0">
-            <BacktestResults results={backtestResults} />
+            <BacktestTrades results={backtestResults} />
           </div>
 
           <div className="flex justify-end mb-4">
