@@ -1,5 +1,5 @@
-import BinanceHTTPClient from '../../providers/Binance/BinanceHTTPClient';
-import BinanceStreamClient from '../../providers/Binance/BinanceStreamClient';
+import { BinanceHTTPClient } from '../../providers/Binance/spot/BinanceHTTPClient';
+import { BinanceStreamClient } from '../../providers/Binance/spot/BinanceStreamClient';
 import { MeanReversionStrategy, TSignal } from './strategy';
 
 const strategy = new MeanReversionStrategy({

@@ -440,8 +440,8 @@ class BinanceStreamClient extends EventEmitter implements BinanceEventEmitter {
   }
 }
 
-export default BinanceStreamClient;
 export {
+  BinanceStreamClient,
   BinanceStreamType,
   TStreamSubscription,
   TBinanceTrade,

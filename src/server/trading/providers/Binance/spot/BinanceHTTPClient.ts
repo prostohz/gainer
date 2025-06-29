@@ -1,4 +1,4 @@
-import { TTimeframe } from '../../../../shared/types';
+import { TTimeframe } from '../../../../../shared/types';
 import { BinanceHTTPRateLimitManager } from './BinanceHTTPRateLimitManager';
 
 type TAssetFilter =
@@ -411,5 +411,4 @@ class BinanceHTTPClient {
   }
 }
 
-export default BinanceHTTPClient;
-export { TAsset, TAsset24HrStats, TCandle, TTrade };
+export { BinanceHTTPClient, TAsset, TAsset24HrStats, TCandle, TTrade };

@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 
 import { TTimeframe } from '../../shared/types';
-import BinanceHTTPClient from '../trading/providers/Binance/BinanceHTTPClient';
+import { BinanceHTTPClient } from '../trading/providers/Binance/spot/BinanceHTTPClient';
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
 

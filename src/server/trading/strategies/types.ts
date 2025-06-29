@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
 
 import { TTimeframe } from '../../../shared/types';
-import { TCandle } from '../providers/Binance/BinanceHTTPClient';
-import { TBinanceTrade, TStreamSubscription } from '../providers/Binance/BinanceStreamClient';
+import { TCandle } from '../providers/Binance/spot/BinanceHTTPClient';
+import { TBinanceTrade, TStreamSubscription } from '../providers/Binance/spot/BinanceStreamClient';
 
 export interface TDataProvider {
   fetchAssetCandles: ({

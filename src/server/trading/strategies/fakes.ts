@@ -3,8 +3,8 @@ import { Op } from 'sequelize';
 
 import { timeframeToMilliseconds } from '../../utils/timeframe';
 import { TTimeframe } from '../../../shared/types';
-import { TCandle } from '../providers/Binance/BinanceHTTPClient';
-import { TBinanceTrade, TStreamSubscription } from '../providers/Binance/BinanceStreamClient';
+import { TCandle } from '../providers/Binance/spot/BinanceHTTPClient';
+import { TBinanceTrade, TStreamSubscription } from '../providers/Binance/spot/BinanceStreamClient';
 import { Candle } from '../../models/Candle';
 import { TDataProvider, TStreamDataProvider, TTimeEnvironment } from './types';
 

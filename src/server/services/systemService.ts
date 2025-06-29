@@ -3,9 +3,10 @@ import * as R from 'remeda';
 import { TTimeframe } from '../../shared/types';
 import { dayjs } from '../../shared/utils/daytime';
 import { timeframeToMilliseconds } from '../utils/timeframe';
-import BinanceHTTPClient, {
+import {
+  BinanceHTTPClient,
   TAsset as TBinanceAsset,
-} from '../trading/providers/Binance/BinanceHTTPClient';
+} from '../trading/providers/Binance/spot/BinanceHTTPClient';
 import { Asset } from '../models/Asset';
 import { Candle } from '../models/Candle';
 import { Trade } from '../models/Trade';

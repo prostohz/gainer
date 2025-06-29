@@ -2,8 +2,8 @@ import EventEmitter from 'events';
 
 import { TTimeframe } from '../../../../shared/types';
 import { timeframeToMilliseconds } from '../../../utils/timeframe';
-import { TCandle } from '../../providers/Binance/BinanceHTTPClient';
-import { TBinanceTrade } from '../../providers/Binance/BinanceStreamClient';
+import { TCandle } from '../../providers/Binance/spot/BinanceHTTPClient';
+import { TBinanceTrade } from '../../providers/Binance/spot/BinanceStreamClient';
 import { TIndicatorCandle } from '../../indicators/types';
 import { ZScore } from '../../indicators/ZScore/ZScore';
 import { BetaHedge } from '../../indicators/BetaHedge/BetaHedge';
