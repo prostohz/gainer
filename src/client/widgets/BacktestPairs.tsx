@@ -40,7 +40,6 @@ type TPairStats = {
 type TColumnConfig = {
   field: TSortField;
   label: string;
-  width: string;
   render: (stats: TPairStats) => React.ReactNode;
 };
 
@@ -48,7 +47,6 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'pair',
     label: 'Trading Pair',
-    width: '2fr',
     render: (stats) => (
       <span className="text-sm text-base-content">
         {stats.symbolA}/{stats.symbolB}
@@ -57,8 +55,7 @@ const COLUMNS: TColumnConfig[] = [
   },
   {
     field: 'avgRoi',
-    label: 'Average ROI',
-    width: '1fr',
+    label: 'Avg ROI',
     render: (stats) => (
       <span className={`font-medium ${stats.avgRoi >= 0 ? 'text-success' : 'text-error'}`}>
         {stats.avgRoi.toFixed(4)}%
@@ -68,7 +65,6 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'effectiveness',
     label: 'Effectiveness',
-    width: '1fr',
     render: (stats) => (
       <span className={`font-medium ${stats.effectiveness >= 0 ? 'text-success' : 'text-error'}`}>
         {stats.effectiveness.toFixed(3)}
@@ -78,7 +74,6 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'winRate',
     label: 'Win Rate',
-    width: '1fr',
     render: (stats) => (
       <span className={`font-medium ${stats.winRate >= 50 ? 'text-success' : 'text-error'}`}>
         {stats.winRate.toFixed(1)}%
@@ -87,26 +82,22 @@ const COLUMNS: TColumnConfig[] = [
   },
   {
     field: 'totalTrades',
-    label: 'Total Trades',
-    width: '1fr',
+    label: 'Trades',
     render: (stats) => <span className="text-base-content">{stats.totalTrades}</span>,
   },
   {
     field: 'profitableTrades',
     label: 'Profitable',
-    width: '1fr',
     render: (stats) => <span className="text-base-content">{stats.profitableTrades}</span>,
   },
   {
     field: 'unprofitableTrades',
     label: 'Unprofitable',
-    width: '1fr',
     render: (stats) => <span className="text-base-content">{stats.unprofitableTrades}</span>,
   },
   {
     field: 'maxProfit',
     label: 'Max Profit',
-    width: '1fr',
     render: (stats) => (
       <span className={`font-medium ${stats.maxProfit > 0 ? 'text-success' : 'text-neutral'}`}>
         {stats.maxProfit > 0 ? `${stats.maxProfit.toFixed(4)}%` : '–'}
@@ -116,7 +107,6 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'maxLoss',
     label: 'Max Loss',
-    width: '1fr',
     render: (stats) => (
       <span className={`font-medium ${stats.maxLoss < 0 ? 'text-error' : 'text-neutral'}`}>
         {stats.maxLoss < 0 ? `${stats.maxLoss.toFixed(4)}%` : '–'}
@@ -205,18 +195,12 @@ const TableHeader = ({
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
-  const gridCols = `grid-cols-[${COLUMNS.map((col) => col.width).join('_')}]`;
-  const headerButtonClass =
-    'text-left hover:bg-base-300/50 p-1 rounded cursor-pointer transition-colors';
-
   return (
-    <div
-      className={`grid ${gridCols} gap-3 p-3 border-b border-base-300 text-sm font-medium tracking-wider`}
-    >
+    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 p-3 border-b border-base-300 text-sm font-medium tracking-wider">
       {COLUMNS.map((column) => (
         <button
           key={column.field}
-          className={headerButtonClass}
+          className="text-left hover:bg-base-300/50 rounded cursor-pointer transition-colors text-base-content/80"
           onClick={() => onSort(column.field)}
         >
           {column.label} {getSortIcon(column.field)}
@@ -236,12 +220,11 @@ const TableRow = ({
   data: TPairStats[];
 }) => {
   const stats = data[index];
-  const gridCols = `grid-cols-[${COLUMNS.map((col) => col.width).join('_')}]`;
 
   return (
     <div
       style={style}
-      className={`grid ${gridCols} gap-3 p-3 text-sm hover:bg-base-200 border-b border-base-300/50`}
+      className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 p-3 text-sm hover:bg-base-200 border-b border-base-300/50"
     >
       {COLUMNS.map((column) => (
         <div key={column.field} className="text-left">
