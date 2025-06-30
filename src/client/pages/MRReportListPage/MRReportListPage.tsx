@@ -185,9 +185,13 @@ export const MRReportListPage = () => {
           endTimestamp: dayjs(report.date).add(1, 'hour').valueOf(),
         });
 
-        if (++count % 20 === 0) {
+        if (++count % 5 === 0) {
           await refetch();
         }
+
+        // if (count > 72) {
+        //   return;
+        // }
       }
     },
     onSuccess: () => {

@@ -101,7 +101,7 @@ export const MRReportBacktestPage = () => {
           </Link>{' '}
           /{' '}
           <Link to={`/mrReport/${id}`} className="link link-hover link-primary">
-            {report ? dayjs(report.date).format('DD.MM.YYYY HH:mm') : ''}
+            {report ? dayjs(report.date).format('DD.MM.YYYY HH:mm') : id}
           </Link>{' '}
           / Backtest
         </h1>

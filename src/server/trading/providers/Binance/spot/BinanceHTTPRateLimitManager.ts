@@ -13,7 +13,7 @@ export type TRateLimit = {
  */
 export class BinanceHTTPRateLimitManager {
   private rateLimits: Map<string, TRateLimit> = new Map();
-  private readonly safetyMargin = 0.9; // Используем только 90% от лимита
+  private readonly safetyMargin = 0.95; // Используем только 95% от лимита
 
   /**
    * Обновление информации о лимитах из заголовков ответа

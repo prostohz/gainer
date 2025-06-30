@@ -311,7 +311,6 @@ const ViewModeSelector = ({
 }) => {
   return (
     <div className="flex items-center justify-end space-x-4 p-4">
-      <span className="text-sm font-medium text-base-content">Display</span>
       <div className="flex bg-base-200 rounded-lg p-1">
         <button
           onClick={() => onViewModeChange('pairs')}
