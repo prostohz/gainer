@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import { std, mean, abs } from 'mathjs';
 
 import { TTimeframe } from '../../../../shared/types';
 import { timeframeToMilliseconds } from '../../../utils/timeframe';
@@ -81,12 +82,17 @@ export class MeanReversionStrategy extends EventEmitter {
   private readonly CANDLES_COUNT_FOR_BETA = 60;
   private readonly CANDLES_COUNT_FOR_Z_SCORE = 60;
   private readonly CANDLES_COUNT_FOR_ADX = 720;
+  private readonly CANDLES_COUNT_FOR_SPREAD_VOLATILITY = 240; // 4 часа для волатильности спреда
 
   private readonly Z_SCORE_ENTRY = 3.0;
   private readonly Z_SCORE_EXIT = 0.0;
   private readonly Z_SCORE_STOP_LOSS = 5.0;
 
-  private readonly STOP_LOSS_RATE_PERCENT = 1.0;
+  // Динамический стоп-лосс параметры
+  private readonly STOP_LOSS_VOLATILITY_MULTIPLIER = 3.0; // Коэффициент: SL = multiplier * σ
+  private readonly MIN_STOP_LOSS_RATE_PERCENT = 1.0; // Минимальный стоп-лосс
+  private readonly MAX_STOP_LOSS_RATE_PERCENT = 5.0; // Максимальный стоп-лосс
+  private readonly MIN_SAMPLES_FOR_VOLATILITY = 30; // Минимум свечей для расчёта волатильности
 
   private state: TState = 'suspended';
 
@@ -430,7 +436,16 @@ export class MeanReversionStrategy extends EventEmitter {
       this.assetPrices,
     );
 
-    if (roi <= -this.STOP_LOSS_RATE_PERCENT) {
+    const beta = this.calculateBeta();
+    if (!beta) {
+      console.warn('Beta is null, using minimum stop-loss');
+      return;
+    }
+
+    // Рассчитываем динамический стоп-лосс с использованием mathjs
+    const dynamicStopLoss = this.calculateDynamicStopLoss(beta);
+
+    if (roi <= -dynamicStopLoss) {
       this.emit('signal', {
         type: 'stopLoss',
         direction: direction,
@@ -442,17 +457,10 @@ export class MeanReversionStrategy extends EventEmitter {
           action: direction === 'sell-buy' ? 'sell' : 'buy',
           price: priceB,
         },
-        reason: `Stop-loss triggered by price loss: ${roi.toFixed(2)}%`,
+        reason: `Stop-loss triggered by price loss: ROI ${roi.toFixed(2)}% ≤ -${dynamicStopLoss.toFixed(2)}%`,
       } as TStopLossSignal);
 
       this.state = 'waitingForExit';
-
-      return;
-    }
-
-    const beta = this.calculateBeta();
-    if (!beta) {
-      console.warn('Beta is null, stop-loss is not triggered');
       return;
     }
 
@@ -482,7 +490,6 @@ export class MeanReversionStrategy extends EventEmitter {
       } as TStopLossSignal);
 
       this.state = 'waitingForExit';
-
       return;
     }
 
@@ -506,7 +513,6 @@ export class MeanReversionStrategy extends EventEmitter {
       } as TCloseSignal);
 
       this.state = 'waitingForExit';
-
       return;
     }
   }
@@ -515,5 +521,198 @@ export class MeanReversionStrategy extends EventEmitter {
     if (!this.position) {
       this.state = 'scanningForEntry';
     }
+  }
+
+  /**
+   * Рассчитывает историческую волатильность спреда между двумя активами
+   * @param beta Коэффициент бета для хеджирования
+   * @returns Волатильность спреда в процентах
+   */
+  private calculateSpreadVolatility(beta: number): number | null {
+    const candlesCount = Math.min(
+      this.candlesA.length,
+      this.candlesB.length,
+      this.CANDLES_COUNT_FOR_SPREAD_VOLATILITY,
+    );
+
+    if (candlesCount < this.MIN_SAMPLES_FOR_VOLATILITY) {
+      console.warn(
+        `Insufficient data for volatility calculation: ${candlesCount} < ${this.MIN_SAMPLES_FOR_VOLATILITY}`,
+      );
+      return null;
+    }
+
+    const startIndex = Math.max(0, this.candlesA.length - candlesCount);
+    const spreads: number[] = [];
+
+    // Рассчитываем спреды для каждой свечи
+    for (let i = startIndex; i < this.candlesA.length; i++) {
+      const priceA = this.candlesA[i].close;
+      const priceB = this.candlesB[i].close;
+
+      // Спред = priceA - beta * priceB
+      const spread = priceA - beta * priceB;
+      spreads.push(spread);
+    }
+
+    if (spreads.length < 2) {
+      return null;
+    }
+
+    // Рассчитываем процентные изменения спреда
+    const spreadReturns: number[] = [];
+    for (let i = 1; i < spreads.length; i++) {
+      const prevSpread = spreads[i - 1];
+      const currentSpread = spreads[i];
+
+      if (abs(prevSpread) > 1e-10) {
+        // Избегаем деления на очень маленькие числа
+        const spreadReturn = ((currentSpread - prevSpread) / abs(prevSpread)) * 100;
+        spreadReturns.push(spreadReturn);
+      }
+    }
+
+    if (spreadReturns.length < 10) {
+      console.warn(`Insufficient spread returns for volatility: ${spreadReturns.length} < 10`);
+      return null;
+    }
+
+    // Используем mathjs для расчёта стандартного отклонения
+    const volatility = Number(std(spreadReturns));
+
+    // Проверяем на валидность результата
+    if (!isFinite(volatility) || volatility <= 0) {
+      console.warn('Invalid volatility calculated:', volatility);
+      return null;
+    }
+
+    return volatility;
+  }
+
+  /**
+   * Рассчитывает дополнительные статистики спреда для анализа
+   * @param beta Коэффициент бета
+   * @returns Объект со статистиками спреда
+   */
+  private calculateSpreadStatistics(beta: number): {
+    volatility: number | null;
+    meanReturn: number | null;
+    maxDrawdown: number | null;
+    sharpeRatio: number | null;
+  } {
+    const candlesCount = Math.min(
+      this.candlesA.length,
+      this.candlesB.length,
+      this.CANDLES_COUNT_FOR_SPREAD_VOLATILITY,
+    );
+
+    if (candlesCount < this.MIN_SAMPLES_FOR_VOLATILITY) {
+      return {
+        volatility: null,
+        meanReturn: null,
+        maxDrawdown: null,
+        sharpeRatio: null,
+      };
+    }
+
+    const startIndex = Math.max(0, this.candlesA.length - candlesCount);
+    const spreads: number[] = [];
+
+    // Собираем спреды
+    for (let i = startIndex; i < this.candlesA.length; i++) {
+      const priceA = this.candlesA[i].close;
+      const priceB = this.candlesB[i].close;
+      const spread = priceA - beta * priceB;
+      spreads.push(spread);
+    }
+
+    if (spreads.length < 2) {
+      return {
+        volatility: null,
+        meanReturn: null,
+        maxDrawdown: null,
+        sharpeRatio: null,
+      };
+    }
+
+    // Рассчитываем доходности
+    const spreadReturns: number[] = [];
+    for (let i = 1; i < spreads.length; i++) {
+      const prevSpread = spreads[i - 1];
+      if (abs(prevSpread) > 1e-10) {
+        const spreadReturn = ((spreads[i] - prevSpread) / abs(prevSpread)) * 100;
+        spreadReturns.push(spreadReturn);
+      }
+    }
+
+    if (spreadReturns.length < 10) {
+      return {
+        volatility: null,
+        meanReturn: null,
+        maxDrawdown: null,
+        sharpeRatio: null,
+      };
+    }
+
+    // Статистики с mathjs
+    const volatility = Number(std(spreadReturns));
+    const meanReturn = Number(mean(spreadReturns));
+
+    // Максимальная просадка
+    let maxDrawdown = 0;
+    let peak = spreads[0];
+    for (const spread of spreads) {
+      if (spread > peak) {
+        peak = spread;
+      }
+      const drawdown = ((peak - spread) / abs(peak)) * 100;
+      maxDrawdown = Math.max(maxDrawdown, drawdown);
+    }
+
+    // Коэффициент Шарпа (упрощённый)
+    const sharpeRatio = volatility > 0 ? meanReturn / volatility : null;
+
+    return {
+      volatility: isFinite(volatility) ? volatility : null,
+      meanReturn: isFinite(meanReturn) ? meanReturn : null,
+      maxDrawdown: isFinite(maxDrawdown) ? maxDrawdown : null,
+      sharpeRatio: sharpeRatio !== null && isFinite(sharpeRatio) ? sharpeRatio : null,
+    };
+  }
+
+  /**
+   * Рассчитывает динамический стоп-лосс на основе волатильности спреда
+   * @param beta Коэффициент бета
+   * @returns Динамический стоп-лосс в процентах
+   */
+  private calculateDynamicStopLoss(beta: number): number {
+    const stats = this.calculateSpreadStatistics(beta);
+
+    if (!stats.volatility) {
+      console.warn('Cannot calculate spread volatility, using minimum stop-loss');
+      return this.MIN_STOP_LOSS_RATE_PERCENT;
+    }
+
+    // Основная формула: SL = multiplier * σ
+    let dynamicStopLoss = this.STOP_LOSS_VOLATILITY_MULTIPLIER * stats.volatility;
+
+    // Дополнительная корректировка на основе максимальной просадки
+    if (stats.maxDrawdown && stats.maxDrawdown > 0) {
+      // Если историческая просадка была больше, чем наш расчётный стоп-лосс,
+      // увеличиваем стоп-лосс с учётом этой информации
+      const historicalFactor = 1.2; // 20% буфер сверх исторической просадки
+      const adjustedStopLoss = stats.maxDrawdown * historicalFactor;
+
+      // Берём максимум из двух методов расчёта
+      dynamicStopLoss = Math.max(dynamicStopLoss, adjustedStopLoss);
+    }
+
+    // Ограничиваем стоп-лосс в разумных пределах
+    const clampedStopLoss = Math.max(
+      this.MIN_STOP_LOSS_RATE_PERCENT,
+      Math.min(this.MAX_STOP_LOSS_RATE_PERCENT, dynamicStopLoss),
+    );
+
+    return clampedStopLoss;
   }
 }
