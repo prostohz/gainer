@@ -4,6 +4,8 @@ import { FixedSizeList } from 'react-window';
 
 import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 
+type TViewMode = 'pairs' | 'assets';
+
 type TSortField =
   | 'pair'
   | 'avgRoi'
@@ -13,7 +15,8 @@ type TSortField =
   | 'profitableTrades'
   | 'unprofitableTrades'
   | 'maxProfit'
-  | 'maxLoss';
+  | 'maxLoss'
+  | 'totalProfit';
 
 type TSortDirection = 'asc' | 'desc';
 
@@ -37,26 +40,51 @@ type TPairStats = {
   maxLoss: number;
 };
 
+type TAssetStats = {
+  pair: string; // used for sorting compatibility
+  symbol: string;
+  totalTrades: number;
+  profitableTrades: number;
+  unprofitableTrades: number;
+  totalProfit: number;
+  avgRoi: number;
+  effectiveness: number;
+  winRate: number;
+  maxProfit: number;
+  maxLoss: number;
+};
+
+type TStats = TPairStats | TAssetStats;
+
 type TColumnConfig = {
   field: TSortField;
   label: string;
-  render: (stats: TPairStats) => React.ReactNode;
+  renderPair: (stats: TPairStats) => React.ReactNode;
+  renderAsset: (stats: TAssetStats) => React.ReactNode;
 };
 
 const COLUMNS: TColumnConfig[] = [
   {
     field: 'pair',
-    label: 'Trading Pair',
-    render: (stats) => (
+    label: 'Trading Pair / Asset',
+    renderPair: (stats) => (
       <span className="text-sm text-base-content">
         {stats.symbolA}/{stats.symbolB}
       </span>
+    ),
+    renderAsset: (stats) => (
+      <span className="text-sm text-base-content font-medium">{stats.symbol}</span>
     ),
   },
   {
     field: 'avgRoi',
     label: 'Avg ROI',
-    render: (stats) => (
+    renderPair: (stats) => (
+      <span className={`font-medium ${stats.avgRoi >= 0 ? 'text-success' : 'text-error'}`}>
+        {stats.avgRoi.toFixed(4)}%
+      </span>
+    ),
+    renderAsset: (stats) => (
       <span className={`font-medium ${stats.avgRoi >= 0 ? 'text-success' : 'text-error'}`}>
         {stats.avgRoi.toFixed(4)}%
       </span>
@@ -65,7 +93,12 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'effectiveness',
     label: 'Effectiveness',
-    render: (stats) => (
+    renderPair: (stats) => (
+      <span className={`font-medium ${stats.effectiveness >= 0 ? 'text-success' : 'text-error'}`}>
+        {stats.effectiveness.toFixed(3)}
+      </span>
+    ),
+    renderAsset: (stats) => (
       <span className={`font-medium ${stats.effectiveness >= 0 ? 'text-success' : 'text-error'}`}>
         {stats.effectiveness.toFixed(3)}
       </span>
@@ -74,7 +107,12 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'winRate',
     label: 'Win Rate',
-    render: (stats) => (
+    renderPair: (stats) => (
+      <span className={`font-medium ${stats.winRate >= 50 ? 'text-success' : 'text-error'}`}>
+        {stats.winRate.toFixed(1)}%
+      </span>
+    ),
+    renderAsset: (stats) => (
       <span className={`font-medium ${stats.winRate >= 50 ? 'text-success' : 'text-error'}`}>
         {stats.winRate.toFixed(1)}%
       </span>
@@ -83,22 +121,30 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'totalTrades',
     label: 'Trades',
-    render: (stats) => <span className="text-base-content">{stats.totalTrades}</span>,
+    renderPair: (stats) => <span className="text-base-content">{stats.totalTrades}</span>,
+    renderAsset: (stats) => <span className="text-base-content">{stats.totalTrades}</span>,
   },
   {
     field: 'profitableTrades',
     label: 'Profitable',
-    render: (stats) => <span className="text-base-content">{stats.profitableTrades}</span>,
+    renderPair: (stats) => <span className="text-base-content">{stats.profitableTrades}</span>,
+    renderAsset: (stats) => <span className="text-base-content">{stats.profitableTrades}</span>,
   },
   {
     field: 'unprofitableTrades',
     label: 'Unprofitable',
-    render: (stats) => <span className="text-base-content">{stats.unprofitableTrades}</span>,
+    renderPair: (stats) => <span className="text-base-content">{stats.unprofitableTrades}</span>,
+    renderAsset: (stats) => <span className="text-base-content">{stats.unprofitableTrades}</span>,
   },
   {
     field: 'maxProfit',
     label: 'Max Profit',
-    render: (stats) => (
+    renderPair: (stats) => (
+      <span className={`font-medium ${stats.maxProfit > 0 ? 'text-success' : 'text-neutral'}`}>
+        {stats.maxProfit > 0 ? `${stats.maxProfit.toFixed(4)}%` : '–'}
+      </span>
+    ),
+    renderAsset: (stats) => (
       <span className={`font-medium ${stats.maxProfit > 0 ? 'text-success' : 'text-neutral'}`}>
         {stats.maxProfit > 0 ? `${stats.maxProfit.toFixed(4)}%` : '–'}
       </span>
@@ -107,9 +153,28 @@ const COLUMNS: TColumnConfig[] = [
   {
     field: 'maxLoss',
     label: 'Max Loss',
-    render: (stats) => (
+    renderPair: (stats) => (
       <span className={`font-medium ${stats.maxLoss < 0 ? 'text-error' : 'text-neutral'}`}>
         {stats.maxLoss < 0 ? `${stats.maxLoss.toFixed(4)}%` : '–'}
+      </span>
+    ),
+    renderAsset: (stats) => (
+      <span className={`font-medium ${stats.maxLoss < 0 ? 'text-error' : 'text-neutral'}`}>
+        {stats.maxLoss < 0 ? `${stats.maxLoss.toFixed(4)}%` : '–'}
+      </span>
+    ),
+  },
+  {
+    field: 'totalProfit',
+    label: 'Total Profit',
+    renderPair: (stats) => (
+      <span className={`font-medium ${stats.totalProfit >= 0 ? 'text-success' : 'text-error'}`}>
+        {stats.totalProfit.toFixed(4)}%
+      </span>
+    ),
+    renderAsset: (stats) => (
+      <span className={`font-medium ${stats.totalProfit >= 0 ? 'text-success' : 'text-error'}`}>
+        {stats.totalProfit.toFixed(4)}%
       </span>
     ),
   },
@@ -162,7 +227,63 @@ const calculatePairStats = (results: TCompleteTrade[]): TPairStats[] => {
   });
 };
 
-const sortPairStats = (stats: TPairStats[], sortConfig: TSortConfig): TPairStats[] => {
+const calculateAssetStats = (results: TCompleteTrade[]): TAssetStats[] => {
+  // Create array of all asset participations in trades
+  const assetTrades: Array<{ symbol: string; trade: TCompleteTrade; isSymbolA: boolean }> = [];
+
+  results.forEach((trade) => {
+    assetTrades.push(
+      { symbol: trade.symbolA, trade, isSymbolA: true },
+      { symbol: trade.symbolB, trade, isSymbolA: false },
+    );
+  });
+
+  // Group by symbols
+  const assetGroups = assetTrades.reduce(
+    (groups, { symbol, trade, isSymbolA }) => {
+      if (!groups[symbol]) {
+        groups[symbol] = [];
+      }
+      groups[symbol].push({ trade, isSymbolA });
+      return groups;
+    },
+    {} as Record<string, Array<{ trade: TCompleteTrade; isSymbolA: boolean }>>,
+  );
+
+  return Object.entries(assetGroups).map(([symbol, symbolTrades]) => {
+    const totalTrades = symbolTrades.length;
+    const profitableTrades = symbolTrades.filter(({ trade }) => trade.roi > 0).length;
+    const unprofitableTrades = totalTrades - profitableTrades;
+
+    const rois = symbolTrades.map(({ trade }) => trade.roi);
+    const totalProfit = rois.length > 0 ? Number(math.sum(rois)) : 0;
+    const avgRoi = totalTrades > 0 ? totalProfit / totalTrades : 0;
+    const effectiveness =
+      results.length > 0
+        ? ((profitableTrades - unprofitableTrades) / (results.length * 2)) * 1000
+        : 0;
+    const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
+
+    const maxProfit = rois.length > 0 ? Number(math.max(rois)) : 0;
+    const maxLoss = rois.length > 0 ? Number(math.min(rois)) : 0;
+
+    return {
+      pair: symbol, // used for sorting compatibility
+      symbol,
+      totalTrades,
+      profitableTrades,
+      unprofitableTrades,
+      totalProfit,
+      avgRoi,
+      effectiveness,
+      winRate,
+      maxProfit,
+      maxLoss,
+    };
+  });
+};
+
+const sortStats = (stats: TStats[], sortConfig: TSortConfig): TStats[] => {
   return [...stats].sort((a, b) => {
     const aValue = a[sortConfig.field];
     const bValue = b[sortConfig.field];
@@ -181,6 +302,42 @@ const sortPairStats = (stats: TPairStats[], sortConfig: TSortConfig): TPairStats
   });
 };
 
+const ViewModeSelector = ({
+  viewMode,
+  onViewModeChange,
+}: {
+  viewMode: TViewMode;
+  onViewModeChange: (mode: TViewMode) => void;
+}) => {
+  return (
+    <div className="flex items-center justify-end space-x-4 p-4">
+      <span className="text-sm font-medium text-base-content">Display</span>
+      <div className="flex bg-base-200 rounded-lg p-1">
+        <button
+          onClick={() => onViewModeChange('pairs')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            viewMode === 'pairs'
+              ? 'bg-primary text-primary-content'
+              : 'text-base-content hover:bg-base-300'
+          }`}
+        >
+          By Pairs
+        </button>
+        <button
+          onClick={() => onViewModeChange('assets')}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            viewMode === 'assets'
+              ? 'bg-primary text-primary-content'
+              : 'text-base-content hover:bg-base-300'
+          }`}
+        >
+          By Assets
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const TableHeader = ({
   sortConfig,
   onSort,
@@ -196,7 +353,7 @@ const TableHeader = ({
   };
 
   return (
-    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 p-3 border-b border-base-300 text-sm font-medium tracking-wider">
+    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 p-3 border-b border-base-300 text-sm font-medium tracking-wider">
       {COLUMNS.map((column) => (
         <button
           key={column.field}
@@ -217,18 +374,21 @@ const TableRow = ({
 }: {
   index: number;
   style: React.CSSProperties;
-  data: TPairStats[];
+  data: { stats: TStats[]; viewMode: TViewMode };
 }) => {
-  const stats = data[index];
+  const stats = data.stats[index];
+  const { viewMode } = data;
 
   return (
     <div
       style={style}
-      className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 p-3 text-sm hover:bg-base-200 border-b border-base-300/50"
+      className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 p-3 text-sm hover:bg-base-200 border-b border-base-300/50"
     >
       {COLUMNS.map((column) => (
         <div key={column.field} className="text-left">
-          {column.render(stats)}
+          {viewMode === 'pairs'
+            ? column.renderPair(stats as TPairStats)
+            : column.renderAsset(stats as TAssetStats)}
         </div>
       ))}
     </div>
@@ -236,6 +396,7 @@ const TableRow = ({
 };
 
 export const BacktestPairs = ({ results }: { results: TCompleteTrade[] }) => {
+  const [viewMode, setViewMode] = useState<TViewMode>('pairs');
   const [sortConfig, setSortConfig] = useState<TSortConfig>({
     field: 'avgRoi',
     direction: 'desc',
@@ -248,30 +409,33 @@ export const BacktestPairs = ({ results }: { results: TCompleteTrade[] }) => {
     }));
   };
 
-  const rawPairStats = calculatePairStats(results);
-  const pairStats = sortPairStats(rawPairStats, sortConfig);
+  const rawStats =
+    viewMode === 'pairs' ? calculatePairStats(results) : calculateAssetStats(results);
+  const stats = sortStats(rawStats, sortConfig);
 
-  if (pairStats.length === 0) {
+  if (stats.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-base-content/60">No data available for pair statistics</div>
+        <div className="text-base-content/60">No data available for statistics</div>
       </div>
     );
   }
 
   const ROW_HEIGHT = 46;
-  const MAX_TABLE_HEIGHT = Math.min(pairStats.length * ROW_HEIGHT, 10 * ROW_HEIGHT);
+  const MAX_TABLE_HEIGHT = Math.min(stats.length * ROW_HEIGHT, 10 * ROW_HEIGHT);
 
   return (
-    <div className="space-y-4">
+    <div>
+      <ViewModeSelector viewMode={viewMode} onViewModeChange={setViewMode} />
+
       <div className="rounded-md border border-base-300 overflow-hidden">
         <TableHeader sortConfig={sortConfig} onSort={handleSort} />
 
         <FixedSizeList
           height={MAX_TABLE_HEIGHT}
-          itemCount={pairStats.length}
+          itemCount={stats.length}
           itemSize={ROW_HEIGHT}
-          itemData={pairStats}
+          itemData={{ stats, viewMode }}
           width="100%"
         >
           {TableRow}
