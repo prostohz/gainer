@@ -1,11 +1,11 @@
 import React, { forwardRef } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
-import { ru } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import 'react-datepicker/dist/react-datepicker.css';
 import classNames from 'classnames';
 
 // Регистрируем русскую локаль
-registerLocale('ru', ru);
+registerLocale('en', enUS);
 
 export interface DateRange {
   startDate: Date | null;

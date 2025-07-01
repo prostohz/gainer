@@ -5,7 +5,7 @@ import { dayjs } from '../../shared/utils/daytime';
 import { useAssets } from '../entities/assets';
 import { BacktestStats } from './BacktestStats';
 
-export const BacktestTrades = ({ results }: { results: TCompleteTrade[] }) => {
+export const BacktestTrades = ({ trades }: { trades: TCompleteTrade[] }) => {
   const { assetMap, isLoading } = useAssets();
 
   if (isLoading) {
@@ -13,7 +13,7 @@ export const BacktestTrades = ({ results }: { results: TCompleteTrade[] }) => {
   }
 
   const renderContent = () => {
-    if (results.length === 0) {
+    if (trades.length === 0) {
       return <div className="text-base-content text-center p-4">No trades</div>;
     }
 
@@ -40,7 +40,7 @@ export const BacktestTrades = ({ results }: { results: TCompleteTrade[] }) => {
                 <div>Close reason</div>
               </div>
 
-              {results.map((trade, index) => {
+              {trades.map((trade, index) => {
                 const assetA = assetMap[trade.symbolA];
                 const assetB = assetMap[trade.symbolB];
 
@@ -102,8 +102,8 @@ export const BacktestTrades = ({ results }: { results: TCompleteTrade[] }) => {
   return (
     <div className="w-full">
       <div className="bg-base-200 rounded-lg p-4 mb-4">
-        <h3 className="text-lg font-semibold mb-3">Backtest results</h3>
-        <BacktestStats results={results} />
+        <h3 className="text-lg font-semibold mb-3">Backtest trades</h3>
+        <BacktestStats trades={trades} />
       </div>
 
       {renderContent()}

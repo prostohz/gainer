@@ -3,7 +3,9 @@ import * as math from 'mathjs';
 
 import { dayjs } from '../../shared/utils/daytime';
 import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
-import { BacktestPairs } from './BacktestPairs';
+import { BacktestAssets } from './BacktestAssets';
+import { BacktestRoiHistogram } from './BacktestRoiHistogram';
+import { BacktestRoiCumHistogram } from './BacktestRoiCumHistogram';
 
 type TStatValue = string | number;
 
@@ -54,6 +56,7 @@ type TRiskMetrics = {
   sharpeRatio: number;
   maxDrawdown: number;
   recoveryFactor: number;
+  coefficientOfVariation: number;
 };
 
 type TTimeMetrics = {
@@ -65,11 +68,11 @@ type TTimeMetrics = {
   tradesPerDay: number;
 };
 
-const calculateBasicMetrics = (results: TCompleteTrade[]): TBasicMetrics => {
-  const totalTrades = results.length;
-  const profitableTrades = results.filter((trade) => trade.roi > 0).length;
+const calculateBasicMetrics = (trades: TCompleteTrade[]): TBasicMetrics => {
+  const totalTrades = trades.length;
+  const profitableTrades = trades.filter((trade) => trade.roi > 0).length;
   const unprofitableTrades = totalTrades - profitableTrades;
-  const rois = results.map((trade) => trade.roi);
+  const rois = trades.map((trade) => trade.roi);
   const totalProfit = rois.length > 0 ? Number(math.sum(rois)) : 0;
   const avgProfit = totalTrades > 0 ? totalProfit / totalTrades : 0;
   const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
@@ -88,20 +91,26 @@ const calculateBasicMetrics = (results: TCompleteTrade[]): TBasicMetrics => {
   };
 };
 
-const calculateDetailedMetrics = (results: TCompleteTrade[]): TDetailedMetrics => {
-  const profitableRois = results.filter((trade) => trade.roi > 0).map((trade) => trade.roi);
-  const unprofitableRois = results.filter((trade) => trade.roi <= 0).map((trade) => trade.roi);
+const calculateDetailedMetrics = (trades: TCompleteTrade[]): TDetailedMetrics => {
+  // Разделяем сделки на прибыльные и убыточные (исключаем нулевые для корректного расчета Profit Factor)
+  const profitableRois = trades.filter((trade) => trade.roi > 0).map((trade) => trade.roi);
+  const unprofitableRois = trades.filter((trade) => trade.roi < 0).map((trade) => trade.roi);
 
   const avgProfitableRoi = profitableRois.length > 0 ? Number(math.mean(profitableRois)) : 0;
   const avgUnprofitableRoi = unprofitableRois.length > 0 ? Number(math.mean(unprofitableRois)) : 0;
 
+  // Рассчитываем Profit Factor как отношение суммы всех прибылей к сумме всех убытков
   const totalProfitValue = profitableRois.length > 0 ? Number(math.sum(profitableRois)) : 0;
   const totalLossValue =
     unprofitableRois.length > 0 ? Number(math.abs(math.sum(unprofitableRois))) : 0;
+
+  // Profit Factor = Сумма всех прибылей / Сумма всех убытков
+  // Если убытков нет, а прибыли есть = Infinity (идеальная стратегия)
+  // Если ни прибылей, ни убытков нет = 0
   const profitFactor =
     totalLossValue > 0 ? totalProfitValue / totalLossValue : totalProfitValue > 0 ? Infinity : 0;
 
-  const rois = results.map((trade) => trade.roi);
+  const rois = trades.map((trade) => trade.roi);
   const medianRoi = rois.length > 0 ? Number(math.median(rois)) : 0;
 
   return {
@@ -113,22 +122,26 @@ const calculateDetailedMetrics = (results: TCompleteTrade[]): TDetailedMetrics =
 };
 
 const calculateRiskMetrics = (
-  results: TCompleteTrade[],
+  trades: TCompleteTrade[],
   avgProfit: number,
   totalProfit: number,
 ): TRiskMetrics => {
-  const totalTrades = results.length;
+  const totalTrades = trades.length;
 
-  const rois = results.map((trade) => trade.roi);
+  const rois = trades.map((trade) => trade.roi);
   const stdDevRoi = totalTrades > 0 ? Number(math.std(rois)) : 0;
 
   const sharpeRatio = stdDevRoi > 0 ? avgProfit / stdDevRoi : 0;
+
+  // Коэффициент вариации (CV) = стандартное отклонение / среднее значение
+  const coefficientOfVariation =
+    avgProfit !== 0 ? Math.abs(stdDevRoi / avgProfit) : stdDevRoi > 0 ? Infinity : 0;
 
   let peak = 0;
   let maxDrawdown = 0;
   let cumulativeRoi = 0;
 
-  for (const trade of results) {
+  for (const trade of trades) {
     cumulativeRoi += trade.roi;
     if (cumulativeRoi > peak) {
       peak = cumulativeRoi;
@@ -147,23 +160,24 @@ const calculateRiskMetrics = (
     sharpeRatio,
     maxDrawdown,
     recoveryFactor,
+    coefficientOfVariation,
   };
 };
 
-const calculateTimeMetrics = (results: TCompleteTrade[]): TTimeMetrics => {
-  const holdingTimes = results.map(
+const calculateTimeMetrics = (trades: TCompleteTrade[]): TTimeMetrics => {
+  const holdingTimes = trades.map(
     (trade) => (trade.closeTime - trade.openTime) / dayjs.duration(1, 'minute').asMilliseconds(),
   );
   const avgHoldingTime = holdingTimes.length > 0 ? Number(math.mean(holdingTimes)) : 0;
   const minHoldingTime = holdingTimes.length > 0 ? Number(math.min(holdingTimes)) : 0;
   const maxHoldingTime = holdingTimes.length > 0 ? Number(math.max(holdingTimes)) : 0;
 
-  const profitableHoldingTimes = results
+  const profitableHoldingTimes = trades
     .filter((trade) => trade.roi > 0)
     .map(
       (trade) => (trade.closeTime - trade.openTime) / dayjs.duration(1, 'minute').asMilliseconds(),
     );
-  const unprofitableHoldingTimes = results
+  const unprofitableHoldingTimes = trades
     .filter((trade) => trade.roi <= 0)
     .map(
       (trade) => (trade.closeTime - trade.openTime) / dayjs.duration(1, 'minute').asMilliseconds(),
@@ -174,13 +188,13 @@ const calculateTimeMetrics = (results: TCompleteTrade[]): TTimeMetrics => {
   const avgUnprofitableHoldingTime =
     unprofitableHoldingTimes.length > 0 ? Number(math.mean(unprofitableHoldingTimes)) : 0;
 
-  const sortedTrades = [...results].sort((a, b) => a.openTime - b.openTime);
+  const sortedTrades = [...trades].sort((a, b) => a.openTime - b.openTime);
   const tradingPeriod =
     sortedTrades.length > 1
       ? (sortedTrades[sortedTrades.length - 1].closeTime - sortedTrades[0].openTime) /
         dayjs.duration(1, 'day').asMilliseconds()
       : 1;
-  const tradesPerDay = tradingPeriod > 0 ? results.length / tradingPeriod : 0;
+  const tradesPerDay = tradingPeriod > 0 ? trades.length / tradingPeriod : 0;
 
   return {
     avgHoldingTime,
@@ -193,10 +207,10 @@ const calculateTimeMetrics = (results: TCompleteTrade[]): TTimeMetrics => {
 };
 
 // Функция для расчёта статистики по причинам закрытия
-const calculateCloseReasonStats = (results: TCompleteTrade[]): TCloseReasonStats[] => {
-  const totalTrades = results.length;
+const calculateCloseReasonStats = (trades: TCompleteTrade[]): TCloseReasonStats[] => {
+  const totalTrades = trades.length;
 
-  const closeReasonStats = results.reduce(
+  const closeReasonStats = trades.reduce(
     (stats, trade) => {
       const reason = trade.closeReason;
       let category = 'Other';
@@ -338,8 +352,14 @@ const createStatSections = (
           title: 'Max Drawdown',
           value: riskMetrics.maxDrawdown,
           format: 'percentage',
+          valueColor:
+            riskMetrics.maxDrawdown <= 5
+              ? 'success'
+              : riskMetrics.maxDrawdown <= 15
+                ? 'warning'
+                : 'error',
           tooltip:
-            'Maximum capital decline from peak to trough. Shows worst loss scenario. Lower is better.',
+            'Maximum capital decline from peak to trough. Shows worst loss scenario. <5% excellent, 5-15% acceptable, >15% risky.',
         },
         {
           title: 'Sharpe Ratio',
@@ -355,18 +375,35 @@ const createStatSections = (
             'Ratio of profitability to volatility. >1 excellent, 0.5-1 good, <0.5 poor. Shows risk-adjusted efficiency.',
         },
         {
-          title: 'Volatility',
-          value: riskMetrics.stdDevRoi,
-          format: 'percentage',
+          title: 'Coefficient of Variation',
+          value:
+            riskMetrics.coefficientOfVariation === Infinity
+              ? '∞'
+              : riskMetrics.coefficientOfVariation,
+          format: 'default',
+          description: `σ=${riskMetrics.stdDevRoi.toFixed(4)}%`,
+          valueColor:
+            riskMetrics.coefficientOfVariation === Infinity ||
+            riskMetrics.coefficientOfVariation <= 3
+              ? 'success'
+              : riskMetrics.coefficientOfVariation <= 8
+                ? 'warning'
+                : 'error',
           tooltip:
-            'Standard deviation of profitability. Shows how much trade results deviate from average. Higher = riskier.',
+            'Coefficient of Variation (CV = σ/μ). Measures relative risk-adjusted consistency. ≤3 excellent, 3-8 acceptable, >8 high risk.',
         },
         {
           title: 'Recovery Factor',
           value: riskMetrics.recoveryFactor === Infinity ? '∞' : riskMetrics.recoveryFactor,
           format: 'default',
+          valueColor:
+            riskMetrics.recoveryFactor === Infinity || riskMetrics.recoveryFactor >= 3
+              ? 'success'
+              : riskMetrics.recoveryFactor >= 1.5
+                ? 'warning'
+                : 'error',
           tooltip:
-            'Ratio of total profit to maximum drawdown. Shows strategy ability to recover after losses.',
+            'Ratio of total profit to maximum drawdown. Measures recovery ability after losses. >3 excellent, 1.5-3 acceptable, <1.5 poor.',
         },
       ],
     },
@@ -540,16 +577,16 @@ const CloseReasonSection = ({ stats }: { stats: TCloseReasonStats[] }) => (
   </div>
 );
 
-export const BacktestStats = ({ results }: { results: TCompleteTrade[] }) => {
-  const basicMetrics = calculateBasicMetrics(results);
-  const detailedMetrics = calculateDetailedMetrics(results);
+export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
+  const basicMetrics = calculateBasicMetrics(trades);
+  const detailedMetrics = calculateDetailedMetrics(trades);
   const riskMetrics = calculateRiskMetrics(
-    results,
+    trades,
     basicMetrics.avgProfit,
     basicMetrics.totalProfit,
   );
-  const timeMetrics = calculateTimeMetrics(results);
-  const closeReasonStats = calculateCloseReasonStats(results);
+  const timeMetrics = calculateTimeMetrics(trades);
+  const closeReasonStats = calculateCloseReasonStats(trades);
 
   const sections = createStatSections(basicMetrics, detailedMetrics, riskMetrics, timeMetrics);
 
@@ -561,11 +598,22 @@ export const BacktestStats = ({ results }: { results: TCompleteTrade[] }) => {
 
       {closeReasonStats.length > 0 && <CloseReasonSection stats={closeReasonStats} />}
 
+      <div className="flex gap-4">
+        <div className="w-1/2">
+          <h3 className="text-sm font-semibold mb-2 text-base-content/80">Trades by ROI</h3>
+          <BacktestRoiHistogram trades={trades} />
+        </div>
+        <div className="w-1/2">
+          <h3 className="text-sm font-semibold mb-2 text-base-content/80">
+            Trades by ROI cumulative
+          </h3>
+          <BacktestRoiCumHistogram trades={trades} />
+        </div>
+      </div>
       <div className="rounded-md">
-        <h3 className="text-sm font-semibold mb-2 text-base-content/80">Pair Stats</h3>
-
+        <h3 className="text-sm font-semibold mb-2 text-base-content/80">Asset Stats</h3>
         <div className="bg-base-300 rounded-md">
-          <BacktestPairs results={results} />
+          <BacktestAssets trades={trades} />
         </div>
       </div>
     </div>

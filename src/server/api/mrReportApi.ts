@@ -17,7 +17,10 @@ const router = express.Router();
 router.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
-    const reportList = await getReportList();
+    const startDate = req.query.startDate ? Number(req.query.startDate) : undefined;
+    const endDate = req.query.endDate ? Number(req.query.endDate) : undefined;
+
+    const reportList = await getReportList(startDate, endDate);
     sendResponse(res, reportList);
   }),
 );

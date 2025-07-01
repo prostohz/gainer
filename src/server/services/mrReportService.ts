@@ -13,13 +13,13 @@ const mrReportMetaDataFilePath = (id: string) => path.join(mrReportFolder, id, '
 const mrReportDataFilePath = (id: string) => path.join(mrReportFolder, id, 'data.json');
 const mrReportBacktestFilePath = (id: string) => path.join(mrReportFolder, id, 'backtest.json');
 
-export const getReportList = async () => {
+export const getReportList = async (startDate?: number, endDate?: number) => {
   const entries = fs.readdirSync(mrReportFolder);
 
   return entries
     .filter((entry) => {
       const stat = fs.statSync(path.join(mrReportFolder, entry));
-      return stat.isDirectory();
+      return stat.isDirectory() && dayjs(Number(entry)).isBetween(startDate, endDate);
     })
     .map((entry) => {
       const reportMetaData = fs.readFileSync(
@@ -113,7 +113,7 @@ export const createReportBacktest = async (
     return null;
   }
 
-  logger.info(`Creating backtest for ${dayjs(report.date).format('DD.MM.YYYY HH:mm')}`);
+  logger.info(`Creating backtest for: ${dayjs(report.date).format('DD.MM.YYYY HH:mm')}`);
 
   const reportBacktest = await run(
     report.data.map(({ assetA, assetB }) => ({

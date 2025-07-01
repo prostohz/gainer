@@ -5,6 +5,7 @@ import cn from 'classnames';
 
 import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 import { dayjs } from '../../../shared/utils/daytime';
+import { downloadFile } from '../../shared/utils/download';
 import { http } from '../../shared/utils/http';
 import { Loader } from '../../shared/ui/Loader';
 import { TMRReport } from '../../../shared/types';
@@ -12,8 +13,8 @@ import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
 import { BacktestStats } from '../../widgets/BacktestStats';
-import { MRReportsHistogram } from './MRReportsHistogram';
-import { MRReportsBacktestHistogram } from './MRReportsBacktestHistogram';
+import { ReportsHistogram } from './ReportsHistogram';
+import { ReportsBacktestHistogram } from './ReportsBacktestHistogram';
 
 type TTableRowProps = {
   index: number;
@@ -132,6 +133,9 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
 };
 
 export const MRReportListPage = () => {
+  const [startDate, setStartDate] = useLSState<number | null>('reportsStartDate', null);
+  const [endDate, setEndDate] = useLSState<number | null>('reportsEndDate', null);
+
   const [selectedDate, setSelectedDate] = useLSState<number>('reportSelectedDate', Date.now());
 
   const {
@@ -139,8 +143,13 @@ export const MRReportListPage = () => {
     isLoading,
     refetch,
   } = useQuery<TMRReport[]>({
-    queryKey: ['mrReportList'],
-    queryFn: () => http.get('/api/mrReport').then((response) => response.data),
+    queryKey: ['mrReportList', startDate, endDate],
+    queryFn: () =>
+      http
+        .get('/api/mrReport', {
+          params: { startDate, endDate },
+        })
+        .then((response) => response.data),
   });
 
   const { mutate: createReport, isPending } = useMutation({
@@ -173,8 +182,6 @@ export const MRReportListPage = () => {
         return;
       }
 
-      let count = 0;
-
       for (const report of reports) {
         if (report.backtest) {
           continue;
@@ -184,14 +191,6 @@ export const MRReportListPage = () => {
           startTimestamp: report.date,
           endTimestamp: dayjs(report.date).add(1, 'hour').valueOf(),
         });
-
-        if (++count % 5 === 0) {
-          await refetch();
-        }
-
-        // if (count > 72) {
-        //   return;
-        // }
       }
     },
     onSuccess: () => {
@@ -222,13 +221,8 @@ export const MRReportListPage = () => {
         reports || [],
         R.map((report) => Number(report.date)),
       );
-
-      if (existingReports.length < 2) {
-        return;
-      }
-
-      const firstReportTime = existingReports.at(0)!;
-      const lastReportTime = existingReports.at(-1)!;
+      const firstReportTime = 1746046800000;
+      const lastReportTime = 1748379600000;
 
       for (
         let date = firstReportTime;
@@ -245,6 +239,9 @@ export const MRReportListPage = () => {
           },
         });
       }
+
+      await refetch();
+      await backtestAllReports();
     },
     onSuccess: () => {
       refetch();
@@ -260,12 +257,7 @@ export const MRReportListPage = () => {
     }));
 
     const jsonContent = JSON.stringify(reportsToDownload, null, 2);
-    const blob = new Blob([jsonContent], { type: 'text/json;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'reports.json';
-    a.click();
+    downloadFile(jsonContent, 'reports.json');
   };
 
   if (isLoading) {
@@ -279,74 +271,87 @@ export const MRReportListPage = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Mean Reversion Reports</h1>
 
-        <div className="flex gap-4 justify-between">
-          <div className="flex gap-2">
-            <DateTimePicker
-              value={new Date(selectedDate)}
-              onChange={(date) => setSelectedDate((date as Date).getTime())}
-              placeholder="Select date"
-              disabled={isPending}
-            />
+        <div className="flex gap-2">
+          <DateTimePicker
+            value={startDate ? new Date(startDate) : null}
+            onChange={(date) => setStartDate((date as Date).getTime())}
+            placeholder="Start Date"
+          />
+          <DateTimePicker
+            value={endDate ? new Date(endDate) : null}
+            onChange={(date) => setEndDate((date as Date).getTime())}
+            placeholder="End Date"
+          />
+        </div>
+      </div>
 
-            <button className="btn btn-primary" onClick={() => createReport()} disabled={isPending}>
-              {isPending ? 'Creating...' : 'Create New Report'}
-            </button>
-          </div>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          <DateTimePicker
+            value={new Date(selectedDate)}
+            onChange={(date) => setSelectedDate((date as Date).getTime())}
+            placeholder="Select date"
+            disabled={isPending}
+          />
 
-          <div className="flex gap-2">
-            <button className="btn btn-neutral" onClick={() => createMissingReports()}>
-              Create Missing Reports
-            </button>
+          <button className="btn btn-primary" onClick={() => createReport()} disabled={isPending}>
+            {isPending ? 'Creating...' : 'Create New Report'}
+          </button>
+        </div>
 
-            <button
-              className="btn btn-secondary"
-              onClick={() => backtestAllReports()}
-              disabled={isBacktesting}
+        <div className="flex gap-2">
+          <button className="btn btn-primary" onClick={() => createMissingReports()}>
+            Create Missing Reports
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => backtestAllReports()}
+            disabled={isBacktesting}
+          >
+            {isBacktesting ? 'Backtesting...' : 'Backtest All Reports'}
+          </button>
+
+          <button
+            className="btn btn-error"
+            onClick={() => removeAllBacktests()}
+            disabled={isRemoving}
+          >
+            {isRemoving ? 'Removing...' : 'Remove All Backtests'}
+          </button>
+
+          <button
+            className="btn btn-outline btn-square"
+            onClick={() => downloadAllReports()}
+            title="Download All Reports"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-5 h-5"
             >
-              {isBacktesting ? 'Backtesting...' : 'Backtest All Reports'}
-            </button>
-
-            <button
-              className="btn btn-error"
-              onClick={() => removeAllBacktests()}
-              disabled={isRemoving}
-            >
-              {isRemoving ? 'Removing...' : 'Remove All Backtests'}
-            </button>
-
-            <button
-              className="btn btn-outline btn-square"
-              onClick={() => downloadAllReports()}
-              title="Download All Reports"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-5 h-5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-                />
-              </svg>
-            </button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+              />
+            </svg>
+          </button>
         </div>
       </div>
 
       {reports && reports.length > 0 ? (
         <div className="flex flex-col gap-4 mb-4">
-          <h2 className="text-lg font-semibold">Distribution Of Pairs By Date</h2>
-          <MRReportsHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">Distribution Of Backtest By Date</h2>
-          <MRReportsBacktestHistogram reports={reports} />
+          <h2 className="text-lg font-semibold">Pairs count by date</h2>
+          <ReportsHistogram reports={reports} />
+          <h2 className="text-lg font-semibold">Backtest result by date</h2>
+          <ReportsBacktestHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest Results</h2>
           <div className="bg-base-200 rounded-lg p-4">
-            <BacktestStats results={reports.flatMap((report) => report.backtest || [])} />
+            <BacktestStats trades={reports.flatMap((report) => report.backtest || [])} />
           </div>
           <h2 className="text-lg font-semibold">Pair Report List</h2>
           <div className="bg-base-200 rounded-lg">

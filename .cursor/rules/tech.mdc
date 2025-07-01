@@ -33,3 +33,7 @@ The application we are working on uses the following tech stack:
 - Use strong typing and avoid 'any'
 - Use TypeScript types instead of interfaces always when it is possible
 - Don't use double nested ternary operator
+- Use english in texts for GUI
+
+## MCP
+- postgres

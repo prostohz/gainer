@@ -109,7 +109,7 @@ export const buildMrReport = async (date: number) => {
 
     const processedPairs = (i + 1) * (assetsWithVolume.length - 1) - (i * (i + 1)) / 2;
     const totalPairs = (assetsWithVolume.length * (assetsWithVolume.length - 1)) / 2;
-    const progress = Math.round((processedPairs / totalPairs) * 100);
+    const progress = ((processedPairs / totalPairs) * 100).toFixed(2);
 
     logger.verbose(`${progress}% pairs processed`);
   }

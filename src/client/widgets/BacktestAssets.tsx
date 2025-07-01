@@ -180,8 +180,8 @@ const COLUMNS: TColumnConfig[] = [
   },
 ];
 
-const calculatePairStats = (results: TCompleteTrade[]): TPairStats[] => {
-  const pairGroups = results.reduce(
+const calculatePairStats = (trades: TCompleteTrade[]): TPairStats[] => {
+  const pairGroups = trades.reduce(
     (groups, trade) => {
       const pairKey = `${trade.symbolA}-${trade.symbolB}`;
       if (!groups[pairKey]) {
@@ -204,7 +204,7 @@ const calculatePairStats = (results: TCompleteTrade[]): TPairStats[] => {
     const totalProfit = rois.length > 0 ? Number(math.sum(rois)) : 0;
     const avgRoi = totalTrades > 0 ? totalProfit / totalTrades : 0;
     const effectiveness =
-      results.length > 0 ? ((profitableTrades - unprofitableTrades) / results.length) * 1000 : 0;
+      trades.length > 0 ? ((profitableTrades - unprofitableTrades) / trades.length) * 1000 : 0;
     const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
 
     const maxProfit = rois.length > 0 ? Number(math.max(rois)) : 0;
@@ -227,27 +227,23 @@ const calculatePairStats = (results: TCompleteTrade[]): TPairStats[] => {
   });
 };
 
-const calculateAssetStats = (results: TCompleteTrade[]): TAssetStats[] => {
-  // Create array of all asset participations in trades
-  const assetTrades: Array<{ symbol: string; trade: TCompleteTrade; isSymbolA: boolean }> = [];
+const calculateAssetStats = (trades: TCompleteTrade[]): TAssetStats[] => {
+  const assetTrades: Array<{ symbol: string; trade: TCompleteTrade }> = [];
 
-  results.forEach((trade) => {
-    assetTrades.push(
-      { symbol: trade.symbolA, trade, isSymbolA: true },
-      { symbol: trade.symbolB, trade, isSymbolA: false },
-    );
+  trades.forEach((trade) => {
+    assetTrades.push({ symbol: trade.symbolA, trade }, { symbol: trade.symbolB, trade });
   });
 
   // Group by symbols
   const assetGroups = assetTrades.reduce(
-    (groups, { symbol, trade, isSymbolA }) => {
+    (groups, { symbol, trade }) => {
       if (!groups[symbol]) {
         groups[symbol] = [];
       }
-      groups[symbol].push({ trade, isSymbolA });
+      groups[symbol].push({ trade });
       return groups;
     },
-    {} as Record<string, Array<{ trade: TCompleteTrade; isSymbolA: boolean }>>,
+    {} as Record<string, Array<{ trade: TCompleteTrade }>>,
   );
 
   return Object.entries(assetGroups).map(([symbol, symbolTrades]) => {
@@ -259,8 +255,8 @@ const calculateAssetStats = (results: TCompleteTrade[]): TAssetStats[] => {
     const totalProfit = rois.length > 0 ? Number(math.sum(rois)) : 0;
     const avgRoi = totalTrades > 0 ? totalProfit / totalTrades : 0;
     const effectiveness =
-      results.length > 0
-        ? ((profitableTrades - unprofitableTrades) / (results.length * 2)) * 1000
+      trades.length > 0
+        ? ((profitableTrades - unprofitableTrades) / (trades.length * 2)) * 1000
         : 0;
     const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
 
@@ -309,29 +305,27 @@ const ViewModeSelector = ({
   viewMode: TViewMode;
   onViewModeChange: (mode: TViewMode) => void;
 }) => {
+  const viewModes = [
+    { label: 'Assets', value: 'assets' },
+    { label: 'Pairs', value: 'pairs' },
+  ] as const;
+
   return (
     <div className="flex items-center justify-end space-x-4 p-4">
       <div className="flex bg-base-200 rounded-lg p-1">
-        <button
-          onClick={() => onViewModeChange('pairs')}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-            viewMode === 'pairs'
-              ? 'bg-primary text-primary-content'
-              : 'text-base-content hover:bg-base-300'
-          }`}
-        >
-          By Pairs
-        </button>
-        <button
-          onClick={() => onViewModeChange('assets')}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-            viewMode === 'assets'
-              ? 'bg-primary text-primary-content'
-              : 'text-base-content hover:bg-base-300'
-          }`}
-        >
-          By Assets
-        </button>
+        {viewModes.map((mode) => (
+          <button
+            key={mode.value}
+            onClick={() => onViewModeChange(mode.value)}
+            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              viewMode === mode.value
+                ? 'bg-neutral text-neutral-content'
+                : 'text-base-content hover:bg-base-300'
+            }`}
+          >
+            {mode.label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -394,8 +388,8 @@ const TableRow = ({
   );
 };
 
-export const BacktestPairs = ({ results }: { results: TCompleteTrade[] }) => {
-  const [viewMode, setViewMode] = useState<TViewMode>('pairs');
+export const BacktestAssets = ({ trades }: { trades: TCompleteTrade[] }) => {
+  const [viewMode, setViewMode] = useState<TViewMode>('assets');
   const [sortConfig, setSortConfig] = useState<TSortConfig>({
     field: 'avgRoi',
     direction: 'desc',
@@ -408,14 +402,13 @@ export const BacktestPairs = ({ results }: { results: TCompleteTrade[] }) => {
     }));
   };
 
-  const rawStats =
-    viewMode === 'pairs' ? calculatePairStats(results) : calculateAssetStats(results);
+  const rawStats = viewMode === 'pairs' ? calculatePairStats(trades) : calculateAssetStats(trades);
   const stats = sortStats(rawStats, sortConfig);
 
   if (stats.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-base-content/60">No data available for statistics</div>
+        <div className="text-base-content/60">No data for statistics</div>
       </div>
     );
   }

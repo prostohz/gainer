@@ -1,9 +1,11 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
+import { DateTimePicker } from '../../shared/ui/Calendar';
 
 interface TimeframeCandlesInfo {
   first: string | null;
@@ -16,6 +18,8 @@ interface SystemInfo {
 }
 
 export const SystemPage = () => {
+  const [initialDate, setInitialDate] = useState<Date | null>(null);
+
   const { data: systemInfo, isLoading } = useQuery<SystemInfo>({
     queryKey: ['systemInfo'],
     queryFn: () => http.get('/api/system').then((response) => response.data),
@@ -34,8 +38,9 @@ export const SystemPage = () => {
   });
 
   const { mutate: loadCandles, isPending: isLoadCandlesPending } = useMutation({
-    mutationFn: () => {
-      return http.post('/api/system/loadCandles');
+    mutationFn: (initialDate?: Date | null) => {
+      const payload = initialDate ? { initialDate: initialDate.valueOf() } : {};
+      return http.post('/api/system/loadCandles', payload);
     },
   });
 
@@ -157,9 +162,17 @@ export const SystemPage = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-2">
+            <DateTimePicker
+              value={initialDate}
+              onChange={(date) => setInitialDate(date as Date | null)}
+              placeholder="Select initial date"
+            />
+          </div>
+
           <button
-            className="btn btn-primary"
-            onClick={() => loadCandles()}
+            className="btn btn-primary self-end"
+            onClick={() => loadCandles(initialDate)}
             disabled={isLoadCandlesPending}
           >
             {isLoadCandlesPending ? 'Loading...' : 'Load Candles'}

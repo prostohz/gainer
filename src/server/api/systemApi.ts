@@ -32,7 +32,9 @@ router.post(
 router.post(
   '/loadCandles',
   asyncHandler(async (req: Request, res: Response) => {
-    await loadCandles();
+    const { initialDate } = req.body;
+
+    await loadCandles(initialDate ? initialDate : undefined);
     sendResponse(res, { message: 'Candles loaded successfully' });
   }),
 );

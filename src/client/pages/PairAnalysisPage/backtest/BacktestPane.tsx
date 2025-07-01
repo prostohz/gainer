@@ -22,7 +22,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
   const [startDate, setStartDate] = useLSState<number>('backtestStartDate', Date.now());
   const [endDate, setEndDate] = useLSState<number>('backtestEndDate', startDate);
   const [timeframe, setTimeframe] = useState<TTimeframe>('1m');
-  const [backtestResults, setBacktestResults] = useState<TCompleteTrade[] | null>(null);
+  const [backtestTrades, setBacktestTrades] = useState<TCompleteTrade[] | null>(null);
 
   const { assetMap } = useAssets();
 
@@ -97,14 +97,14 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
       });
     },
     onSuccess: (response) => {
-      setBacktestResults(response.data);
+      setBacktestTrades(response.data);
       refetchAssetACandles();
       refetchAssetBCandles();
     },
   });
 
   useEffect(() => {
-    setBacktestResults(null);
+    setBacktestTrades(null);
   }, [symbolA, symbolB]);
 
   return (
@@ -157,10 +157,10 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
         </div>
       )}
 
-      {backtestResults && (
+      {backtestTrades && (
         <div>
           <div className="mb-4 w-full min-w-0">
-            <BacktestTrades results={backtestResults} />
+            <BacktestTrades trades={backtestTrades} />
           </div>
 
           <div className="flex justify-end mb-4">
@@ -182,7 +182,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
                   <div className="h-96 w-1/2">
                     <SyncedTradeChart
                       candles={assetACandles}
-                      trades={backtestResults}
+                      trades={backtestTrades}
                       precision={assetA.pricePrecision}
                       symbol={assetA.symbol}
                       title={`A: ${assetA.symbol}`}
@@ -194,7 +194,7 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
                   <div className="h-96 w-1/2">
                     <SyncedTradeChart
                       candles={assetBCandles}
-                      trades={backtestResults}
+                      trades={backtestTrades}
                       precision={assetB.pricePrecision}
                       symbol={assetB.symbol}
                       title={`B: ${assetB.symbol}`}

@@ -73,7 +73,7 @@ export const MRReportBacktestPage = () => {
     return (
       <div className="space-y-4">
         <TradeDistributionHistogram trades={backtest} />
-        <BacktestTrades results={backtest} />
+        <BacktestTrades trades={backtest} />
       </div>
     );
   };

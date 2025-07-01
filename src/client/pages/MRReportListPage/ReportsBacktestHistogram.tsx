@@ -13,10 +13,6 @@ import {
 import { dayjs } from '../../../shared/utils/daytime';
 import { TMRReport } from '../../../shared/types';
 
-type TMRReportsBacktestHistogramProps = {
-  reports: TMRReport[];
-};
-
 type ChartDataItem = {
   date: string;
   fullDate: string;
@@ -25,7 +21,7 @@ type ChartDataItem = {
   status: 'no-backtest' | 'no-trades' | 'profitable' | 'unprofitable';
 };
 
-export const MRReportsBacktestHistogram = ({ reports }: TMRReportsBacktestHistogramProps) => {
+export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) => {
   if (!reports || reports.length === 0) {
     return null;
   }
@@ -169,7 +165,7 @@ export const MRReportsBacktestHistogram = ({ reports }: TMRReportsBacktestHistog
   return (
     <div className="w-full h-64 bg-base-200 rounded p-4">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
           <XAxis
             dataKey="date"
