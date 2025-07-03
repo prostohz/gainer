@@ -14,6 +14,7 @@ import { dayjs } from '../../../shared/utils/daytime';
 import { TMRReport } from '../../../shared/types';
 
 type ChartDataItem = {
+  id: string;
   date: string;
   fullDate: string;
   profitability: number;
@@ -31,38 +32,34 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
     .map((report) => {
       const backtest = report.backtest;
 
+      const chartItem: ChartDataItem = {
+        id: report.id,
+        date: dayjs(report.date).format('DD/MM HH:mm'),
+        fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
+        profitability: 0,
+        tradesCount: 0,
+        status: 'no-backtest',
+      };
+
       // Случай 1: бэктест не проведён
       if (!backtest) {
-        return {
-          date: dayjs(report.date).format('DD/MM HH:mm'),
-          fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
-          profitability: 0,
-          tradesCount: 0,
-          status: 'no-backtest' as const,
-        };
+        return chartItem;
       }
 
       // Случай 2: бэктест проведён, но сделок нет
       if (backtest.length === 0) {
-        return {
-          date: dayjs(report.date).format('DD/MM HH:mm'),
-          fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
-          profitability: 0,
-          tradesCount: 0,
-          status: 'no-trades' as const,
-        };
+        chartItem.status = 'no-trades';
+        return chartItem;
       }
 
       // Случай 3: бэктест проведён и есть сделки
       const totalProfitability = backtest.reduce((sum, trade) => sum + trade.roi, 0);
 
-      return {
-        date: dayjs(report.date).format('DD/MM HH:mm'),
-        fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
-        profitability: totalProfitability,
-        tradesCount: backtest.length,
-        status: totalProfitability >= 0 ? ('profitable' as const) : ('unprofitable' as const),
-      };
+      chartItem.profitability = totalProfitability;
+      chartItem.tradesCount = backtest.length;
+      chartItem.status = totalProfitability >= 0 ? 'profitable' : 'unprofitable';
+
+      return chartItem;
     });
 
   const getBarColor = (status: ChartDataItem['status']) => {
@@ -165,8 +162,19 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
   return (
     <div className="w-full h-64 bg-base-200 rounded p-4">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
+        <BarChart
+          data={chartData}
+          margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+          onClick={(data) => {
+            if (data && data.activeLabel) {
+              const clickedItem = chartData.find((item) => item.date === data.activeLabel);
+              if (clickedItem && clickedItem.id) {
+                window.open(`/mrReport/${clickedItem.id}/backtest`, '_blank');
+              }
+            }
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
           <XAxis
             dataKey="date"
             tick={{ fontSize: 12, fill: 'currentColor' }}
@@ -180,19 +188,9 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={0} stroke="currentColor" opacity={0.2} />
-          <Bar
-            dataKey="profitability"
-            radius={[2, 2, 2, 2]}
-            style={{ filter: 'none' }}
-            isAnimationActive={false}
-          >
+          <Bar dataKey="profitability" radius={[2, 2, 2, 2]} isAnimationActive={false}>
             {chartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={getBarColor(entry.status)}
-                opacity={0.8}
-                style={{ filter: 'none' }}
-              />
+              <Cell key={`cell-${index}`} fill={getBarColor(entry.status)} />
             ))}
           </Bar>
         </BarChart>

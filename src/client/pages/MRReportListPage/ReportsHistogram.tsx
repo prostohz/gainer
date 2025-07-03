@@ -19,6 +19,7 @@ export const ReportsHistogram = ({ reports }: TProps) => {
 
         if (!acc[dateKey]) {
           acc[dateKey] = {
+            id: item.id,
             time: dateKey,
             totalPairs: 0,
             reportsCount: 0,
@@ -31,13 +32,14 @@ export const ReportsHistogram = ({ reports }: TProps) => {
       },
       {} as Record<
         string,
-        { time: string; totalPairs: number; reportsCount: number; date: number }
+        { id: string; time: string; totalPairs: number; reportsCount: number; date: number }
       >,
     );
 
     return Object.values(groupedData)
       .sort((a, b) => a.date - b.date)
       .map((item) => ({
+        id: item.id,
         date: dayjs(item.date).format('DD/MM HH:mm'),
         totalPairs: item.totalPairs,
         fullDate: item.time,
@@ -47,8 +49,19 @@ export const ReportsHistogram = ({ reports }: TProps) => {
   return (
     <div className="w-full h-64 bg-base-200 rounded p-4">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
+        <BarChart
+          data={chartData}
+          margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+          onClick={(data) => {
+            if (data && data.activeLabel) {
+              const clickedItem = chartData.find((item) => item.date === data.activeLabel);
+              if (clickedItem && clickedItem.id) {
+                window.open(`/mrReport/${clickedItem.id}`, '_blank');
+              }
+            }
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
           <XAxis
             dataKey="date"
             tick={{ fontSize: 12, fill: 'currentColor' }}
@@ -74,9 +87,7 @@ export const ReportsHistogram = ({ reports }: TProps) => {
           <Bar
             dataKey="totalPairs"
             fill="var(--fallback-p,oklch(var(--p)))"
-            opacity={0.8}
-            radius={[2, 2, 0, 0]}
-            style={{ filter: 'none' }}
+            radius={[2, 2, 2, 2]}
             isAnimationActive={false}
           />
         </BarChart>

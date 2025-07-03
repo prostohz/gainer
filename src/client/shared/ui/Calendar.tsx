@@ -119,7 +119,7 @@ export const Calendar: React.FC<CalendarProps> = ({
     disabled,
     minDate,
     maxDate,
-    locale: 'ru' as const,
+    locale: 'en' as const,
     inline,
     todayButton,
     showWeekNumbers,

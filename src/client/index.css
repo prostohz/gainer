@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.recharts-wrapper * {
+  outline: none;
+}
+.recharts-wrapper *:focus {
+  outline: none;
+}
