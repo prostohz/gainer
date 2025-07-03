@@ -21,6 +21,7 @@ const ONE_MINUTE_CANDLE_COUNT = 1440;
 const FIVE_MINUTE_CANDLE_COUNT = 1440;
 
 const CANDLE_COUNT_FOR_CORRELATION = 90;
+const CANDLE_COUNT_FOR_SPREAD_VOLATILITY = 240;
 const CANDLE_COUNT_FOR_CORRELATION_ROLLING = 1440;
 const CANDLE_COUNT_FOR_CORRELATION_ROLLING_WINDOW = 300;
 const CANDLE_COUNT_FOR_COINTEGRATION = 1200;
@@ -33,6 +34,9 @@ const MAX_CORRELATION_BY_PRICES = 0.99;
 const MIN_CORRELATION_BY_RETURNS = 0.3;
 const MAX_CORRELATION_BY_RETURNS = 0.99;
 
+const MIN_SPREAD_VOLATILITY_PERCENT = 0.0;
+const MAX_SPREAD_VOLATILITY_PERCENT = 4.0;
+
 const MIN_ROLLING_CORRELATION_BY_RETURNS_MEAN = 0.35;
 const MIN_ROLLING_CORRELATION_BY_RETURNS_THRESHOLD = 0.2;
 const MIN_ROLLING_CORRELATION_BY_RETURNS_RATIO = 0.7;
@@ -44,7 +48,7 @@ const MAX_HURST_EXPONENT = 0.5;
 const MIN_HALF_LIFE_DURATION_MS = 5 * 60 * 1000;
 const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
 
-const performanceTracker = new PerformanceTracker(false);
+const performanceTracker = new PerformanceTracker(true);
 
 export const buildMrReport = async (date: number) => {
   logger.info(`Creating report for: ${dayjs(date).format('DD.MM HH:mm:ss')}`);
@@ -52,38 +56,37 @@ export const buildMrReport = async (date: number) => {
   const assetsWithVolume = await filterAssetsByDailyCandleVolume(date);
 
   logger.info(`Assets with volume: ${assetsWithVolume.length}`);
-  logger.info(`Pairs to process: ${(assetsWithVolume.length * (assetsWithVolume.length - 1)) / 2}`);
 
   const tradablePairs: TMRReportEntry[] = [];
 
   const oneMinuteCandlesCache = await getOneMinuteCandlesCache(assetsWithVolume, date);
   const fiveMinuteCandlesCache = await getFiveMinuteCandlesCache(assetsWithVolume, date);
 
-  for (let i = 0; i < assetsWithVolume.length; i++) {
-    const assetA = assetsWithVolume[i];
+  const assetsWithCandles = assetsWithVolume.filter((asset) => {
+    const oneMinuteCandles = oneMinuteCandlesCache.get(asset.symbol)!;
+    const fiveMinuteCandles = fiveMinuteCandlesCache.get(asset.symbol)!;
+    return (
+      oneMinuteCandles.length >= ONE_MINUTE_CANDLE_COUNT &&
+      fiveMinuteCandles.length >= FIVE_MINUTE_CANDLE_COUNT
+    );
+  });
+
+  logger.info(`Assets with candles: ${assetsWithCandles.length}`);
+  logger.info(
+    `Pairs to process: ${(assetsWithCandles.length * (assetsWithCandles.length - 1)) / 2}`,
+  );
+
+  for (let i = 0; i < assetsWithCandles.length; i++) {
+    const assetA = assetsWithCandles[i];
 
     const oneMinuteCandlesA = oneMinuteCandlesCache.get(assetA.symbol)!;
-    if (oneMinuteCandlesA.length < ONE_MINUTE_CANDLE_COUNT) {
-      continue;
-    }
-
     const fiveMinuteCandlesA = fiveMinuteCandlesCache.get(assetA.symbol)!;
-    if (fiveMinuteCandlesA.length < FIVE_MINUTE_CANDLE_COUNT) {
-      continue;
-    }
 
-    for (let j = i + 1; j < assetsWithVolume.length; j++) {
-      const assetB = assetsWithVolume[j];
+    for (let j = i + 1; j < assetsWithCandles.length; j++) {
+      const assetB = assetsWithCandles[j];
 
       const oneMinuteCandlesB = oneMinuteCandlesCache.get(assetB.symbol)!;
-      if (oneMinuteCandlesB.length < ONE_MINUTE_CANDLE_COUNT) {
-        continue;
-      }
-
       const fiveMinuteCandlesB = fiveMinuteCandlesCache.get(assetB.symbol)!;
-      if (fiveMinuteCandlesB.length < FIVE_MINUTE_CANDLE_COUNT) {
-        continue;
-      }
 
       try {
         const pairResult = processPair(
@@ -107,8 +110,8 @@ export const buildMrReport = async (date: number) => {
       }
     }
 
-    const processedPairs = (i + 1) * (assetsWithVolume.length - 1) - (i * (i + 1)) / 2;
-    const totalPairs = (assetsWithVolume.length * (assetsWithVolume.length - 1)) / 2;
+    const processedPairs = (i + 1) * (assetsWithCandles.length - 1) - (i * (i + 1)) / 2;
+    const totalPairs = (assetsWithCandles.length * (assetsWithCandles.length - 1)) / 2;
     const progress = ((processedPairs / totalPairs) * 100).toFixed(2);
 
     logger.verbose(`${progress}% pairs processed`);
@@ -248,7 +251,7 @@ const getCandlesCache = async (
   return cache;
 };
 
-const processPair = (
+export const processPair = (
   assetA: Asset,
   assetB: Asset,
   oneMinuteCandlesA: TIndicatorShortCandle[],
@@ -258,6 +261,15 @@ const processPair = (
 ): TMRReportEntry | null => {
   const correlation = checkCorrelation(oneMinuteCandlesA, oneMinuteCandlesB);
   if (!correlation) {
+    return null;
+  }
+
+  const beta = checkBetaHedge(oneMinuteCandlesA, oneMinuteCandlesB);
+  if (!beta) {
+    return null;
+  }
+
+  if (!checkSpreadVolatility(oneMinuteCandlesA, oneMinuteCandlesB, beta)) {
     return null;
   }
 
@@ -282,11 +294,6 @@ const processPair = (
 
   const hurstExponent = checkHurstExponent(oneMinuteCandlesA, oneMinuteCandlesB);
   if (!hurstExponent) {
-    return null;
-  }
-
-  const beta = checkBetaHedge(oneMinuteCandlesA, oneMinuteCandlesB);
-  if (!beta) {
     return null;
   }
 
@@ -353,6 +360,82 @@ const checkCorrelation = performanceTracker.measureTime(
       correlationByPrices,
       correlationByReturns,
     };
+  },
+);
+
+const checkBetaHedge = performanceTracker.measureTime(
+  'checkBetaHedge',
+  (candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[]) => {
+    const betaHedge = new BetaHedge();
+    const beta = betaHedge.calculateBeta(candlesA, candlesB)!;
+    if (!beta) {
+      return null;
+    }
+
+    return beta;
+  },
+);
+
+/**
+ * Проверяет, находится ли волатильность спреда в допустимых границах
+ * Минимум: достаточно для покрытия комиссий и получения прибыли
+ * Максимум: не приводит к слишком частому срабатыванию стоп-лосса
+ */
+const checkSpreadVolatility = performanceTracker.measureTime(
+  'checkSpreadVolatility',
+  (candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[], beta: number): boolean => {
+    const candlesCount = Math.min(
+      candlesA.length,
+      candlesB.length,
+      CANDLE_COUNT_FOR_SPREAD_VOLATILITY,
+    );
+
+    const startIndex = Math.max(0, candlesA.length - candlesCount);
+    const spreads: number[] = [];
+
+    // Рассчитываем спреды для каждой свечи
+    for (let i = startIndex; i < candlesA.length; i++) {
+      const priceA = candlesA[i].close;
+      const priceB = candlesB[i].close;
+      const spread = priceA - beta * priceB;
+      spreads.push(spread);
+    }
+
+    if (spreads.length < 2) {
+      return false;
+    }
+
+    // Рассчитываем процентные изменения спреда
+    const spreadReturns: number[] = [];
+    for (let i = 1; i < spreads.length; i++) {
+      const prevSpread = spreads[i - 1];
+      if (Math.abs(prevSpread) > 1e-10) {
+        const spreadReturn = ((spreads[i] - prevSpread) / Math.abs(prevSpread)) * 100;
+        spreadReturns.push(spreadReturn);
+      }
+    }
+
+    if (spreadReturns.length < 10) {
+      return false;
+    }
+
+    // Волатильность = стандартное отклонение процентных изменений
+    const spreadReturnsStd = Number(std(spreadReturns));
+    const volatility = isFinite(spreadReturnsStd) ? spreadReturnsStd : 0;
+
+    if (volatility <= 0) {
+      return false;
+    }
+
+    if (volatility < MIN_SPREAD_VOLATILITY_PERCENT) {
+      return false; // Слишком низкая волатильность для прибыльной торговли
+    }
+
+    if (volatility > MAX_SPREAD_VOLATILITY_PERCENT) {
+      return false; // Слишком высокая волатильность приведет к большим стоп-лоссам
+    }
+
+    return true;
   },
 );
 
@@ -456,19 +539,6 @@ const checkHalfLife = performanceTracker.measureTime(
     }
 
     return halfLifeValue;
-  },
-);
-
-const checkBetaHedge = performanceTracker.measureTime(
-  'checkBetaHedge',
-  (candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[]) => {
-    const betaHedge = new BetaHedge();
-    const beta = betaHedge.calculateBeta(candlesA, candlesB)!;
-    if (!beta) {
-      return null;
-    }
-
-    return beta;
   },
 );
 

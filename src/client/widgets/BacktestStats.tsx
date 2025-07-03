@@ -6,6 +6,7 @@ import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backt
 import { BacktestAssets } from './BacktestAssets';
 import { BacktestRoiHistogram } from './BacktestRoiHistogram';
 import { BacktestRoiCumHistogram } from './BacktestRoiCumHistogram';
+import { BacktestRoiByTimeHistogram } from './BacktestRoiByTimeHistogram';
 
 type TStatValue = string | number;
 
@@ -61,6 +62,7 @@ type TRiskMetrics = {
 
 type TTimeMetrics = {
   avgHoldingTime: number;
+  medianHoldingTime: number;
   minHoldingTime: number;
   maxHoldingTime: number;
   avgProfitableHoldingTime: number;
@@ -169,6 +171,7 @@ const calculateTimeMetrics = (trades: TCompleteTrade[]): TTimeMetrics => {
     (trade) => (trade.closeTime - trade.openTime) / dayjs.duration(1, 'minute').asMilliseconds(),
   );
   const avgHoldingTime = holdingTimes.length > 0 ? Number(math.mean(holdingTimes)) : 0;
+  const medianHoldingTime = holdingTimes.length > 0 ? Number(math.median(holdingTimes)) : 0;
   const minHoldingTime = holdingTimes.length > 0 ? Number(math.min(holdingTimes)) : 0;
   const maxHoldingTime = holdingTimes.length > 0 ? Number(math.max(holdingTimes)) : 0;
 
@@ -198,6 +201,7 @@ const calculateTimeMetrics = (trades: TCompleteTrade[]): TTimeMetrics => {
 
   return {
     avgHoldingTime,
+    medianHoldingTime,
     minHoldingTime,
     maxHoldingTime,
     avgProfitableHoldingTime,
@@ -409,7 +413,7 @@ const createStatSections = (
     },
     {
       title: 'Time Analysis',
-      columns: 6,
+      columns: 7,
       items: [
         {
           title: 'Average Holding Time',
@@ -417,6 +421,13 @@ const createStatSections = (
           format: 'minutes',
           tooltip:
             'Average time between position opening and closing. Affects capital turnover and risk exposure.',
+        },
+        {
+          title: 'Median Holding Time',
+          value: timeMetrics.medianHoldingTime,
+          format: 'minutes',
+          tooltip:
+            'Median time between position opening and closing. Affects capital turnover and risk exposure.',
         },
         {
           title: 'Min Holding Time',
@@ -516,6 +527,7 @@ const StatGrid = ({ items, columns }: { items: TStatItem[]; columns: number }) =
         'grid-cols-4': columns === 4,
         'grid-cols-5': columns === 5,
         'grid-cols-6': columns === 6,
+        'grid-cols-7': columns === 7,
       })}
     >
       {items.map((item, index) => (
@@ -610,6 +622,14 @@ export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
           <BacktestRoiCumHistogram trades={trades} />
         </div>
       </div>
+
+      <div className="w-full">
+        <h3 className="text-sm font-semibold mb-2 text-base-content/80">
+          Trades by ROI by holding time
+        </h3>
+        <BacktestRoiByTimeHistogram trades={trades} />
+      </div>
+
       <div className="rounded-md">
         <h3 className="text-sm font-semibold mb-2 text-base-content/80">Asset Stats</h3>
         <div className="bg-base-300 rounded-md">

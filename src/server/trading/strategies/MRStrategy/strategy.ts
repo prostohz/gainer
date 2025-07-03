@@ -86,7 +86,6 @@ export class MeanReversionStrategy extends EventEmitter {
 
   private readonly Z_SCORE_ENTRY = 3.0;
   private readonly Z_SCORE_EXIT = 0.0;
-  private readonly Z_SCORE_STOP_LOSS = 5.0;
 
   // Динамический стоп-лосс параметры
   private readonly STOP_LOSS_VOLATILITY_MULTIPLIER = 3.0; // Коэффициент: SL = multiplier * σ
@@ -350,10 +349,6 @@ export class MeanReversionStrategy extends EventEmitter {
       return;
     }
 
-    if (zScore >= this.Z_SCORE_STOP_LOSS || zScore <= -this.Z_SCORE_STOP_LOSS) {
-      return;
-    }
-
     if (!this.checkTrendAcceptable()) {
       return;
     }
@@ -467,29 +462,6 @@ export class MeanReversionStrategy extends EventEmitter {
     const zScore = this.calculateZScore(beta);
     if (!zScore) {
       console.warn('Z-score is null, stop-loss is not triggered');
-      return;
-    }
-
-    const shouldZScoreStopLoss =
-      (direction === 'sell-buy' && zScore >= this.Z_SCORE_STOP_LOSS) ||
-      (direction === 'buy-sell' && zScore <= -this.Z_SCORE_STOP_LOSS);
-
-    if (shouldZScoreStopLoss) {
-      this.emit('signal', {
-        type: 'stopLoss',
-        direction: direction,
-        symbolA: {
-          action: direction === 'sell-buy' ? 'buy' : 'sell',
-          price: priceA,
-        },
-        symbolB: {
-          action: direction === 'sell-buy' ? 'sell' : 'buy',
-          price: priceB,
-        },
-        reason: `Stop-loss triggered at Z-score: ${zScore.toFixed(2)}`,
-      } as TStopLossSignal);
-
-      this.state = 'waitingForExit';
       return;
     }
 

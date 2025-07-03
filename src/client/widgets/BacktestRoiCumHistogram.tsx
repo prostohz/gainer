@@ -11,10 +11,6 @@ import {
 
 import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 
-type TBacktestRoiCumHistogramProps = {
-  trades: TCompleteTrade[];
-};
-
 type ChartDataItem = {
   roi: number;
   roiLabel: string;
@@ -26,7 +22,7 @@ type ChartDataItem = {
   profitableCount: number;
 };
 
-export const BacktestRoiCumHistogram = ({ trades }: TBacktestRoiCumHistogramProps) => {
+export const BacktestRoiCumHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
       <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
@@ -154,7 +150,7 @@ export const BacktestRoiCumHistogram = ({ trades }: TBacktestRoiCumHistogramProp
     <div className="w-full h-64 bg-base-300 rounded p-4">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
           <XAxis
             dataKey="roiLabel"
             tick={{ fontSize: 10, fill: 'currentColor' }}
@@ -203,16 +199,13 @@ export const BacktestRoiCumHistogram = ({ trades }: TBacktestRoiCumHistogramProp
             dataKey="unprofitableCount"
             stackId="trades"
             fill="var(--fallback-er,oklch(var(--er)))"
-            opacity={0.8}
             radius={[0, 0, 0, 0]}
-            style={{ filter: 'none' }}
             isAnimationActive={false}
           />
           <Bar
             dataKey="profitableCount"
             stackId="trades"
             fill="var(--fallback-su,oklch(var(--su)))"
-            opacity={0.8}
             radius={[2, 2, 0, 0]}
             style={{ filter: 'none' }}
             isAnimationActive={false}

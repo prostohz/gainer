@@ -221,8 +221,8 @@ export const MRReportListPage = () => {
         reports || [],
         R.map((report) => Number(report.date)),
       );
-      const firstReportTime = 1746046800000;
-      const lastReportTime = 1748379600000;
+      const firstReportTime = existingReports.at(0)!;
+      const lastReportTime = existingReports.at(-1)!;
 
       for (
         let date = firstReportTime;
@@ -295,7 +295,7 @@ export const MRReportListPage = () => {
           />
 
           <button className="btn btn-primary" onClick={() => createReport()} disabled={isPending}>
-            {isPending ? 'Creating...' : 'Create New Report'}
+            {isPending ? 'Creating...' : 'Create Report'}
           </button>
         </div>
 
@@ -347,13 +347,13 @@ export const MRReportListPage = () => {
         <div className="flex flex-col gap-4 mb-4">
           <h2 className="text-lg font-semibold">Pairs count by date</h2>
           <ReportsHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">Backtest result by date</h2>
+          <h2 className="text-lg font-semibold">Backtest ROI by date</h2>
           <ReportsBacktestHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">Backtest Results</h2>
+          <h2 className="text-lg font-semibold">Backtest Stats</h2>
           <div className="bg-base-200 rounded-lg p-4">
             <BacktestStats trades={reports.flatMap((report) => report.backtest || [])} />
           </div>
-          <h2 className="text-lg font-semibold">Pair Report List</h2>
+          <h2 className="text-lg font-semibold">Reports</h2>
           <div className="bg-base-200 rounded-lg">
             <div className="flex items-center px-4 py-3 font-medium text-sm border-b border-base-100">
               <div className="w-40 flex-shrink-0">ID</div>

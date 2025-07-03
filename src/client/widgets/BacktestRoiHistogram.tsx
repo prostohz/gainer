@@ -12,10 +12,6 @@ import {
 
 import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
 
-type TBacktestRoiHistogramProps = {
-  trades: TCompleteTrade[];
-};
-
 type ChartDataItem = {
   range: string;
   rangeLabel: string;
@@ -25,7 +21,7 @@ type ChartDataItem = {
   status: 'profitable' | 'unprofitable';
 };
 
-export const BacktestRoiHistogram = ({ trades }: TBacktestRoiHistogramProps) => {
+export const BacktestRoiHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
       <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
@@ -141,7 +137,7 @@ export const BacktestRoiHistogram = ({ trades }: TBacktestRoiHistogramProps) => 
     <div className="w-full h-64 bg-base-300 rounded p-4">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
           <XAxis
             dataKey="rangeLabel"
             tick={{ fontSize: 10, fill: 'currentColor' }}
@@ -158,19 +154,9 @@ export const BacktestRoiHistogram = ({ trades }: TBacktestRoiHistogramProps) => 
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine x="0.00%" stroke="currentColor" opacity={0.5} strokeDasharray="2 2" />
-          <Bar
-            dataKey="tradesCount"
-            radius={[2, 2, 0, 0]}
-            style={{ filter: 'none' }}
-            isAnimationActive={false}
-          >
+          <Bar dataKey="tradesCount" radius={[2, 2, 0, 0]} isAnimationActive={false}>
             {chartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={getBarColor(entry.status)}
-                opacity={0.8}
-                style={{ filter: 'none' }}
-              />
+              <Cell key={`cell-${index}`} fill={getBarColor(entry.status)} />
             ))}
           </Bar>
         </BarChart>
