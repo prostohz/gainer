@@ -6,6 +6,7 @@ import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { Loader } from '../../shared/ui/Loader';
 import { DateTimePicker } from '../../shared/ui/Calendar';
+import { TagManager } from '../../widgets/TagManager';
 
 interface TimeframeCandlesInfo {
   first: string | null;
@@ -141,7 +142,8 @@ export const SystemPage = () => {
         )}
       </div>
 
-      {/* Action Buttons */}
+      <TagManager />
+
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex flex-col sm:flex-row gap-4">
           <button

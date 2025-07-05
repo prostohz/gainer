@@ -4,10 +4,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 
 import api from './api';
-import { Asset } from './models/Asset';
-// Импортируем для инициализации, но не используем напрямую
-import './models/Candle';
-import './models/Trade';
+import { Asset } from './models';
 import { errorHandler } from './utils/apiHandler';
 
 const app = express();

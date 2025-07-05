@@ -26,7 +26,7 @@ export const ReportsHistogram = ({ reports }: TProps) => {
             date: item.date,
           };
         }
-        acc[dateKey].totalPairs += item.data.length;
+        acc[dateKey].totalPairs += item.dataCount;
         acc[dateKey].reportsCount += 1;
         return acc;
       },

@@ -19,19 +19,21 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const startDate = req.query.startDate ? Number(req.query.startDate) : undefined;
     const endDate = req.query.endDate ? Number(req.query.endDate) : undefined;
+    const tagId = req.query.tagId ? Number(req.query.tagId) : undefined;
 
-    const reportList = await getReportList(startDate, endDate);
+    const reportList = await getReportList(startDate, endDate, tagId);
     sendResponse(res, reportList);
   }),
 );
 
 router.post(
   '/',
-  validateParams(['date']),
+  validateParams(['date', 'tagId']),
   asyncHandler(async (req: Request, res: Response) => {
     const date = Number(req.query.date);
+    const tagId = Number(req.query.tagId);
 
-    await createReport(date);
+    await createReport(date, tagId);
     sendResponse(res, { message: 'Report built' });
   }),
 );

@@ -6,6 +6,7 @@ import priceLevelsApi from './priceLevelsApi';
 import mrReportApi from './mrReportApi';
 import backtestApi from './backtestApi';
 import systemApi from './systemApi';
+import tagApi from './tagApi';
 
 const router = express.Router();
 
@@ -15,5 +16,6 @@ router.use('/priceLevels', priceLevelsApi);
 router.use('/mrReport', mrReportApi);
 router.use('/backtest', backtestApi);
 router.use('/system', systemApi);
+router.use('/tag', tagApi);
 
 export default router;

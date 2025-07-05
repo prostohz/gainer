@@ -43,7 +43,10 @@ export type TMRReportEntry = {
 export type TMRReport = {
   id: string;
   date: number;
+  tagId: number;
+  lastBacktestAt: Date | null;
   data: TMRReportEntry[];
+  dataCount: number;
   backtest: TCompleteTrade[] | null;
 };
 
@@ -54,4 +57,12 @@ export type TPriceLevelItem = {
 export type TPriceLevels = {
   supportLevels: TPriceLevelItem[];
   resistanceLevels: TPriceLevelItem[];
+};
+
+export type TMRReportTag = {
+  id: number;
+  code: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
 };

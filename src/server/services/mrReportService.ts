@@ -1,81 +1,188 @@
-import path from 'path';
-import fs from 'fs';
+import { Op, WhereOptions } from 'sequelize';
 
-import { TMRReport } from '../../shared/types';
 import { dayjs } from '../../shared/utils/daytime';
 import { measureTime } from '../utils/performance/measureTime';
-import { mrReportLogger as logger } from '../utils/logger';
+import { mrReportLogger as logger, backtestLogger } from '../utils/logger';
 import { run } from '../trading/strategies/MRStrategy/backtest';
 import { buildMrReport } from '../modules/mrReportBuilder';
+import {
+  MRReport,
+  MRReportEntry,
+  MRReportBacktestTrade,
+  MRReportTag,
+} from '../models/MRReport/index';
 
-const mrReportFolder = path.resolve(process.cwd(), 'data', 'mrReports');
-const mrReportMetaDataFilePath = (id: string) => path.join(mrReportFolder, id, 'report.json');
-const mrReportDataFilePath = (id: string) => path.join(mrReportFolder, id, 'data.json');
-const mrReportBacktestFilePath = (id: string) => path.join(mrReportFolder, id, 'backtest.json');
+export const getReportList = async (startDate?: number, endDate?: number, tagId?: number) => {
+  const whereClause: WhereOptions = {};
+  if (startDate && endDate) {
+    whereClause.date = {
+      [Op.between]: [startDate, endDate],
+    };
+  }
 
-export const getReportList = async (startDate?: number, endDate?: number) => {
-  const entries = fs.readdirSync(mrReportFolder);
+  if (tagId) {
+    whereClause.tagId = tagId;
+  }
 
-  return entries
-    .filter((entry) => {
-      const stat = fs.statSync(path.join(mrReportFolder, entry));
-      return stat.isDirectory() && dayjs(Number(entry)).isBetween(startDate, endDate);
-    })
-    .map((entry) => {
-      const reportMetaData = fs.readFileSync(
-        path.join(mrReportFolder, entry, 'report.json'),
-        'utf-8',
-      );
-      const reportData = fs.readFileSync(path.join(mrReportFolder, entry, 'data.json'), 'utf-8');
+  const reports = await MRReport.findAll({
+    where: whereClause,
+    include: [
+      {
+        model: MRReportBacktestTrade,
+        as: 'backtestTrades',
+        required: false,
+      },
+    ],
+    order: [['date', 'ASC']],
+  });
 
-      const reportMetaDataJSON = JSON.parse(reportMetaData) as Pick<TMRReport, 'id' | 'date'>;
-      const reportDataJSON = JSON.parse(reportData) as TMRReport['data'];
-      const backtest = fs.existsSync(mrReportBacktestFilePath(entry))
-        ? JSON.parse(fs.readFileSync(mrReportBacktestFilePath(entry), 'utf-8'))
-        : null;
+  // Получаем количество записей для каждого отчета отдельным запросом
+  const reportIds = reports.map((report) => report.id);
+  const entryCounts = (await MRReportEntry.findAll({
+    where: { reportId: { [Op.in]: reportIds } },
+    attributes: [
+      'reportId',
+      [MRReportEntry.sequelize!.fn('COUNT', MRReportEntry.sequelize!.col('id')), 'count'],
+    ],
+    group: ['reportId'],
+    raw: true,
+  })) as unknown as Array<{ reportId: number; count: number }>;
 
-      return {
-        id: reportMetaDataJSON.id,
-        date: reportMetaDataJSON.date,
-        data: reportDataJSON,
-        backtest,
-      };
-    });
+  const entryCountMap = entryCounts.reduce(
+    (acc, entry) => {
+      acc[entry.reportId] = Number(entry.count);
+      return acc;
+    },
+    {} as Record<number, number>,
+  );
+
+  return reports.map((report) => ({
+    id: report.reportId,
+    date: report.date,
+    tagId: report.tagId,
+    lastBacktestAt: report.lastBacktestAt,
+    dataCount: entryCountMap[report.id] || 0,
+    backtest: report.lastBacktestAt
+      ? (report.backtestTrades || []).map((trade) => ({
+          id: trade.tradeId,
+          direction: trade.direction,
+          symbolA: trade.symbolA,
+          symbolB: trade.symbolB,
+          quantityA: trade.quantityA,
+          quantityB: trade.quantityB,
+          openPriceA: trade.openPriceA,
+          closePriceA: trade.closePriceA,
+          openPriceB: trade.openPriceB,
+          closePriceB: trade.closePriceB,
+          openTime: trade.openTime,
+          closeTime: trade.closeTime,
+          roi: trade.roi,
+          openReason: trade.openReason,
+          closeReason: trade.closeReason,
+        }))
+      : null,
+  }));
 };
 
 export const createReport = measureTime(
   'Report creation',
-  async (date: number) => {
+  async (date: number, tagId: number) => {
     const id = `${date}`;
-    const report = await buildMrReport(date);
+    const reportData = await buildMrReport(date);
 
-    fs.mkdirSync(path.join(mrReportFolder, id), { recursive: true });
+    const transaction = await MRReport.sequelize!.transaction();
 
-    const reportMetaData = {
-      id,
-      date,
-    };
+    try {
+      const report = await MRReport.create(
+        {
+          reportId: id,
+          date,
+          tagId,
+        },
+        { transaction },
+      );
 
-    fs.writeFileSync(mrReportMetaDataFilePath(id), JSON.stringify(reportMetaData, null, 2));
-    fs.writeFileSync(mrReportDataFilePath(id), JSON.stringify(report, null, 2));
+      await MRReportEntry.bulkCreate(
+        reportData.map((entry) => ({
+          reportId: report.id,
+          assetABaseAsset: entry.assetA.baseAsset,
+          assetAQuoteAsset: entry.assetA.quoteAsset,
+          assetBBaseAsset: entry.assetB.baseAsset,
+          assetBQuoteAsset: entry.assetB.quoteAsset,
+          pValue: entry.pValue,
+          halfLife: entry.halfLife,
+          correlationByPrices: entry.correlationByPrices,
+          correlationByReturns: entry.correlationByReturns,
+          crossings: entry.crossings,
+          spreadMean: entry.spread.mean,
+          spreadMedian: entry.spread.median,
+          spreadStd: entry.spread.std,
+        })),
+        { transaction },
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   },
   logger.info,
 );
 
 export const getReport = async (id: string) => {
-  if (!fs.existsSync(mrReportMetaDataFilePath(id)) || !fs.existsSync(mrReportDataFilePath(id))) {
+  const report = await MRReport.findOne({
+    where: { reportId: id },
+    include: [
+      {
+        model: MRReportEntry,
+        as: 'entries',
+      },
+      {
+        model: MRReportTag,
+        as: 'tag',
+      },
+    ],
+  });
+
+  if (!report) {
     return null;
   }
 
-  const reportMetaDataContent = fs.readFileSync(mrReportMetaDataFilePath(id), 'utf-8');
-  const reportDataContent = fs.readFileSync(mrReportDataFilePath(id), 'utf-8');
-
-  const reportMetaData = JSON.parse(reportMetaDataContent) as Pick<TMRReport, 'id' | 'date'>;
-  const reportData = JSON.parse(reportDataContent) as TMRReport['data'];
-
   return {
-    ...reportMetaData,
-    data: reportData,
+    id: report.reportId,
+    date: report.date,
+    tagId: report.tagId,
+    lastBacktestAt: report.lastBacktestAt,
+    tag: report.tag
+      ? {
+          id: report.tag.id,
+          code: report.tag.code,
+          description: report.tag.description,
+          createdAt: report.tag.createdAt,
+          updatedAt: report.tag.updatedAt,
+        }
+      : undefined,
+    data: (report.entries || []).map((entry) => ({
+      assetA: {
+        baseAsset: entry.assetABaseAsset,
+        quoteAsset: entry.assetAQuoteAsset,
+      },
+      assetB: {
+        baseAsset: entry.assetBBaseAsset,
+        quoteAsset: entry.assetBQuoteAsset,
+      },
+      pValue: entry.pValue,
+      halfLife: entry.halfLife,
+      correlationByPrices: entry.correlationByPrices,
+      correlationByReturns: entry.correlationByReturns,
+      crossings: entry.crossings,
+      spread: {
+        mean: entry.spreadMean,
+        median: entry.spreadMedian,
+        std: entry.spreadStd,
+      },
+    })),
   };
 };
 
@@ -85,22 +192,48 @@ export const updateReport = async (id: string) => {
     return;
   }
 
-  await createReport(report.date);
+  await deleteReport(id);
+  await createReport(report.date, report.tagId);
 };
 
 export const deleteReport = async (id: string) => {
-  fs.rmSync(path.join(mrReportFolder, id), { recursive: true });
+  await MRReport.destroy({
+    where: { reportId: id },
+  });
 };
 
 export const getReportBacktest = async (id: string) => {
-  if (!fs.existsSync(mrReportBacktestFilePath(id))) {
+  const report = await MRReport.findOne({
+    where: { reportId: id },
+    include: [
+      {
+        model: MRReportBacktestTrade,
+        as: 'backtestTrades',
+      },
+    ],
+  });
+
+  if (!report || !(report.backtestTrades || []).length) {
     return null;
   }
 
-  const reportBacktestContent = fs.readFileSync(mrReportBacktestFilePath(id), 'utf-8');
-  const reportBacktest = JSON.parse(reportBacktestContent);
-
-  return reportBacktest;
+  return (report.backtestTrades || []).map((trade) => ({
+    id: trade.tradeId,
+    direction: trade.direction,
+    symbolA: trade.symbolA,
+    symbolB: trade.symbolB,
+    quantityA: trade.quantityA,
+    quantityB: trade.quantityB,
+    openPriceA: trade.openPriceA,
+    closePriceA: trade.closePriceA,
+    openPriceB: trade.openPriceB,
+    closePriceB: trade.closePriceB,
+    openTime: trade.openTime,
+    closeTime: trade.closeTime,
+    roi: trade.roi,
+    openReason: trade.openReason,
+    closeReason: trade.closeReason,
+  }));
 };
 
 export const createReportBacktest = async (
@@ -113,7 +246,17 @@ export const createReportBacktest = async (
     return null;
   }
 
-  logger.info(`Creating backtest for: ${dayjs(report.date).format('DD.MM.YYYY HH:mm')}`);
+  const reportModel = await MRReport.findOne({
+    where: { reportId: id },
+  });
+
+  if (!reportModel) {
+    return null;
+  }
+
+  backtestLogger.info(
+    `Backtesting for the report: ${dayjs(report.date).format('DD.MM.YYYY HH:mm')}. Start: ${dayjs(startTimestamp).format('DD.MM.YYYY HH:mm')}. End: ${dayjs(endTimestamp).format('DD.MM.YYYY HH:mm')}`,
+  );
 
   const reportBacktest = await run(
     report.data.map(({ assetA, assetB }) => ({
@@ -124,14 +267,48 @@ export const createReportBacktest = async (
     endTimestamp,
   );
 
-  fs.writeFileSync(mrReportBacktestFilePath(id), JSON.stringify(reportBacktest, null, 2));
+  await MRReportBacktestTrade.bulkCreate(
+    reportBacktest.map((trade) => ({
+      reportId: reportModel.id,
+      tradeId: trade.id,
+      direction: trade.direction,
+      symbolA: trade.symbolA,
+      symbolB: trade.symbolB,
+      quantityA: trade.quantityA,
+      quantityB: trade.quantityB,
+      openPriceA: trade.openPriceA,
+      closePriceA: trade.closePriceA,
+      openPriceB: trade.openPriceB,
+      closePriceB: trade.closePriceB,
+      openTime: trade.openTime,
+      closeTime: trade.closeTime,
+      roi: trade.roi,
+      openReason: trade.openReason,
+      closeReason: trade.closeReason,
+    })),
+  );
+
+  // Обновляем дату последнего бэктеста
+  await reportModel.update({
+    lastBacktestAt: new Date(),
+  });
 };
 
 export const deleteReportBacktest = async (id: string) => {
-  const report = await getReport(id);
+  const report = await MRReport.findOne({
+    where: { reportId: id },
+  });
+
   if (!report) {
     return null;
   }
 
-  fs.rmSync(mrReportBacktestFilePath(id));
+  await MRReportBacktestTrade.destroy({
+    where: { reportId: report.id },
+  });
+
+  // Сбрасываем дату последнего бэктеста
+  await report.update({
+    lastBacktestAt: null,
+  });
 };

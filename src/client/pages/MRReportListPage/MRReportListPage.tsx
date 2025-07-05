@@ -12,6 +12,7 @@ import { TMRReport } from '../../../shared/types';
 import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
+import { TagSelector } from '../../widgets/TagSelector';
 import { BacktestStats } from '../../widgets/BacktestStats';
 import { ReportsHistogram } from './ReportsHistogram';
 import { ReportsBacktestHistogram } from './ReportsBacktestHistogram';
@@ -91,7 +92,7 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
     >
       <div className="w-40 flex-shrink-0">{item.id}</div>
       <div className="w-40 flex-shrink-0">{dayjs(item.date).format('DD.MM.YYYY HH:mm')}</div>
-      <div className="w-20 flex-shrink-0">{item.data.length}</div>
+      <div className="w-20 flex-shrink-0">{item.dataCount}</div>
       <div className="flex-1 min-w-0">{renderBacktestStats(item.backtest)}</div>
       <div className="flex-shrink-0 ml-4">
         <div className="flex gap-2 justify-end">
@@ -135,7 +136,7 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
 export const MRReportListPage = () => {
   const [startDate, setStartDate] = useLSState<number | null>('reportsStartDate', null);
   const [endDate, setEndDate] = useLSState<number | null>('reportsEndDate', null);
-
+  const [selectedTagId, setSelectedTagId] = useLSState<number | null>('reportsTagId', null);
   const [selectedDate, setSelectedDate] = useLSState<number>('reportSelectedDate', Date.now());
 
   const {
@@ -143,11 +144,11 @@ export const MRReportListPage = () => {
     isLoading,
     refetch,
   } = useQuery<TMRReport[]>({
-    queryKey: ['mrReportList', startDate, endDate],
+    queryKey: ['mrReportList', startDate, endDate, selectedTagId],
     queryFn: () =>
       http
         .get('/api/mrReport', {
-          params: { startDate, endDate },
+          params: { startDate, endDate, tagId: selectedTagId },
         })
         .then((response) => response.data),
   });
@@ -155,7 +156,7 @@ export const MRReportListPage = () => {
   const { mutate: createReport, isPending } = useMutation({
     mutationFn: () =>
       http.post('/api/mrReport', null, {
-        params: { date: selectedDate },
+        params: { date: selectedDate, tagId: selectedTagId },
       }),
     onSuccess: () => {
       refetch();
@@ -183,7 +184,7 @@ export const MRReportListPage = () => {
       }
 
       for (const report of reports) {
-        if (report.backtest) {
+        if (report.lastBacktestAt) {
           continue;
         }
 
@@ -198,16 +199,31 @@ export const MRReportListPage = () => {
     },
   });
 
-  const { mutate: removeAllBacktests, isPending: isRemoving } = useMutation({
+  const { mutate: deleteAllBacktests, isPending: isDeletingAllBacktests } = useMutation({
     mutationFn: async () => {
       if (!reports) {
         return;
       }
 
       for (const report of reports) {
-        if (report.backtest) {
+        if (report.lastBacktestAt) {
           await http.delete(`/api/mrReport/${report.id}/backtest`);
         }
+      }
+    },
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const { mutate: deleteAllReports, isPending: isDeletingAllReports } = useMutation({
+    mutationFn: async () => {
+      if (!reports) {
+        return;
+      }
+
+      for (const report of reports) {
+        await http.delete(`/api/mrReport/${report.id}`);
       }
     },
     onSuccess: () => {
@@ -236,6 +252,7 @@ export const MRReportListPage = () => {
         await http.post('/api/mrReport', null, {
           params: {
             date,
+            tagId: selectedTagId,
           },
         });
       }
@@ -252,7 +269,7 @@ export const MRReportListPage = () => {
     const reportsToDownload = (reports || []).map((item) => ({
       id: item.id,
       date: dayjs(item.date).format('DD.MM.YYYY HH:mm'),
-      pairs: item.data.length,
+      pairs: item.dataCount,
       backtest: item.backtest,
     }));
 
@@ -282,6 +299,8 @@ export const MRReportListPage = () => {
             onChange={(date) => setEndDate((date as Date).getTime())}
             placeholder="End Date"
           />
+
+          <TagSelector value={selectedTagId} onChange={setSelectedTagId} />
         </div>
       </div>
 
@@ -314,10 +333,18 @@ export const MRReportListPage = () => {
 
           <button
             className="btn btn-error"
-            onClick={() => removeAllBacktests()}
-            disabled={isRemoving}
+            onClick={() => deleteAllBacktests()}
+            disabled={isDeletingAllBacktests}
           >
-            {isRemoving ? 'Removing...' : 'Remove All Backtests'}
+            {isDeletingAllBacktests ? 'Deleting...' : 'Delete All Backtests'}
+          </button>
+
+          <button
+            className="btn btn-error"
+            onClick={() => deleteAllReports()}
+            disabled={isDeletingAllReports}
+          >
+            {isDeletingAllReports ? 'Deleting...' : 'Delete All Reports'}
           </button>
 
           <button

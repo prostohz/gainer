@@ -44,7 +44,7 @@ const MAX_COINTEGRATION_P_VALUE = 0.01;
 const MIN_HALF_LIFE_DURATION_MS = 5 * 60 * 1000;
 const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
 
-const performanceTracker = new PerformanceTracker(true);
+const performanceTracker = new PerformanceTracker(false);
 
 export const buildMrReport = async (date: number) => {
   logger.info(`Creating report for: ${dayjs(date).format('DD.MM HH:mm:ss')}`);
@@ -144,60 +144,81 @@ const filterAssetsByDailyCandleVolume = async (date: number): Promise<Asset[]> =
     return filteredAssetsCache.get(previousDay)!;
   }
 
-  const assets = await Asset.findAll();
-  const filteredAssets: Asset[] = [];
+  try {
+    const assets = await Asset.findAll();
+    const filteredAssets: Asset[] = [];
 
-  for (const asset of assets) {
-    const assetLastCandle = await Candle.findOne({
-      where: {
-        symbol: asset.symbol,
-        timeframe: '1d',
-        openTime: {
-          [Op.lte]: previousDay,
-        },
-      },
-      order: [['openTime', 'DESC']],
-      raw: true,
-    });
-
-    if (!assetLastCandle) {
-      continue;
-    }
-
-    let volumeInUsdt: number;
-
-    if (asset.quoteAsset === 'USDT') {
-      volumeInUsdt = Number(assetLastCandle.quoteAssetVolume);
-    } else {
-      const quoteUsdtCandle = await Candle.findOne({
-        where: {
-          symbol: `${asset.quoteAsset}USDT`,
-          timeframe: '1d',
-          openTime: {
-            [Op.lte]: previousDay,
+    for (const asset of assets) {
+      try {
+        const assetLastCandle = await Candle.findOne({
+          where: {
+            symbol: asset.symbol,
+            timeframe: '1d',
+            openTime: {
+              [Op.lte]: previousDay,
+            },
           },
-        },
-        order: [['openTime', 'DESC']],
-        raw: true,
-      });
+          order: [['openTime', 'DESC']],
+          raw: true,
+        });
 
-      if (!quoteUsdtCandle) {
-        continue;
-      } else {
-        const assetVolumeInQuote = Number(assetLastCandle.quoteAssetVolume);
-        const quoteRateToUsdt = Number(quoteUsdtCandle.close);
-        volumeInUsdt = assetVolumeInQuote * quoteRateToUsdt;
+        if (!assetLastCandle) {
+          continue;
+        }
+
+        let volumeInUsdt: number;
+
+        if (asset.quoteAsset === 'USDT') {
+          volumeInUsdt = Number(assetLastCandle.quoteAssetVolume);
+        } else {
+          const quoteUsdtCandle = await Candle.findOne({
+            where: {
+              symbol: `${asset.quoteAsset}USDT`,
+              timeframe: '1d',
+              openTime: {
+                [Op.lte]: previousDay,
+              },
+            },
+            order: [['openTime', 'DESC']],
+            raw: true,
+          });
+
+          if (!quoteUsdtCandle) {
+            continue;
+          } else {
+            const assetVolumeInQuote = Number(assetLastCandle.quoteAssetVolume);
+            const quoteRateToUsdt = Number(quoteUsdtCandle.close);
+            volumeInUsdt = assetVolumeInQuote * quoteRateToUsdt;
+          }
+        }
+
+        if (volumeInUsdt >= MIN_DAILY_CANDLE_VOLUME) {
+          filteredAssets.push(asset);
+        }
+      } catch (assetError) {
+        logger.error(`Error processing asset ${asset.symbol}:`, {
+          error: assetError,
+          message: assetError instanceof Error ? assetError.message : 'Unknown error',
+          stack: assetError instanceof Error ? assetError.stack : undefined,
+        });
+        throw assetError;
       }
     }
 
-    if (volumeInUsdt >= MIN_DAILY_CANDLE_VOLUME) {
-      filteredAssets.push(asset);
-    }
+    filteredAssetsCache.set(previousDay, filteredAssets);
+    logger.info(`Filtered ${filteredAssets.length} assets with sufficient volume`);
+
+    return filteredAssets;
+  } catch (error) {
+    logger.error('Error in filterAssetsByDailyCandleVolume:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      date: dayjs(date).format('DD.MM.YYYY HH:mm'),
+      previousDay: dayjs(previousDay).format('DD.MM.YYYY HH:mm'),
+    });
+    throw error;
   }
-
-  filteredAssetsCache.set(previousDay, filteredAssets);
-
-  return filteredAssets;
 };
 
 const getOneMinuteCandlesCache = (assets: Asset[], date: number) =>

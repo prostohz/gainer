@@ -24,7 +24,11 @@ export const MRReportBacktestPage = () => {
     data: TMRReportEntry[];
   }>({
     queryKey: ['report', id],
-    queryFn: () => http.get(`/api/mrReport/${id}`).then((response) => response.data),
+    queryFn: () =>
+      http.get(`/api/mrReport/${id}`).then((response) => ({
+        ...response.data,
+        date: Number(response.data.date),
+      })),
   });
 
   useEffect(() => {

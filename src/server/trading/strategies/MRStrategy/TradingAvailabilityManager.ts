@@ -114,7 +114,7 @@ export class TradingAvailabilityManager {
     state.blockReason = reason;
 
     logger.warn(
-      `Пара ${pairSymbol} заблокирована: ${reason}. Разблокировка в ${dayjs(state.blockUntil).format('HH:mm:ss')}`,
+      `Пара ${pairSymbol} заблокирована: ${reason}. Разблокировка в ${dayjs(state.blockUntil).format('DD.MM HH:mm:ss')}`,
     );
   }
 
