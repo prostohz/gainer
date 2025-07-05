@@ -12,6 +12,7 @@ import { TTimeEnvironment } from '../types';
 import { FakeDataProvider, FakeStreamDataProvider } from '../fakes';
 import { MeanReversionStrategy, TPositionDirection, TSignal } from './strategy';
 import { calculateRoi } from './roi';
+import { TradingAvailabilityManager } from './TradingAvailabilityManager';
 
 type TPair = {
   assetA: {
@@ -213,9 +214,14 @@ export const run = measureTime(
       streamDataProvider,
     });
 
-    const ifPairTradingMap = new Map<string, boolean>();
+    const tradingAvailabilityManager = new TradingAvailabilityManager(
+      () => timeEnvironment.currentTime,
+    );
+
+    // Инициализируем диспетчер торговой доступности для всех пар
     pairs.forEach(({ assetA, assetB }) => {
-      ifPairTradingMap.set(getPairSymbol(assetA, assetB), true);
+      const pairSymbol = getPairSymbol(assetA, assetB);
+      tradingAvailabilityManager.initializePair(pairSymbol);
     });
 
     let lastHourlyUpdate = startTimestamp;
@@ -241,7 +247,7 @@ export const run = measureTime(
       strategy.on('signal', (signal: TSignal) => {
         switch (signal.type) {
           case 'open':
-            if (!ifPairTradingMap.get(pairSymbol)) {
+            if (!tradingAvailabilityManager.isPairAvailable(pairSymbol)) {
               strategy.positionEnterRejected();
               return;
             }
@@ -321,8 +327,11 @@ export const run = measureTime(
             openTrade = null;
             strategy.positionExitAccepted();
 
+            // Записываем результат торговли для анализа и управления рисками
+            tradingAvailabilityManager.recordTrade(pairSymbol, roi);
+
             if (signal.type === 'stopLoss') {
-              ifPairTradingMap.set(pairSymbol, false);
+              tradingAvailabilityManager.forceBlockPair(pairSymbol, 'Stop-loss сработал');
             }
 
             break;
