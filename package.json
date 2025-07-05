@@ -4,6 +4,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc",
     "dashboard:server": "ts-node-dev --respawn src/server/index.ts",
     "dashboard:client": "vite",
     "dashboard": "concurrently \"npm run dashboard:server\" \"npm run dashboard:client\"",

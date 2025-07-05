@@ -23,10 +23,8 @@ export const BacktestTrades = ({ trades }: { trades: TCompleteTrade[] }) => {
         <div className="max-h-96 overflow-auto w-full">
           <div className="overflow-x-scroll w-full">
             <div className="w-max">
-              <div className="grid grid-cols-[1fr_repeat(13,150px)] gap-2 mb-2 font-semibold text-xs">
-                <div className="px-2">ID</div>
-                <div>Symbol A</div>
-                <div>Symbol B</div>
+              <div className="grid grid-cols-[1fr_repeat(11,150px)] gap-2 mb-2 font-semibold text-xs">
+                <div>Pair</div>
                 <div>Open time</div>
                 <div>Close time</div>
                 <div>Duration</div>
@@ -51,16 +49,16 @@ export const BacktestTrades = ({ trades }: { trades: TCompleteTrade[] }) => {
                   <div
                     key={index}
                     className={cn(
-                      'grid grid-cols-[1fr_repeat(13,150px)] gap-2 py-1 text-xs items-center',
+                      'grid grid-cols-[1fr_repeat(11,150px)] gap-2 py-1 text-xs items-center',
                       {
                         'bg-success/10': trade.roi >= 0,
                         'bg-error/10': trade.roi < 0,
                       },
                     )}
                   >
-                    <div className="px-2">{trade.id}</div>
-                    <div>{trade.symbolA}</div>
-                    <div>{trade.symbolB}</div>
+                    <div className="pl-2">
+                      {trade.symbolA} / {trade.symbolB}
+                    </div>
                     <div>{dayjs(trade.openTime).format('DD.MM HH:mm:ss')}</div>
                     <div>{dayjs(trade.closeTime).format('DD.MM HH:mm:ss')}</div>
                     <div>{dayjs(trade.closeTime).diff(dayjs(trade.openTime), 'minutes')}m</div>

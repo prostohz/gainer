@@ -31,7 +31,6 @@ export type TMRReportEntry = {
   };
   pValue: number;
   halfLife: number;
-  hurstExponent: number;
   correlationByPrices: number;
   correlationByReturns: number;
   crossings: number;

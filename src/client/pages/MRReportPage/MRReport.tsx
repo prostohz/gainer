@@ -36,7 +36,6 @@ export const MRReport = ({ report }: TProps) => {
     { label: 'Pair', field: 'pair', align: 'left', sortable: true },
     { label: 'p-value', field: 'pValue', align: 'right', sortable: true },
     { label: 'Half-life', field: 'halfLife', align: 'right', sortable: true },
-    { label: 'Hurst', field: 'hurstExponent', align: 'right', sortable: true },
     { label: 'Corr (prices)', field: 'correlationByPrices', align: 'right', sortable: true },
     { label: 'Corr (returns)', field: 'correlationByReturns', align: 'right', sortable: true },
     { label: 'Crossings', field: 'crossings', align: 'right', sortable: true },
@@ -127,7 +126,6 @@ export const MRReport = ({ report }: TProps) => {
       assetB,
       pValue,
       halfLife,
-      hurstExponent,
       correlationByPrices,
       correlationByReturns,
       crossings,
@@ -140,7 +138,7 @@ export const MRReport = ({ report }: TProps) => {
     return (
       <div
         style={style}
-        className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 items-center px-4 hover:bg-base-300/70 text-sm"
+        className="grid grid-cols-[1fr_repeat(6,130px)] gap-2 items-center px-4 hover:bg-base-300/70 text-sm"
       >
         <Link
           to={`/pairAnalysis?tickerA=${symbolA}&tickerB=${symbolB}&date=${date}`}
@@ -151,7 +149,6 @@ export const MRReport = ({ report }: TProps) => {
 
         <div className="text-right font-mono">{renderSafeValue(pValue)}</div>
         <div className="text-right font-mono">{renderSafeValue(halfLife)}</div>
-        <div className="text-right font-mono">{renderSafeValue(hurstExponent)}</div>
         <div className="text-right font-mono">{renderSafeValue(correlationByPrices)}</div>
         <div className="text-right font-mono">{renderSafeValue(correlationByReturns)}</div>
         <div className="text-right font-mono">{crossings}</div>
@@ -189,7 +186,7 @@ export const MRReport = ({ report }: TProps) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_repeat(7,130px)] gap-2 bg-base-300 p-4">
+        <div className="grid grid-cols-[1fr_repeat(6,130px)] gap-2 bg-base-300 p-4">
           {columns.map(({ label, field, align, sortable }) => (
             <div
               key={field}

@@ -13,7 +13,6 @@ import { BetaHedge } from '../trading/indicators/BetaHedge/BetaHedge';
 import { EngleGrangerTest } from '../trading/indicators/EngleGrangerTest/EngleGrangerTest';
 import { TIndicatorShortCandle } from '../trading/indicators/types';
 import { HalfLife } from '../trading/indicators/HalfLife/HalfLife';
-import { HurstExponent } from '../trading/indicators/HurstExponent/HurstExponent';
 
 const MIN_DAILY_CANDLE_VOLUME = 1_000_000;
 
@@ -25,7 +24,6 @@ const CANDLE_COUNT_FOR_SPREAD_VOLATILITY = 240;
 const CANDLE_COUNT_FOR_CORRELATION_ROLLING = 1440;
 const CANDLE_COUNT_FOR_CORRELATION_ROLLING_WINDOW = 300;
 const CANDLE_COUNT_FOR_COINTEGRATION = 1200;
-const CANDLE_COUNT_FOR_HURST_EXPONENT = 1200;
 const CANDLE_COUNT_FOR_HALF_LIFE = 600;
 const CANDLE_COUNT_FOR_SPREAD = 120;
 
@@ -35,15 +33,13 @@ const MIN_CORRELATION_BY_RETURNS = 0.3;
 const MAX_CORRELATION_BY_RETURNS = 0.99;
 
 const MIN_SPREAD_VOLATILITY_PERCENT = 0.0;
-const MAX_SPREAD_VOLATILITY_PERCENT = 4.0;
+const MAX_SPREAD_VOLATILITY_PERCENT = 5.0;
 
 const MIN_ROLLING_CORRELATION_BY_RETURNS_MEAN = 0.35;
 const MIN_ROLLING_CORRELATION_BY_RETURNS_THRESHOLD = 0.2;
 const MIN_ROLLING_CORRELATION_BY_RETURNS_RATIO = 0.7;
 
 const MAX_COINTEGRATION_P_VALUE = 0.01;
-
-const MAX_HURST_EXPONENT = 0.5;
 
 const MIN_HALF_LIFE_DURATION_MS = 5 * 60 * 1000;
 const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
@@ -59,8 +55,10 @@ export const buildMrReport = async (date: number) => {
 
   const tradablePairs: TMRReportEntry[] = [];
 
-  const oneMinuteCandlesCache = await getOneMinuteCandlesCache(assetsWithVolume, date);
-  const fiveMinuteCandlesCache = await getFiveMinuteCandlesCache(assetsWithVolume, date);
+  const [oneMinuteCandlesCache, fiveMinuteCandlesCache] = await Promise.all([
+    getOneMinuteCandlesCache(assetsWithVolume, date),
+    getFiveMinuteCandlesCache(assetsWithVolume, date),
+  ]);
 
   const assetsWithCandles = assetsWithVolume.filter((asset) => {
     const oneMinuteCandles = oneMinuteCandlesCache.get(asset.symbol)!;
@@ -273,6 +271,11 @@ export const processPair = (
     return null;
   }
 
+  const crossings = checkCrossings(oneMinuteCandlesA, oneMinuteCandlesB, beta);
+  if (crossings === 0) {
+    return null;
+  }
+
   const halfLife = checkHalfLife(oneMinuteCandlesA, oneMinuteCandlesB);
   if (!halfLife) {
     return null;
@@ -292,16 +295,6 @@ export const processPair = (
     return null;
   }
 
-  const hurstExponent = checkHurstExponent(oneMinuteCandlesA, oneMinuteCandlesB);
-  if (!hurstExponent) {
-    return null;
-  }
-
-  const crossings = checkCrossings(oneMinuteCandlesA, oneMinuteCandlesB, beta);
-  if (crossings === 0) {
-    return null;
-  }
-
   const spread = checkSpread(oneMinuteCandlesA, oneMinuteCandlesB, beta);
 
   return {
@@ -315,7 +308,6 @@ export const processPair = (
     },
     pValue: oneMinuteCointegration.pValue,
     halfLife,
-    hurstExponent,
     correlationByPrices: correlation.correlationByPrices,
     correlationByReturns: correlation.correlationByReturns,
     crossings,
@@ -495,28 +487,6 @@ const checkRollingCorrelation = performanceTracker.measureTime(
     }
 
     return true;
-  },
-);
-
-const checkHurstExponent = performanceTracker.measureTime(
-  'checkHurstExponent',
-  (candlesA: TIndicatorShortCandle[], candlesB: TIndicatorShortCandle[]) => {
-    const hurstExponentCandlesA = candlesA.slice(-CANDLE_COUNT_FOR_HURST_EXPONENT);
-    const hurstExponentCandlesB = candlesB.slice(-CANDLE_COUNT_FOR_HURST_EXPONENT);
-
-    const hurstExponent = new HurstExponent();
-    const hurstExponentValue = hurstExponent.calculate(
-      hurstExponentCandlesA,
-      hurstExponentCandlesB,
-    )!;
-    if (!hurstExponentValue) {
-      return null;
-    }
-    if (hurstExponentValue >= MAX_HURST_EXPONENT) {
-      return null;
-    }
-
-    return hurstExponentValue;
   },
 );
 
