@@ -16,6 +16,7 @@ import { TagSelector } from '../../widgets/TagSelector';
 import { BacktestStats } from '../../widgets/BacktestStats';
 import { ReportsHistogram } from './ReportsHistogram';
 import { ReportsBacktestHistogram } from './ReportsBacktestHistogram';
+import { AverageRoiHistogram } from './AverageRoiHistogram';
 
 type TTableRowProps = {
   index: number;
@@ -34,7 +35,7 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
 
   const renderBacktestStats = (backtest: TCompleteTrade[] | null) => {
     if (!backtest) {
-      return <span className="text-neutral-content">No data</span>;
+      return <span className="text-neutral-content">No data to display</span>;
     }
 
     const profitableTrades = backtest.filter((trade) => trade.roi > 0).length;
@@ -376,6 +377,8 @@ export const MRReportListPage = () => {
           <ReportsHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest ROI by date</h2>
           <ReportsBacktestHistogram reports={reports} />
+          <h2 className="text-lg font-semibold">Cumulative Average ROI</h2>
+          <AverageRoiHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest Stats</h2>
           <div className="bg-base-200 rounded-lg p-4">
             <BacktestStats trades={reports.flatMap((report) => report.backtest || [])} />

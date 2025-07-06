@@ -563,21 +563,21 @@ const CloseReasonSection = ({ stats }: { stats: TCloseReasonStats[] }) => (
           {stats.map((entry) => (
             <tr key={entry.reason}>
               <td className="p-3 font-medium text-base-content">{entry.reason}</td>
-              <td className="p-3 text-left">{entry.percentage.toFixed(1)}%</td>
+              <td className="p-3 text-left">{entry.percentage.toFixed(2)}%</td>
               <td
                 className={`p-3 text-left font-medium ${entry.avgRoi >= 0 ? 'text-success' : 'text-error'}`}
               >
-                {entry.avgRoi.toFixed(2)}%
+                {entry.avgRoi.toFixed(4)}%
               </td>
               <td
                 className={`p-3 text-left ${entry.winRate >= 50 ? 'text-success' : 'text-error'}`}
               >
-                {entry.winRate.toFixed(1)}%
+                {entry.winRate.toFixed(4)}%
               </td>
               <td
                 className={`p-3 text-left font-medium ${entry.totalRoi >= 0 ? 'text-success' : 'text-error'}`}
               >
-                {entry.totalRoi.toFixed(2)}%
+                {entry.totalRoi.toFixed(4)}%
               </td>
 
               <td className="p-3 text-left">{entry.count}</td>

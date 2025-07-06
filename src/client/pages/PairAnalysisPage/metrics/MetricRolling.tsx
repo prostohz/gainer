@@ -116,7 +116,7 @@ export const MetricRolling = ({ data = [], colors }: TProps) => {
   if (data.length === 0) {
     return (
       <div className="w-full h-[300px] bg-[#282a36] rounded-lg flex items-center justify-center">
-        <div className="text-neutral-content">No data</div>
+        <div className="text-neutral-content">No data to display</div>
       </div>
     );
   }

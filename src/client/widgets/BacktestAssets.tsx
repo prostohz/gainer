@@ -408,7 +408,7 @@ export const BacktestAssets = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (stats.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-base-content/60">No data for statistics</div>
+        <div className="text-base-content/60">No data to display</div>
       </div>
     );
   }

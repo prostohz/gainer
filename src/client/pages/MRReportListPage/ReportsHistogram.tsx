@@ -3,11 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { dayjs } from '../../../shared/utils/daytime';
 import { TMRReport } from '../../../shared/types';
 
-type TProps = {
-  reports: TMRReport[];
-};
-
-export const ReportsHistogram = ({ reports }: TProps) => {
+export const ReportsHistogram = ({ reports }: { reports: TMRReport[] }) => {
   if (!reports || reports.length === 0) {
     return null;
   }
