@@ -31,7 +31,7 @@ export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
         </div>
         <div className="w-1/2">
           <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By Pair Score</h3>
-          <BacktestTradesByPairScore trades={trades} />
+          <BacktestTradesByPairScore />
         </div>
       </div>
 

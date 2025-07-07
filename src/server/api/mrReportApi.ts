@@ -8,6 +8,7 @@ import {
   deleteReport,
   createReportBacktest,
   deleteReportBacktest,
+  getBacktestTradesByPairScore,
 } from '../services/mrReportService';
 import { asyncHandler, sendResponse, validateParams } from '../utils/apiHandler';
 
@@ -83,6 +84,14 @@ router.delete(
     const id = req.params.id as string;
     await deleteReportBacktest(id);
     sendResponse(res, { message: 'Backtests deleted' });
+  }),
+);
+
+router.get(
+  '/analytics/tradesByPairScore',
+  asyncHandler(async (req: Request, res: Response) => {
+    const result = await getBacktestTradesByPairScore();
+    sendResponse(res, result);
   }),
 );
 

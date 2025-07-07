@@ -1,4 +1,4 @@
-import { Op, WhereOptions } from 'sequelize';
+import { Op, WhereOptions, QueryTypes } from 'sequelize';
 
 import { dayjs } from '../../shared/utils/daytime';
 import { measureTime } from '../utils/performance/measureTime';
@@ -288,4 +288,51 @@ export const deleteReportBacktest = async (id: string) => {
   await report.update({
     lastBacktestAt: null,
   });
+};
+
+export const getBacktestTradesByPairScore = async () => {
+  const sequelize = MRReport.sequelize!;
+
+  // Выполняем группировку прямо в базе данных
+  const results = (await sequelize.query(
+    `
+    SELECT 
+      FLOOR(p.score * 10) / 10 as score,
+      COUNT(*) as trades_count,
+      AVG(t.roi) as average_roi,
+      SUM(t.roi) as total_roi,
+      MIN(t.roi) as min_roi,
+      MAX(t.roi) as max_roi
+    FROM mr_report_backtest_trades t 
+    INNER JOIN mr_report_pairs p ON (
+      t."reportId" = p."reportId" 
+      AND (
+        (t."symbolA" = p."assetABaseAsset" || p."assetAQuoteAsset" AND t."symbolB" = p."assetBBaseAsset" || p."assetBQuoteAsset")
+        OR
+        (t."symbolA" = p."assetBBaseAsset" || p."assetBQuoteAsset" AND t."symbolB" = p."assetABaseAsset" || p."assetAQuoteAsset")
+      )
+    )
+    GROUP BY FLOOR(p.score * 10) / 10
+    ORDER BY score ASC
+  `,
+    {
+      type: QueryTypes.SELECT,
+    },
+  )) as Array<{
+    score: string;
+    trades_count: string;
+    average_roi: string;
+    total_roi: string;
+    min_roi: string;
+    max_roi: string;
+  }>;
+
+  return results.map((result) => ({
+    score: parseFloat(result.score),
+    tradesCount: parseInt(result.trades_count),
+    averageRoi: parseFloat(result.average_roi),
+    totalRoi: parseFloat(result.total_roi),
+    minRoi: parseFloat(result.min_roi),
+    maxRoi: parseFloat(result.max_roi),
+  }));
 };
