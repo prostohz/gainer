@@ -5,12 +5,7 @@ import { measureTime } from '../utils/performance/measureTime';
 import { mrReportLogger as logger, backtestLogger } from '../utils/logger';
 import { run } from '../trading/strategies/MRStrategy/backtest';
 import { buildMrReport } from '../modules/mrReportBuilder';
-import {
-  MRReport,
-  MRReportEntry,
-  MRReportBacktestTrade,
-  MRReportTag,
-} from '../models/MRReport/index';
+import { MRReport, MRReportEntry, MRReportBacktestTrade } from '../models/MRReport/index';
 
 export const getReportList = async (startDate?: number, endDate?: number, tagId?: number) => {
   const whereClause: WhereOptions = {};
@@ -62,6 +57,9 @@ export const getReportList = async (startDate?: number, endDate?: number, tagId?
     tagId: report.tagId,
     lastBacktestAt: report.lastBacktestAt,
     dataCount: entryCountMap[report.id] || 0,
+    data: report.entries?.map((entry) => ({
+      score: entry.score,
+    })),
     backtest: report.lastBacktestAt
       ? (report.backtestTrades || []).map((trade) => ({
           id: trade.tradeId,
@@ -117,6 +115,7 @@ export const createReport = measureTime(
           spreadMean: entry.spread.mean,
           spreadMedian: entry.spread.median,
           spreadStd: entry.spread.std,
+          score: entry.score,
         })),
         { transaction },
       );
@@ -138,10 +137,6 @@ export const getReport = async (id: string) => {
         model: MRReportEntry,
         as: 'entries',
       },
-      {
-        model: MRReportTag,
-        as: 'tag',
-      },
     ],
   });
 
@@ -154,15 +149,6 @@ export const getReport = async (id: string) => {
     date: report.date,
     tagId: report.tagId,
     lastBacktestAt: report.lastBacktestAt,
-    tag: report.tag
-      ? {
-          id: report.tag.id,
-          code: report.tag.code,
-          description: report.tag.description,
-          createdAt: report.tag.createdAt,
-          updatedAt: report.tag.updatedAt,
-        }
-      : undefined,
     data: (report.entries || []).map((entry) => ({
       assetA: {
         baseAsset: entry.assetABaseAsset,
@@ -182,6 +168,7 @@ export const getReport = async (id: string) => {
         median: entry.spreadMedian,
         std: entry.spreadStd,
       },
+      score: entry.score,
     })),
   };
 };

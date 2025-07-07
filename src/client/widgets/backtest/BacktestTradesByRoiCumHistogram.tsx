@@ -9,7 +9,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 
 type ChartDataItem = {
   roi: number;
@@ -22,7 +22,7 @@ type ChartDataItem = {
   profitableCount: number;
 };
 
-export const BacktestRoiCumHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
+export const BacktestTradesByRoiCumHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
       <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
@@ -95,46 +95,32 @@ export const BacktestRoiCumHistogram = ({ trades }: { trades: TCompleteTrade[] }
       const data = payload[0].payload as ChartDataItem;
 
       return (
-        <div
-          style={{
-            backgroundColor: 'var(--fallback-b2,oklch(var(--b2)))',
-            border: '1px solid var(--fallback-bc,oklch(var(--bc)))',
-            borderRadius: '0.5rem',
-            padding: '8px 12px',
-            color: 'var(--fallback-bc,oklch(var(--bc)))',
-          }}
-        >
-          <p style={{ margin: 0, marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
-            ROI: {data.roi.toFixed(2)}%
-          </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+        <div className="bg-base-200 border border-base-content rounded-lg p-3 text-base-content">
+          <p className="m-0 mb-1 text-sm font-bold">ROI: {data.roi.toFixed(2)}%</p>
+          <p className="m-0 mb-0.5">
             <span>Unprofitable trades: </span>
-            <span style={{ color: 'var(--fallback-er,oklch(var(--er)))', fontWeight: 'bold' }}>
-              {data.unprofitableCount}
-            </span>
+            <span className="text-error font-bold">{data.unprofitableCount}</span>
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Profitable trades: </span>
-            <span style={{ color: 'var(--fallback-su,oklch(var(--su)))', fontWeight: 'bold' }}>
-              {data.profitableCount}
-            </span>
+            <span className="text-success font-bold">{data.profitableCount}</span>
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Total ≤ ROI: </span>
-            <span style={{ color: 'var(--fallback-p,oklch(var(--p)))', fontWeight: 'bold' }}>
+            <span className="text-primary font-bold">
               {data.cumulativeCount} ({data.cumulativePercentage.toFixed(3)}%)
             </span>
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Total ≥ ROI: </span>
-            <span style={{ color: 'var(--fallback-p,oklch(var(--p)))', fontWeight: 'bold' }}>
+            <span className="text-primary font-bold">
               {data.totalTrades - data.cumulativeCount} (
               {(100 - data.cumulativePercentage).toFixed(3)}%)
             </span>
           </p>
-          <p style={{ margin: 0 }}>
+          <p className="m-0">
             <span>Total trades: </span>
-            <span>{data.totalTrades}</span>
+            <span className="font-bold">{data.totalTrades}</span>
           </p>
         </div>
       );
@@ -207,7 +193,6 @@ export const BacktestRoiCumHistogram = ({ trades }: { trades: TCompleteTrade[] }
             stackId="trades"
             fill="var(--fallback-su,oklch(var(--su)))"
             radius={[2, 2, 0, 0]}
-            style={{ filter: 'none' }}
             isAnimationActive={false}
           />
         </BarChart>

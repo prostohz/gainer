@@ -13,7 +13,7 @@ import { useLSState } from '../../shared/utils/localStorage';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { Title } from '../../shared/utils/Title';
 import { TagSelector } from '../../widgets/TagSelector';
-import { BacktestStats } from '../../widgets/BacktestStats';
+import { BacktestStats } from '../../widgets/backtest/BacktestStats';
 import { ReportsHistogram } from './ReportsHistogram';
 import { ReportsBacktestHistogram } from './ReportsBacktestHistogram';
 import { AverageRoiHistogram } from './AverageRoiHistogram';
@@ -375,13 +375,13 @@ export const MRReportListPage = () => {
         <div className="flex flex-col gap-4 mb-4">
           <h2 className="text-lg font-semibold">Pairs count by date</h2>
           <ReportsHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">Backtest ROI by date</h2>
+          <h2 className="text-lg font-semibold">ROI by date</h2>
           <ReportsBacktestHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Cumulative Average ROI</h2>
           <AverageRoiHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest Stats</h2>
           <div className="bg-base-200 rounded-lg p-4">
-            <BacktestStats trades={reports.flatMap((report) => report.backtest || [])} />
+            <BacktestStats reports={reports} />
           </div>
           <h2 className="text-lg font-semibold">Reports</h2>
           <div className="bg-base-200 rounded-lg">

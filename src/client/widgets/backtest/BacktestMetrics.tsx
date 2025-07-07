@@ -1,12 +1,8 @@
 import cn from 'classnames';
 import * as math from 'mathjs';
 
-import { dayjs } from '../../shared/utils/daytime';
-import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
-import { BacktestAssets } from './BacktestAssets';
-import { BacktestRoiHistogram } from './BacktestRoiHistogram';
-import { BacktestRoiCumHistogram } from './BacktestRoiCumHistogram';
-import { BacktestRoiByTimeHistogram } from './BacktestRoiByTimeHistogram';
+import { dayjs } from '../../../shared/utils/daytime';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 
 type TStatValue = string | number;
 
@@ -23,15 +19,6 @@ type TStatSection = {
   title: string;
   items: TStatItem[];
   columns: number;
-};
-
-type TCloseReasonStats = {
-  reason: string;
-  count: number;
-  percentage: number;
-  avgRoi: number;
-  totalRoi: number;
-  winRate: number;
 };
 
 type TBasicMetrics = {
@@ -208,49 +195,6 @@ const calculateTimeMetrics = (trades: TCompleteTrade[]): TTimeMetrics => {
     avgUnprofitableHoldingTime,
     tradesPerDay,
   };
-};
-
-// Функция для расчёта статистики по причинам закрытия
-const calculateCloseReasonStats = (trades: TCompleteTrade[]): TCloseReasonStats[] => {
-  const totalTrades = trades.length;
-
-  const closeReasonStats = trades.reduce(
-    (stats, trade) => {
-      const reason = trade.closeReason;
-      let category = 'Other';
-
-      if (reason.includes('Stop-loss triggered by price loss')) {
-        category = 'Stop-loss by price';
-      } else if (reason.includes('Stop-loss triggered at Z-score')) {
-        category = 'Stop-loss by Z-score';
-      } else if (reason.includes('Z-score mean reversion')) {
-        category = 'Mean reversion';
-      }
-
-      if (!stats[category]) {
-        stats[category] = { count: 0, totalRoi: 0, trades: [] };
-      }
-
-      stats[category].count++;
-      stats[category].totalRoi += trade.roi;
-      stats[category].trades.push(trade);
-
-      return stats;
-    },
-    {} as Record<string, { count: number; totalRoi: number; trades: TCompleteTrade[] }>,
-  );
-
-  return Object.entries(closeReasonStats)
-    .map(([reason, data]) => ({
-      reason,
-      count: data.count,
-      percentage: totalTrades > 0 ? (data.count / totalTrades) * 100 : 0,
-      avgRoi: data.count > 0 ? data.totalRoi / data.count : 0,
-      totalRoi: data.totalRoi,
-      winRate:
-        data.count > 0 ? (data.trades.filter((t) => t.roi > 0).length / data.count) * 100 : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
 };
 
 // Функция для создания секций статистик
@@ -467,7 +411,6 @@ const createStatSections = (
   ];
 };
 
-// Компонент для отображения одной статистики
 const StatCard = ({ item }: { item: TStatItem }) => {
   const formatValue = (value: TStatValue, format?: string): string => {
     if (typeof value === 'string') return value;
@@ -519,7 +462,6 @@ const StatCard = ({ item }: { item: TStatItem }) => {
   );
 };
 
-// Компонент для сетки статистик
 const StatGrid = ({ items, columns }: { items: TStatItem[]; columns: number }) => {
   return (
     <div
@@ -539,57 +481,12 @@ const StatGrid = ({ items, columns }: { items: TStatItem[]; columns: number }) =
 
 const StatSection = ({ section }: { section: TStatSection }) => (
   <div>
-    <h3 className="text-sm font-semibold mb-2 text-base-content/80">{section.title}</h3>
+    <h3 className="text-sm font-semibold mb-2 text-base-content">{section.title}</h3>
     <StatGrid items={section.items} columns={section.columns} />
   </div>
 );
 
-const CloseReasonSection = ({ stats }: { stats: TCloseReasonStats[] }) => (
-  <div>
-    <h3 className="text-sm font-semibold mb-2 text-base-content/80">Position Close Reasons</h3>
-    <div className="bg-base-300 rounded-md border border-base-300 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="border-b border-base-100">
-          <tr>
-            <th className="text-left p-3 font-medium text-base-content/80">Reason</th>
-            <th className="text-left p-3 font-medium text-base-content/80">Frequency</th>
-            <th className="text-left p-3 font-medium text-base-content/80">Average Profit</th>
-            <th className="text-left p-3 font-medium text-base-content/80">Win Rate</th>
-            <th className="text-left p-3 font-medium text-base-content/80">Total Profit</th>
-            <th className="text-left p-3 font-medium text-base-content/80">Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stats.map((entry) => (
-            <tr key={entry.reason}>
-              <td className="p-3 font-medium text-base-content">{entry.reason}</td>
-              <td className="p-3 text-left">{entry.percentage.toFixed(2)}%</td>
-              <td
-                className={`p-3 text-left font-medium ${entry.avgRoi >= 0 ? 'text-success' : 'text-error'}`}
-              >
-                {entry.avgRoi.toFixed(4)}%
-              </td>
-              <td
-                className={`p-3 text-left ${entry.winRate >= 50 ? 'text-success' : 'text-error'}`}
-              >
-                {entry.winRate.toFixed(4)}%
-              </td>
-              <td
-                className={`p-3 text-left font-medium ${entry.totalRoi >= 0 ? 'text-success' : 'text-error'}`}
-              >
-                {entry.totalRoi.toFixed(4)}%
-              </td>
-
-              <td className="p-3 text-left">{entry.count}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
-
-export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
+export const BacktestMetrics = ({ trades }: { trades: TCompleteTrade[] }) => {
   const basicMetrics = calculateBasicMetrics(trades);
   const detailedMetrics = calculateDetailedMetrics(trades);
   const riskMetrics = calculateRiskMetrics(
@@ -598,8 +495,6 @@ export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
     basicMetrics.totalProfit,
   );
   const timeMetrics = calculateTimeMetrics(trades);
-  const closeReasonStats = calculateCloseReasonStats(trades);
-
   const sections = createStatSections(basicMetrics, detailedMetrics, riskMetrics, timeMetrics);
 
   return (
@@ -607,35 +502,6 @@ export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
       {sections.map((section, index) => (
         <StatSection key={index} section={section} />
       ))}
-
-      {closeReasonStats.length > 0 && <CloseReasonSection stats={closeReasonStats} />}
-
-      <div className="flex gap-4">
-        <div className="w-1/2">
-          <h3 className="text-sm font-semibold mb-2 text-base-content/80">Trades by ROI</h3>
-          <BacktestRoiHistogram trades={trades} />
-        </div>
-        <div className="w-1/2">
-          <h3 className="text-sm font-semibold mb-2 text-base-content/80">
-            Trades by ROI cumulative
-          </h3>
-          <BacktestRoiCumHistogram trades={trades} />
-        </div>
-      </div>
-
-      <div className="w-full">
-        <h3 className="text-sm font-semibold mb-2 text-base-content/80">
-          Trades by ROI by holding time
-        </h3>
-        <BacktestRoiByTimeHistogram trades={trades} />
-      </div>
-
-      <div className="rounded-md">
-        <h3 className="text-sm font-semibold mb-2 text-base-content/80">Asset Stats</h3>
-        <div className="bg-base-300 rounded-md">
-          <BacktestAssets trades={trades} />
-        </div>
-      </div>
     </div>
   );
 };

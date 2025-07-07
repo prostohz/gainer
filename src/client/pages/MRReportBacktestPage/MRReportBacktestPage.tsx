@@ -8,9 +8,9 @@ import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { DateTimePicker } from '../../shared/ui/Calendar';
-import { BacktestTrades } from '../../widgets/BacktestTrades';
+import { BacktestTrades } from '../../widgets/backtest/BacktestTrades';
 import { Loader } from '../../shared/ui/Loader';
-import { TradeDistributionHistogram } from './TradeDistributionHistogram';
+import { BacktestTradesByTimeHistogram } from '../../widgets/backtest/BacktestTradesByTimeHistogram';
 
 export const MRReportBacktestPage = () => {
   const { id } = useParams();
@@ -76,7 +76,7 @@ export const MRReportBacktestPage = () => {
 
     return (
       <div className="space-y-4">
-        <TradeDistributionHistogram trades={backtest} />
+        <BacktestTradesByTimeHistogram trades={backtest} />
         <BacktestTrades trades={backtest} />
       </div>
     );

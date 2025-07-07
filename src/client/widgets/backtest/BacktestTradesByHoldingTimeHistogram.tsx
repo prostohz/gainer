@@ -1,7 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
-import { dayjs } from '../../shared/utils/daytime';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
+import { dayjs } from '../../../shared/utils/daytime';
 
 type ChartDataItem = {
   range: string;
@@ -35,7 +35,7 @@ const formatHoldingTime = (milliseconds: number): string => {
   return `${seconds}s`;
 };
 
-export const BacktestRoiByTimeHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
+export const BacktestTradesByHoldingTimeHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
       <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
@@ -120,48 +120,32 @@ export const BacktestRoiByTimeHistogram = ({ trades }: { trades: TCompleteTrade[
       const unprofitablePercentage = (data.unprofitableCount / data.tradesCount) * 100;
 
       return (
-        <div
-          style={{
-            backgroundColor: 'var(--fallback-b2,oklch(var(--b2)))',
-            border: '1px solid var(--fallback-bc,oklch(var(--bc)))',
-            borderRadius: '0.5rem',
-            padding: '8px 12px',
-            color: 'var(--fallback-bc,oklch(var(--bc)))',
-          }}
-        >
-          <p style={{ margin: 0, marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
+        <div className="bg-base-200 border border-base-content rounded-lg p-3 text-base-content">
+          <p className="m-0 mb-1 text-sm font-bold">
             Holding Time: {formatHoldingTime(data.minHoldingTime)} –{' '}
             {formatHoldingTime(data.maxHoldingTime)}
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Avg ROI: </span>
-            <span
-              style={{
-                color:
-                  data.avgRoi >= 0
-                    ? 'var(--fallback-su,oklch(var(--su)))'
-                    : 'var(--fallback-er,oklch(var(--er)))',
-                fontWeight: 'bold',
-              }}
-            >
+            <span className={`font-bold ${data.avgRoi >= 0 ? 'text-success' : 'text-error'}`}>
               {data.avgRoi.toFixed(2)}%
             </span>
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Profitable trades: </span>
-            <span style={{ color: 'var(--fallback-su,oklch(var(--su)))', fontWeight: 'bold' }}>
+            <span className="text-success font-bold">
               {data.profitableCount} ({profitablePercentage.toFixed(1)}%)
             </span>
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Unprofitable trades: </span>
-            <span style={{ color: 'var(--fallback-er,oklch(var(--er)))', fontWeight: 'bold' }}>
+            <span className="text-error font-bold">
               {data.unprofitableCount} ({unprofitablePercentage.toFixed(1)}%)
             </span>
           </p>
-          <p style={{ margin: 0 }}>
+          <p className="m-0">
             <span>Total trades: </span>
-            <span style={{ fontWeight: 'bold' }}>{data.tradesCount}</span>
+            <span className="font-bold">{data.tradesCount}</span>
           </p>
         </div>
       );
@@ -198,12 +182,14 @@ export const BacktestRoiByTimeHistogram = ({ trades }: { trades: TCompleteTrade[
             stackId="trades"
             fill="var(--fallback-er,oklch(var(--er)))"
             radius={[0, 0, 0, 0]}
+            isAnimationActive={false}
           />
           <Bar
             dataKey="profitableCount"
             stackId="trades"
             fill="var(--fallback-su,oklch(var(--su)))"
             radius={[2, 2, 0, 0]}
+            isAnimationActive={false}
           />
         </BarChart>
       </ResponsiveContainer>

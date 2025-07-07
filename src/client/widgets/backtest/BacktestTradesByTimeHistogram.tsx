@@ -12,10 +12,6 @@ import {
 
 import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 
-type TTradeDistributionChartsProps = {
-  trades: TCompleteTrade[];
-};
-
 type MinuteDataItem = {
   minute: string;
   successful: number;
@@ -25,7 +21,7 @@ type MinuteDataItem = {
   time: string;
 };
 
-export const TradeDistributionHistogram = ({ trades }: TTradeDistributionChartsProps) => {
+export const BacktestTradesByTimeHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   const distributionData = useMemo(() => {
     if (!trades.length) return null;
 
@@ -96,25 +92,11 @@ export const TradeDistributionHistogram = ({ trades }: TTradeDistributionChartsP
       const data = payload[0].payload;
 
       return (
-        <div
-          style={{
-            backgroundColor: 'var(--fallback-b2,oklch(var(--b2)))',
-            border: '1px solid var(--fallback-bc,oklch(var(--bc)))',
-            borderRadius: '0.5rem',
-            padding: '8px 12px',
-            color: 'var(--fallback-bc,oklch(var(--bc)))',
-          }}
-        >
-          <p style={{ margin: 0, marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
-            {data.time}
-          </p>
-          <p style={{ margin: 0, marginBottom: '2px', color: '#10b981' }}>
-            Successful: {data.successful}
-          </p>
-          <p style={{ margin: 0, marginBottom: '2px', color: '#ef4444' }}>
-            Unsuccessful: {data.unsuccessful}
-          </p>
-          <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>Total: {data.total}</p>
+        <div className="bg-base-200 border border-base-content rounded-lg px-3 py-2 text-base-content">
+          <p className="m-0 mb-1 text-sm font-bold">{data.time}</p>
+          <p className="m-0 mb-0.5 text-green-500">Successful: {data.successful}</p>
+          <p className="m-0 mb-0.5 text-red-500">Unsuccessful: {data.unsuccessful}</p>
+          <p className="m-0 text-xs opacity-80">Total: {data.total}</p>
         </div>
       );
     }
@@ -129,8 +111,8 @@ export const TradeDistributionHistogram = ({ trades }: TTradeDistributionChartsP
 
       <div className="w-full h-80 bg-base-200 rounded p-4 mb-6">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.3} />
+          <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
             <XAxis
               dataKey="minute"
               tick={{ fontSize: 10, fill: 'currentColor' }}

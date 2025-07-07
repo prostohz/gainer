@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
-import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 
 type ChartDataItem = {
   range: string;
@@ -21,7 +21,7 @@ type ChartDataItem = {
   status: 'profitable' | 'unprofitable';
 };
 
-export const BacktestRoiHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
+export const BacktestTradesByRoiHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
       <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
@@ -84,17 +84,6 @@ export const BacktestRoiHistogram = ({ trades }: { trades: TCompleteTrade[] }) =
     }
   };
 
-  const getTextColor = (status: ChartDataItem['status']) => {
-    switch (status) {
-      case 'profitable':
-        return '#10b981'; // green-500
-      case 'unprofitable':
-        return '#ef4444'; // red-500
-      default:
-        return 'currentColor';
-    }
-  };
-
   const CustomTooltip = ({
     active,
     payload,
@@ -104,24 +93,19 @@ export const BacktestRoiHistogram = ({ trades }: { trades: TCompleteTrade[] }) =
   }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload as ChartDataItem;
-      const textColor = getTextColor(data.status);
 
       return (
-        <div
-          style={{
-            backgroundColor: 'var(--fallback-b2,oklch(var(--b2)))',
-            border: '1px solid var(--fallback-bc,oklch(var(--bc)))',
-            borderRadius: '0.5rem',
-            padding: '8px 12px',
-            color: 'var(--fallback-bc,oklch(var(--bc)))',
-          }}
-        >
-          <p style={{ margin: 0, marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
+        <div className="bg-base-200 border border-base-content rounded-lg p-3 text-base-content">
+          <p className="m-0 mb-1 text-sm font-bold">
             ROI Range: {data.minRoi.toFixed(2)}% – {data.maxRoi.toFixed(2)}%
           </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+          <p className="m-0 mb-0.5">
             <span>Trades: </span>
-            <span style={{ color: textColor, fontWeight: 'bold' }}>{data.tradesCount}</span>
+            <span
+              className={`font-bold ${data.status === 'profitable' ? 'text-success' : 'text-error'}`}
+            >
+              {data.tradesCount}
+            </span>
           </p>
         </div>
       );

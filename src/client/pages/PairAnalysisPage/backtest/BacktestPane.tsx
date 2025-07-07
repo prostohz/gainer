@@ -10,7 +10,7 @@ import { useLSState } from '../../../shared/utils/localStorage';
 import { DateTimePicker } from '../../../shared/ui/Calendar';
 import { TimeframeSelector } from '../../../widgets/TimeframeSelector';
 import { SyncedTradeChart, SyncedChartsContainer } from '../../../widgets/SyncedTradeCharts';
-import { BacktestTrades } from '../../../widgets/BacktestTrades';
+import { BacktestTrades } from '../../../widgets/backtest/BacktestTrades';
 import { useAssets } from '../../../entities/assets';
 
 type BacktestPaneProps = {

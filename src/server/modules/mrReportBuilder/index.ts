@@ -1,48 +1,43 @@
 import { Op } from 'sequelize';
 import { mean, std, median } from 'mathjs';
 
-import { dayjs } from '../../shared/utils/daytime';
-import { TTimeframe, TMRReportEntry } from '../../shared/types';
-import { mrReportLogger as logger } from '../utils/logger';
-import { PerformanceTracker } from '../utils/performance/PerformanceTracker';
-import { timeframeToMilliseconds } from '../utils/timeframe';
-import { Asset } from '../models/Asset';
-import { Candle } from '../models/Candle';
-import { PearsonCorrelation } from '../trading/indicators/PearsonCorrelation/PearsonCorrelation';
-import { BetaHedge } from '../trading/indicators/BetaHedge/BetaHedge';
-import { EngleGrangerTest } from '../trading/indicators/EngleGrangerTest/EngleGrangerTest';
-import { TIndicatorShortCandle } from '../trading/indicators/types';
-import { HalfLife } from '../trading/indicators/HalfLife/HalfLife';
-
-const MIN_DAILY_CANDLE_VOLUME = 1_000_000;
-
-const ONE_MINUTE_CANDLE_COUNT = 1440;
-const FIVE_MINUTE_CANDLE_COUNT = 1440;
-
-const CANDLE_COUNT_FOR_CORRELATION = 90;
-const CANDLE_COUNT_FOR_SPREAD_VOLATILITY = 240;
-const CANDLE_COUNT_FOR_CORRELATION_ROLLING = 1440;
-const CANDLE_COUNT_FOR_CORRELATION_ROLLING_WINDOW = 300;
-const CANDLE_COUNT_FOR_COINTEGRATION = 1200;
-const CANDLE_COUNT_FOR_HALF_LIFE = 600;
-const CANDLE_COUNT_FOR_SPREAD = 120;
-
-const MIN_CORRELATION_BY_PRICES = 0.5;
-const MAX_CORRELATION_BY_PRICES = 0.99;
-const MIN_CORRELATION_BY_RETURNS = 0.3;
-const MAX_CORRELATION_BY_RETURNS = 0.99;
-
-const MIN_SPREAD_VOLATILITY_PERCENT = 0.0;
-const MAX_SPREAD_VOLATILITY_PERCENT = 5.0;
-
-const MIN_ROLLING_CORRELATION_BY_RETURNS_MEAN = 0.35;
-const MIN_ROLLING_CORRELATION_BY_RETURNS_THRESHOLD = 0.2;
-const MIN_ROLLING_CORRELATION_BY_RETURNS_RATIO = 0.7;
-
-const MAX_COINTEGRATION_P_VALUE = 0.01;
-
-const MIN_HALF_LIFE_DURATION_MS = 5 * 60 * 1000;
-const MAX_HALF_LIFE_DURATION_MS = 30 * 60 * 1000;
+import { dayjs } from '../../../shared/utils/daytime';
+import { TTimeframe, TMRReportEntry } from '../../../shared/types';
+import { mrReportLogger as logger } from '../../utils/logger';
+import { PerformanceTracker } from '../../utils/performance/PerformanceTracker';
+import { timeframeToMilliseconds } from '../../utils/timeframe';
+import { Asset } from '../../models/Asset';
+import { Candle } from '../../models/Candle';
+import { PearsonCorrelation } from '../../trading/indicators/PearsonCorrelation/PearsonCorrelation';
+import { BetaHedge } from '../../trading/indicators/BetaHedge/BetaHedge';
+import { EngleGrangerTest } from '../../trading/indicators/EngleGrangerTest/EngleGrangerTest';
+import { TIndicatorShortCandle } from '../../trading/indicators/types';
+import { HalfLife } from '../../trading/indicators/HalfLife/HalfLife';
+import {
+  MIN_DAILY_CANDLE_VOLUME,
+  ONE_MINUTE_CANDLE_COUNT,
+  FIVE_MINUTE_CANDLE_COUNT,
+  CANDLE_COUNT_FOR_CORRELATION,
+  CANDLE_COUNT_FOR_SPREAD_VOLATILITY,
+  CANDLE_COUNT_FOR_CORRELATION_ROLLING,
+  CANDLE_COUNT_FOR_CORRELATION_ROLLING_WINDOW,
+  CANDLE_COUNT_FOR_COINTEGRATION,
+  CANDLE_COUNT_FOR_HALF_LIFE,
+  CANDLE_COUNT_FOR_SPREAD,
+  MIN_CORRELATION_BY_PRICES,
+  MAX_CORRELATION_BY_PRICES,
+  MIN_CORRELATION_BY_RETURNS,
+  MAX_CORRELATION_BY_RETURNS,
+  MIN_SPREAD_VOLATILITY_PERCENT,
+  MAX_SPREAD_VOLATILITY_PERCENT,
+  MIN_ROLLING_CORRELATION_BY_RETURNS_MEAN,
+  MIN_ROLLING_CORRELATION_BY_RETURNS_THRESHOLD,
+  MIN_ROLLING_CORRELATION_BY_RETURNS_RATIO,
+  MAX_COINTEGRATION_P_VALUE,
+  MIN_HALF_LIFE_DURATION_MS,
+  MAX_HALF_LIFE_DURATION_MS,
+} from './configs';
+import { calculatePairScore } from './pairScore';
 
 const performanceTracker = new PerformanceTracker(false);
 
@@ -318,7 +313,7 @@ export const processPair = (
 
   const spread = checkSpread(oneMinuteCandlesA, oneMinuteCandlesB, beta);
 
-  return {
+  const pairWithoutScore = {
     assetA: {
       baseAsset: assetA.baseAsset,
       quoteAsset: assetA.quoteAsset,
@@ -334,6 +329,15 @@ export const processPair = (
     crossings,
     spread,
   };
+
+  const score = calculatePairScore(pairWithoutScore);
+
+  const pair: TMRReportEntry = {
+    ...pairWithoutScore,
+    score,
+  };
+
+  return pair;
 };
 
 const checkCorrelation = performanceTracker.measureTime(

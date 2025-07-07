@@ -19,6 +19,7 @@ interface MRReportEntryAttributes {
   spreadMean: number;
   spreadMedian: number;
   spreadStd: number;
+  score: number;
 }
 
 type MRReportEntryCreationAttributes = Optional<MRReportEntryAttributes, 'id'>;
@@ -41,6 +42,7 @@ export class MRReportEntry
   public spreadMean!: number;
   public spreadMedian!: number;
   public spreadStd!: number;
+  public score!: number;
 }
 
 MRReportEntry.init(
@@ -103,6 +105,10 @@ MRReportEntry.init(
       allowNull: false,
     },
     spreadStd: {
+      type: DataTypes.DOUBLE,
+      allowNull: false,
+    },
+    score: {
       type: DataTypes.DOUBLE,
       allowNull: false,
     },

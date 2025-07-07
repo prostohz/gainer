@@ -1,8 +1,8 @@
 import cn from 'classnames';
 
-import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
-import { dayjs } from '../../shared/utils/daytime';
-import { useAssets } from '../entities/assets';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
+import { dayjs } from '../../../shared/utils/daytime';
+import { useAssets } from '../../entities/assets';
 import { BacktestStats } from './BacktestStats';
 
 export const BacktestTrades = ({ trades }: { trades: TCompleteTrade[] }) => {

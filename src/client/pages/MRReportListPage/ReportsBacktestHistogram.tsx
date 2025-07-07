@@ -136,23 +136,15 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
       const textColor = getTextColor(data.status);
 
       return (
-        <div
-          style={{
-            backgroundColor: 'var(--fallback-b2,oklch(var(--b2)))',
-            border: '1px solid var(--fallback-bc,oklch(var(--bc)))',
-            borderRadius: '0.5rem',
-            padding: '8px 12px',
-            color: 'var(--fallback-bc,oklch(var(--bc)))',
-          }}
-        >
-          <p style={{ margin: 0, marginBottom: '4px', fontSize: '14px', fontWeight: 'bold' }}>
-            {data.fullDate}
-          </p>
-          <p style={{ margin: 0, marginBottom: '2px' }}>
+        <div className="bg-base-200 border border-base-content rounded-lg px-3 py-2 text-base-content">
+          <p className="m-0 mb-1 text-sm font-bold">{data.fullDate}</p>
+          <p className="m-0 mb-0.5">
             <span>Profitability: </span>
-            <span style={{ color: textColor, fontWeight: 'bold' }}>{formatTooltipValue(data)}</span>
+            <span style={{ color: textColor }} className="font-bold">
+              {formatTooltipValue(data)}
+            </span>
           </p>
-          <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>{formatTradesCount(data)}</p>
+          <p className="m-0 text-xs opacity-80">{formatTradesCount(data)}</p>
         </div>
       );
     }
