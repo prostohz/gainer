@@ -1,11 +1,11 @@
 import { MRReport } from './MRReport';
-import { MRReportEntry } from './MRReportEntry';
+import { MRReportPair } from './MRReportPair';
 import { MRReportBacktestTrade } from './MRReportBacktestTrade';
 import { MRReportTag } from './MRReportTag';
 
-MRReport.hasMany(MRReportEntry, {
+MRReport.hasMany(MRReportPair, {
   foreignKey: 'reportId',
-  as: 'entries',
+  as: 'pairs',
   onDelete: 'CASCADE',
 });
 
@@ -20,7 +20,7 @@ MRReport.belongsTo(MRReportTag, {
   as: 'tag',
 });
 
-MRReportEntry.belongsTo(MRReport, {
+MRReportPair.belongsTo(MRReport, {
   foreignKey: 'reportId',
   as: 'report',
 });
@@ -35,4 +35,4 @@ MRReportTag.hasMany(MRReport, {
   as: 'reports',
 });
 
-export { MRReport, MRReportEntry, MRReportBacktestTrade, MRReportTag };
+export { MRReport, MRReportPair, MRReportBacktestTrade, MRReportTag };

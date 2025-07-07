@@ -76,7 +76,7 @@ export const BacktestTradesByTimeHistogram = ({ trades }: { trades: TCompleteTra
   }, [trades]);
 
   if (!distributionData) {
-    return <div className="text-center p-4">Нет данных для отображения</div>;
+    return <div className="text-center p-4">No data to display</div>;
   }
 
   const { chartData } = distributionData;

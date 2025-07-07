@@ -2,7 +2,7 @@ import { Op } from 'sequelize';
 import { mean, std, median } from 'mathjs';
 
 import { dayjs } from '../../../shared/utils/daytime';
-import { TTimeframe, TMRReportEntry } from '../../../shared/types';
+import { TTimeframe, TMRReportPair } from '../../../shared/types';
 import { mrReportLogger as logger } from '../../utils/logger';
 import { PerformanceTracker } from '../../utils/performance/PerformanceTracker';
 import { timeframeToMilliseconds } from '../../utils/timeframe';
@@ -48,7 +48,7 @@ export const buildMrReport = async (date: number) => {
 
   logger.info(`Assets with volume: ${assetsWithVolume.length}`);
 
-  const tradablePairs: TMRReportEntry[] = [];
+  const tradablePairs: TMRReportPair[] = [];
 
   const [oneMinuteCandlesCache, fiveMinuteCandlesCache] = await Promise.all([
     getOneMinuteCandlesCache(assetsWithVolume, date),
@@ -272,7 +272,7 @@ export const processPair = (
   oneMinuteCandlesB: TIndicatorShortCandle[],
   fiveMinuteCandlesA: TIndicatorShortCandle[],
   fiveMinuteCandlesB: TIndicatorShortCandle[],
-): TMRReportEntry | null => {
+): TMRReportPair | null => {
   const correlation = checkCorrelation(oneMinuteCandlesA, oneMinuteCandlesB);
   if (!correlation) {
     return null;
@@ -332,7 +332,7 @@ export const processPair = (
 
   const score = calculatePairScore(pairWithoutScore);
 
-  const pair: TMRReportEntry = {
+  const pair: TMRReportPair = {
     ...pairWithoutScore,
     score,
   };

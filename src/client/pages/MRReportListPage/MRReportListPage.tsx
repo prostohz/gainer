@@ -33,22 +33,24 @@ type TTableRowProps = {
 const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
   const item = data.items[index];
 
-  const renderBacktestStats = (backtest: TCompleteTrade[] | null) => {
-    if (!backtest) {
+  const renderBacktestStats = (backtestTrades: TCompleteTrade[] | null) => {
+    if (!backtestTrades) {
       return <span className="text-neutral-content">No data to display</span>;
     }
 
-    const profitableTrades = backtest.filter((trade) => trade.roi > 0).length;
-    const unprofitableTrades = backtest.filter((trade) => trade.roi <= 0).length;
+    const profitableTrades = backtestTrades.filter((trade) => trade.roi > 0).length;
+    const unprofitableTrades = backtestTrades.filter((trade) => trade.roi <= 0).length;
 
     const winRate =
-      backtest.length > 0 ? ((profitableTrades / backtest.length) * 100).toFixed(1) : '0.0';
-    const totalProfitability = backtest.reduce((sum, trade) => sum + trade.roi, 0).toFixed(2);
+      backtestTrades.length > 0
+        ? ((profitableTrades / backtestTrades.length) * 100).toFixed(1)
+        : '0.0';
+    const totalProfitability = backtestTrades.reduce((sum, trade) => sum + trade.roi, 0).toFixed(2);
 
     return (
       <div className="text-xs flex flex-col gap-1">
         <div>
-          <span>{backtest.length} trades</span>
+          <span>{backtestTrades.length} trades</span>
           {', '}
           <span className="text-success">{profitableTrades} profitable</span>
           {', '}
@@ -93,8 +95,8 @@ const TableRow: React.FC<TTableRowProps> = ({ index, style, data }) => {
     >
       <div className="w-40 flex-shrink-0">{item.id}</div>
       <div className="w-40 flex-shrink-0">{dayjs(item.date).format('DD.MM.YYYY HH:mm')}</div>
-      <div className="w-20 flex-shrink-0">{item.dataCount}</div>
-      <div className="flex-1 min-w-0">{renderBacktestStats(item.backtest)}</div>
+      <div className="w-20 flex-shrink-0">{item.pairsCount}</div>
+      <div className="flex-1 min-w-0">{renderBacktestStats(item.backtestTrades)}</div>
       <div className="flex-shrink-0 ml-4">
         <div className="flex gap-2 justify-end">
           <button
@@ -270,8 +272,8 @@ export const MRReportListPage = () => {
     const reportsToDownload = (reports || []).map((item) => ({
       id: item.id,
       date: dayjs(item.date).format('DD.MM.YYYY HH:mm'),
-      pairs: item.dataCount,
-      backtest: item.backtest,
+      pairs: item.pairsCount,
+      backtestTrades: item.backtestTrades,
     }));
 
     const jsonContent = JSON.stringify(reportsToDownload, null, 2);
@@ -281,6 +283,8 @@ export const MRReportListPage = () => {
   if (isLoading) {
     return <Loader />;
   }
+
+  const trades = reports?.flatMap((report) => report.backtestTrades || []) || [];
 
   return (
     <div className="flex flex-col">
@@ -381,7 +385,7 @@ export const MRReportListPage = () => {
           <AverageRoiHistogram reports={reports} />
           <h2 className="text-lg font-semibold">Backtest Stats</h2>
           <div className="bg-base-200 rounded-lg p-4">
-            <BacktestStats reports={reports} />
+            <BacktestStats trades={trades} />
           </div>
           <h2 className="text-lg font-semibold">Reports</h2>
           <div className="bg-base-200 rounded-lg">

@@ -5,7 +5,7 @@ import { measureTime } from '../utils/performance/measureTime';
 import { mrReportLogger as logger, backtestLogger } from '../utils/logger';
 import { run } from '../trading/strategies/MRStrategy/backtest';
 import { buildMrReport } from '../modules/mrReportBuilder';
-import { MRReport, MRReportEntry, MRReportBacktestTrade } from '../models/MRReport/index';
+import { MRReport, MRReportPair, MRReportBacktestTrade } from '../models/MRReport';
 
 export const getReportList = async (startDate?: number, endDate?: number, tagId?: number) => {
   const whereClause: WhereOptions = {};
@@ -33,11 +33,11 @@ export const getReportList = async (startDate?: number, endDate?: number, tagId?
 
   // Получаем количество записей для каждого отчета отдельным запросом
   const reportIds = reports.map((report) => report.id);
-  const entryCounts = (await MRReportEntry.findAll({
+  const entryCounts = (await MRReportPair.findAll({
     where: { reportId: { [Op.in]: reportIds } },
     attributes: [
       'reportId',
-      [MRReportEntry.sequelize!.fn('COUNT', MRReportEntry.sequelize!.col('id')), 'count'],
+      [MRReportPair.sequelize!.fn('COUNT', MRReportPair.sequelize!.col('id')), 'count'],
     ],
     group: ['reportId'],
     raw: true,
@@ -55,12 +55,9 @@ export const getReportList = async (startDate?: number, endDate?: number, tagId?
     id: report.reportId,
     date: report.date,
     tagId: report.tagId,
+    pairsCount: entryCountMap[report.id] || 0,
     lastBacktestAt: report.lastBacktestAt,
-    dataCount: entryCountMap[report.id] || 0,
-    data: report.entries?.map((entry) => ({
-      score: entry.score,
-    })),
-    backtest: report.lastBacktestAt
+    backtestTrades: report.lastBacktestAt
       ? (report.backtestTrades || []).map((trade) => ({
           id: trade.tradeId,
           direction: trade.direction,
@@ -100,7 +97,7 @@ export const createReport = measureTime(
         { transaction },
       );
 
-      await MRReportEntry.bulkCreate(
+      await MRReportPair.bulkCreate(
         reportData.map((entry) => ({
           reportId: report.id,
           assetABaseAsset: entry.assetA.baseAsset,
@@ -134,8 +131,13 @@ export const getReport = async (id: string) => {
     where: { reportId: id },
     include: [
       {
-        model: MRReportEntry,
-        as: 'entries',
+        model: MRReportPair,
+        as: 'pairs',
+      },
+      {
+        model: MRReportBacktestTrade,
+        as: 'backtestTrades',
+        required: false,
       },
     ],
   });
@@ -144,32 +146,54 @@ export const getReport = async (id: string) => {
     return null;
   }
 
+  const pairs = (report.pairs || []).map((entry) => ({
+    assetA: {
+      baseAsset: entry.assetABaseAsset,
+      quoteAsset: entry.assetAQuoteAsset,
+    },
+    assetB: {
+      baseAsset: entry.assetBBaseAsset,
+      quoteAsset: entry.assetBQuoteAsset,
+    },
+    pValue: entry.pValue,
+    halfLife: entry.halfLife,
+    correlationByPrices: entry.correlationByPrices,
+    correlationByReturns: entry.correlationByReturns,
+    crossings: entry.crossings,
+    spread: {
+      mean: entry.spreadMean,
+      median: entry.spreadMedian,
+      std: entry.spreadStd,
+    },
+    score: entry.score,
+  }));
+
   return {
     id: report.reportId,
     date: report.date,
     tagId: report.tagId,
+    pairs,
+    pairsCount: pairs.length,
     lastBacktestAt: report.lastBacktestAt,
-    data: (report.entries || []).map((entry) => ({
-      assetA: {
-        baseAsset: entry.assetABaseAsset,
-        quoteAsset: entry.assetAQuoteAsset,
-      },
-      assetB: {
-        baseAsset: entry.assetBBaseAsset,
-        quoteAsset: entry.assetBQuoteAsset,
-      },
-      pValue: entry.pValue,
-      halfLife: entry.halfLife,
-      correlationByPrices: entry.correlationByPrices,
-      correlationByReturns: entry.correlationByReturns,
-      crossings: entry.crossings,
-      spread: {
-        mean: entry.spreadMean,
-        median: entry.spreadMedian,
-        std: entry.spreadStd,
-      },
-      score: entry.score,
-    })),
+    backtestTrades: report.lastBacktestAt
+      ? (report.backtestTrades || []).map((trade) => ({
+          id: trade.tradeId,
+          direction: trade.direction,
+          symbolA: trade.symbolA,
+          symbolB: trade.symbolB,
+          quantityA: trade.quantityA,
+          quantityB: trade.quantityB,
+          openPriceA: trade.openPriceA,
+          closePriceA: trade.closePriceA,
+          openPriceB: trade.openPriceB,
+          closePriceB: trade.closePriceB,
+          openTime: trade.openTime,
+          closeTime: trade.closeTime,
+          roi: trade.roi,
+          openReason: trade.openReason,
+          closeReason: trade.closeReason,
+        }))
+      : null,
   };
 };
 
@@ -187,40 +211,6 @@ export const deleteReport = async (id: string) => {
   await MRReport.destroy({
     where: { reportId: id },
   });
-};
-
-export const getReportBacktest = async (id: string) => {
-  const report = await MRReport.findOne({
-    where: { reportId: id },
-    include: [
-      {
-        model: MRReportBacktestTrade,
-        as: 'backtestTrades',
-      },
-    ],
-  });
-
-  if (!report || !(report.backtestTrades || []).length) {
-    return null;
-  }
-
-  return (report.backtestTrades || []).map((trade) => ({
-    id: trade.tradeId,
-    direction: trade.direction,
-    symbolA: trade.symbolA,
-    symbolB: trade.symbolB,
-    quantityA: trade.quantityA,
-    quantityB: trade.quantityB,
-    openPriceA: trade.openPriceA,
-    closePriceA: trade.closePriceA,
-    openPriceB: trade.openPriceB,
-    closePriceB: trade.closePriceB,
-    openTime: trade.openTime,
-    closeTime: trade.closeTime,
-    roi: trade.roi,
-    openReason: trade.openReason,
-    closeReason: trade.closeReason,
-  }));
 };
 
 export const createReportBacktest = async (
@@ -246,7 +236,7 @@ export const createReportBacktest = async (
   );
 
   const reportBacktest = await run(
-    report.data.map(({ assetA, assetB }) => ({
+    report.pairs.map(({ assetA, assetB }) => ({
       assetA,
       assetB,
     })),

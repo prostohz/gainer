@@ -29,7 +29,7 @@ export const AverageRoiHistogram = ({ reports }: { reports: TMRReport[] }) => {
     }
 
     const sortedReports = reports
-      .filter((report) => report.backtest && report.backtest.length > 0)
+      .filter(({ backtestTrades }) => backtestTrades && backtestTrades.length > 0)
       .sort((a, b) => a.date - b.date);
 
     if (sortedReports.length === 0) {
@@ -41,8 +41,10 @@ export const AverageRoiHistogram = ({ reports }: { reports: TMRReport[] }) => {
     sortedReports.forEach((report, index) => {
       const allTrades: TCompleteTrade[] = [];
       for (let i = 0; i <= index; i++) {
-        if (sortedReports[i].backtest) {
-          allTrades.push(...sortedReports[i].backtest!);
+        const { backtestTrades } = sortedReports[i];
+
+        if (backtestTrades) {
+          allTrades.push(...backtestTrades);
         }
       }
 

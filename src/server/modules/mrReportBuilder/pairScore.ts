@@ -1,4 +1,4 @@
-import { TMRReportEntry } from '../../../shared/types';
+import { TMRReportPair } from '../../../shared/types';
 import { timeframeToMilliseconds } from '../../utils/timeframe';
 import {
   MAX_COINTEGRATION_P_VALUE,
@@ -12,7 +12,7 @@ import {
   MAX_SPREAD_VOLATILITY_PERCENT,
 } from './configs';
 
-export const calculatePairScore = (pair: Omit<TMRReportEntry, 'score'>) => {
+export const calculatePairScore = (pair: Omit<TMRReportPair, 'score'>) => {
   // Нормализация p-value коинтеграции (чем меньше, тем лучше)
   // pValue в диапазоне от 0 до MAX_COINTEGRATION_P_VALUE (0.01)
   const pValueScore = Math.max(

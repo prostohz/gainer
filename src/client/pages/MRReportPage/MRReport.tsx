@@ -3,21 +3,21 @@ import { FixedSizeList } from 'react-window';
 import { Link } from 'react-router-dom';
 
 import { dayjs } from '../../../shared/utils/daytime';
-import { TMRReportEntry } from '../../../shared/types';
+import { TMRReportPair } from '../../../shared/types';
 import { useAvailableHeight } from '../../shared/utils/dom';
 
 type TProps = {
   report: {
     id: string;
     date: number;
-    data: TMRReportEntry[];
+    pairs: TMRReportPair[];
   };
 };
 
-type TSortField = keyof TMRReportEntry | 'pair';
+type TSortField = keyof TMRReportPair | 'pair';
 
 export const MRReport = ({ report }: TProps) => {
-  const { id, date, data } = report;
+  const { id, date, pairs } = report;
 
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
   const containerHeight = useAvailableHeight(containerElement);
@@ -53,19 +53,19 @@ export const MRReport = ({ report }: TProps) => {
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    return pairs.filter((item) => {
       const { assetA, assetB } = item;
 
       const pairName = `${assetA.baseAsset}${assetA.quoteAsset}-${assetB.baseAsset}${assetB.quoteAsset}`;
 
       return pairName.toLowerCase().includes(search.toLowerCase());
     });
-  }, [data, search]);
+  }, [pairs, search]);
 
   const sortedData = useMemo(() => {
     const compare = (a: (typeof filteredData)[0], b: (typeof filteredData)[0]) => {
-      let valA: TMRReportEntry[keyof TMRReportEntry] | string | null = null;
-      let valB: TMRReportEntry[keyof TMRReportEntry] | string | null = null;
+      let valA: TMRReportPair[keyof TMRReportPair] | string | null = null;
+      let valB: TMRReportPair[keyof TMRReportPair] | string | null = null;
 
       if (sortField === 'pair') {
         valA = `${a.assetA.baseAsset}${a.assetA.quoteAsset}-${a.assetB.baseAsset}${a.assetB.quoteAsset}`;
@@ -95,7 +95,7 @@ export const MRReport = ({ report }: TProps) => {
   }, [filteredData, sortField, sortDirection]);
 
   const uniqueAssetsCount = new Set(
-    data.flatMap((item) => [
+    pairs.flatMap((item) => [
       `${item.assetA.baseAsset}${item.assetA.quoteAsset}`,
       `${item.assetB.baseAsset}${item.assetB.quoteAsset}`,
     ]),
@@ -168,7 +168,7 @@ export const MRReport = ({ report }: TProps) => {
   };
 
   const renderContent = () => {
-    if (data.length === 0) {
+    if (pairs.length === 0) {
       return <div className="text-base-content text-center p-4">No correlation data available</div>;
     }
 
@@ -238,7 +238,7 @@ export const MRReport = ({ report }: TProps) => {
 
         <div className="card bg-base-200 shadow p-4">
           <div className="text-xs opacity-60 mb-1">Pairs found</div>
-          <div className="font-semibold text-info">{data.length}</div>
+          <div className="font-semibold text-info">{pairs.length}</div>
         </div>
 
         <div className="card bg-base-200 shadow p-4">

@@ -1,7 +1,7 @@
 import { Sequelize } from 'sequelize';
 
 import { DATABASE_CONFIG } from '../../configs/database';
-import { MRReportEntry } from '../../models/MRReport/MRReportEntry';
+import { MRReportPair } from '../../models/MRReport/MRReportPair';
 import { calculatePairScore } from './pairScore';
 
 const sequelize = new Sequelize(DATABASE_CONFIG);
@@ -12,18 +12,18 @@ const recalculateScores = async () => {
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
 
-    console.log('Fetching all MRReportEntry records...');
-    const entries = await MRReportEntry.findAll();
-    console.log(`Found ${entries.length} entries to process.`);
+    console.log('Fetching all MRReportPair records...');
+    const pairs = await MRReportPair.findAll();
+    console.log(`Found ${pairs.length} pairs to process.`);
 
     let processedCount = 0;
     const batchSize = 100;
 
-    for (let i = 0; i < entries.length; i += batchSize) {
-      const batch = entries.slice(i, i + batchSize);
+    for (let i = 0; i < pairs.length; i += batchSize) {
+      const batch = pairs.slice(i, i + batchSize);
 
       console.log(
-        `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(entries.length / batchSize)}`,
+        `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(pairs.length / batchSize)}`,
       );
 
       const updates = batch.map((entry) => {
@@ -50,18 +50,18 @@ const recalculateScores = async () => {
 
         const score = calculatePairScore(pairData);
 
-        return MRReportEntry.update({ score }, { where: { id: entry.id } });
+        return MRReportPair.update({ score }, { where: { id: entry.id } });
       });
 
       await Promise.all(updates);
       processedCount += batch.length;
 
       console.log(
-        `Processed ${processedCount}/${entries.length} entries (${((processedCount / entries.length) * 100).toFixed(1)}%)`,
+        `Processed ${processedCount}/${pairs.length} pairs (${((processedCount / pairs.length) * 100).toFixed(1)}%)`,
       );
     }
 
-    console.log(`Successfully updated scores for ${processedCount} entries.`);
+    console.log(`Successfully updated scores for ${processedCount} pairs.`);
   } catch (error) {
     console.error('Error recalculating scores:', error);
     throw error;

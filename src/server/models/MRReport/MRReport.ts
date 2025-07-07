@@ -32,7 +32,7 @@ export class MRReport
   public updatedAt!: Date;
 
   // Связанные данные
-  public entries?: import('./MRReportEntry').MRReportEntry[];
+  public pairs?: import('./MRReportPair').MRReportPair[];
   public backtestTrades?: import('./MRReportBacktestTrade').MRReportBacktestTrade[];
   public tag?: import('./MRReportTag').MRReportTag;
 }

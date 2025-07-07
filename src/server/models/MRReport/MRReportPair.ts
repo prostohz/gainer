@@ -4,7 +4,7 @@ import { DATABASE_CONFIG } from '../../configs/database';
 
 const sequelize = new Sequelize(DATABASE_CONFIG);
 
-interface MRReportEntryAttributes {
+interface MRReportPairAttributes {
   id: number;
   reportId: number;
   assetABaseAsset: string;
@@ -22,11 +22,11 @@ interface MRReportEntryAttributes {
   score: number;
 }
 
-type MRReportEntryCreationAttributes = Optional<MRReportEntryAttributes, 'id'>;
+type MRReportPairCreationAttributes = Optional<MRReportPairAttributes, 'id'>;
 
-export class MRReportEntry
-  extends Model<MRReportEntryAttributes, MRReportEntryCreationAttributes>
-  implements MRReportEntryAttributes
+export class MRReportPair
+  extends Model<MRReportPairAttributes, MRReportPairCreationAttributes>
+  implements MRReportPairAttributes
 {
   public id!: number;
   public reportId!: number;
@@ -45,7 +45,7 @@ export class MRReportEntry
   public score!: number;
 }
 
-MRReportEntry.init(
+MRReportPair.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -115,8 +115,8 @@ MRReportEntry.init(
   },
   {
     sequelize,
-    tableName: 'mr_report_entries',
+    tableName: 'mr_report_pairs',
     timestamps: false,
-    indexes: [{ fields: ['reportId'], name: 'idx_mr_report_entries_report_id' }],
+    indexes: [{ fields: ['reportId'], name: 'idx_mr_report_pairs_report_id' }],
   },
 );

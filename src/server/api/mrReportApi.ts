@@ -6,7 +6,6 @@ import {
   createReport,
   updateReport,
   deleteReport,
-  getReportBacktest,
   createReportBacktest,
   deleteReportBacktest,
 } from '../services/mrReportService';
@@ -62,15 +61,6 @@ router.delete(
     const id = req.params.id as string;
     await deleteReport(id);
     sendResponse(res, { message: 'Report deleted' });
-  }),
-);
-
-router.get(
-  '/:id/backtest',
-  asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string;
-    const backtest = await getReportBacktest(id);
-    sendResponse(res, backtest);
   }),
 );
 

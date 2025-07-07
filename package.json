@@ -5,9 +5,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dashboard:server": "ts-node-dev --respawn src/server/index.ts",
-    "dashboard:client": "vite",
-    "dashboard": "concurrently \"npm run dashboard:server\" \"npm run dashboard:client\"",
+    "dev:server": "ts-node-dev --respawn src/server/index.ts",
+    "dev:client": "vite",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "meanReversion:debug": "ts-node src/server/trading/strategies/MRStrategy/debug.ts",
     "meanReversion:backtest": "ts-node src/server/trading/strategies/MRStrategy/backtest.ts",
     "test": "jest",

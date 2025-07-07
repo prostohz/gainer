@@ -20,7 +20,7 @@ export type TCorrelation = {
   betaHedge: TCorrelationRecord<number | null>;
 };
 
-export type TMRReportEntry = {
+export type TMRReportPair = {
   assetA: {
     baseAsset: string;
     quoteAsset: string;
@@ -52,10 +52,10 @@ export type TMRReport = {
   id: string;
   date: number;
   tagId: number;
+  pairs?: TMRReportPair[];
+  pairsCount?: number;
   lastBacktestAt: Date | null;
-  data: TMRReportEntry[];
-  dataCount: number;
-  backtest: TCompleteTrade[] | null;
+  backtestTrades: TCompleteTrade[] | null;
 };
 
 export type TPriceLevelItem = {

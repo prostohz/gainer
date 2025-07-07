@@ -1,4 +1,4 @@
-import { TMRReport } from '../../../shared/types';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 import { BacktestMetrics } from './BacktestMetrics';
 import { BacktestCloseReasons } from './BacktestCloseReasons';
 import { BacktestAssets } from './BacktestAssets';
@@ -7,9 +7,7 @@ import { BacktestTradesByRoiCumHistogram } from './BacktestTradesByRoiCumHistogr
 import { BacktestTradesByHoldingTimeHistogram } from './BacktestTradesByHoldingTimeHistogram';
 import { BacktestTradesByPairScore } from './BacktestTradesByPairScore';
 
-export const BacktestStats = ({ reports }: { reports: TMRReport[] }) => {
-  const trades = reports.flatMap((report) => report.backtest || []);
-
+export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
   return (
     <div className="space-y-6">
       <BacktestMetrics trades={trades} />
@@ -33,7 +31,7 @@ export const BacktestStats = ({ reports }: { reports: TMRReport[] }) => {
         </div>
         <div className="w-1/2">
           <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By Pair Score</h3>
-          <BacktestTradesByPairScore reports={reports} />
+          <BacktestTradesByPairScore trades={trades} />
         </div>
       </div>
 

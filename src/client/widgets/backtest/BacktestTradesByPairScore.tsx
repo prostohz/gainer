@@ -1,7 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
-import { TMRReport } from '../../../shared/types';
 
 type ChartDataItem = {
   range: string;
@@ -14,9 +13,7 @@ type ChartDataItem = {
   maxScore: number;
 };
 
-export const BacktestTradesByPairScore = ({ reports }: { reports: TMRReport[] }) => {
-  const trades = reports.flatMap((report) => report.backtest || []);
-
+export const BacktestTradesByPairScore = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
       <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">

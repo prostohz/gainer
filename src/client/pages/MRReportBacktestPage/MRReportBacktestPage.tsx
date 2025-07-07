@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
-import { TMRReportEntry } from '../../../shared/types';
+import { TMRReport } from '../../../shared/types';
 import { dayjs } from '../../../shared/utils/daytime';
 import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
@@ -18,11 +17,11 @@ export const MRReportBacktestPage = () => {
   const [startDate, setStartDate] = useState<number | null>(null);
   const [endDate, setEndDate] = useState<number | null>(null);
 
-  const { data: report, isLoading } = useQuery<{
-    id: string;
-    date: number;
-    data: TMRReportEntry[];
-  }>({
+  const {
+    data: report,
+    isLoading,
+    refetch: refetchReport,
+  } = useQuery<TMRReport>({
     queryKey: ['report', id],
     queryFn: () =>
       http.get(`/api/mrReport/${id}`).then((response) => ({
@@ -38,11 +37,6 @@ export const MRReportBacktestPage = () => {
     }
   }, [report]);
 
-  const { data: backtest, refetch: refetchBacktest } = useQuery<TCompleteTrade[]>({
-    queryKey: ['backtest', id],
-    queryFn: () => http.get(`/api/mrReport/${id}/backtest`).then((response) => response.data),
-  });
-
   const {
     mutate: runBacktest,
     isPending: isBacktestRunning,
@@ -55,32 +49,9 @@ export const MRReportBacktestPage = () => {
       });
     },
     onSuccess: () => {
-      refetchBacktest();
+      refetchReport();
     },
   });
-
-  const renderBacktest = () => {
-    if (isBacktestRunning) {
-      return <Loader />;
-    }
-
-    if (backtestError) {
-      return (
-        <div className="alert alert-error">Error running backtest: {backtestError.message}</div>
-      );
-    }
-
-    if (!backtest) {
-      return <div className="text-center p-4">No backtest found</div>;
-    }
-
-    return (
-      <div className="space-y-4">
-        <BacktestTradesByTimeHistogram trades={backtest} />
-        <BacktestTrades trades={backtest} />
-      </div>
-    );
-  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -90,8 +61,25 @@ export const MRReportBacktestPage = () => {
     if (!report) {
       return <div className="text-center p-4">No report found</div>;
     }
+    if (isBacktestRunning) {
+      return <Loader />;
+    }
+    if (backtestError) {
+      return (
+        <div className="alert alert-error">Error running backtest: {backtestError.message}</div>
+      );
+    }
 
-    return <div className="flex flex-col gap-4">{renderBacktest()}</div>;
+    const trades = report.backtestTrades || [];
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="space-y-4">
+          <BacktestTradesByTimeHistogram trades={trades} />
+          <BacktestTrades trades={trades} />
+        </div>
+      </div>
+    );
   };
 
   return (

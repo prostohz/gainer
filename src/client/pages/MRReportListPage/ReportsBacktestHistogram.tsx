@@ -30,7 +30,7 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
   const chartData: ChartDataItem[] = reports
     .sort((a, b) => a.date - b.date)
     .map((report) => {
-      const backtest = report.backtest;
+      const { backtestTrades } = report;
 
       const chartItem: ChartDataItem = {
         id: report.id,
@@ -42,21 +42,21 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
       };
 
       // Случай 1: бэктест не проведён
-      if (!backtest) {
+      if (!backtestTrades) {
         return chartItem;
       }
 
       // Случай 2: бэктест проведён, но сделок нет
-      if (backtest.length === 0) {
+      if (backtestTrades.length === 0) {
         chartItem.status = 'no-trades';
         return chartItem;
       }
 
       // Случай 3: бэктест проведён и есть сделки
-      const totalProfitability = backtest.reduce((sum, trade) => sum + trade.roi, 0);
+      const totalProfitability = backtestTrades.reduce((sum, trade) => sum + trade.roi, 0);
 
       chartItem.profitability = totalProfitability;
-      chartItem.tradesCount = backtest.length;
+      chartItem.tradesCount = backtestTrades.length;
       chartItem.status = totalProfitability >= 0 ? 'profitable' : 'unprofitable';
 
       return chartItem;

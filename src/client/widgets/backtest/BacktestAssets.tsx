@@ -2,7 +2,7 @@ import * as math from 'mathjs';
 import { useState } from 'react';
 import { FixedSizeList } from 'react-window';
 
-import { TCompleteTrade } from '../../server/trading/strategies/MRStrategy/backtest';
+import { TCompleteTrade } from '../../../server/trading/strategies/MRStrategy/backtest';
 
 type TViewMode = 'pairs' | 'assets';
 
