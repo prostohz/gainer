@@ -8,6 +8,7 @@ import { http } from '../../shared/utils/http';
 import { Title } from '../../shared/utils/Title';
 import { DateTimePicker } from '../../shared/ui/Calendar';
 import { BacktestTrades } from '../../widgets/backtest/BacktestTrades';
+import { BacktestStats } from '../../widgets/backtest/BacktestStats';
 import { Loader } from '../../shared/ui/Loader';
 import { BacktestTradesByTimeHistogram } from '../../widgets/backtest/BacktestTradesByTimeHistogram';
 
@@ -76,6 +77,10 @@ export const MRReportBacktestPage = () => {
       <div className="flex flex-col gap-4">
         <div className="space-y-4">
           <BacktestTradesByTimeHistogram trades={trades} />
+          <div className="bg-base-200 rounded-lg p-4 mb-4">
+            <h3 className="text-lg font-semibold mb-3">Backtest trades</h3>
+            <BacktestStats trades={trades} reportId={report.id} tagId={report.tagId} />
+          </div>
           <BacktestTrades trades={trades} />
         </div>
       </div>

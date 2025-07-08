@@ -25,7 +25,7 @@ type ChartDataItem = {
 export const BacktestTradesByRoiCumHistogram = ({ trades }: { trades: TCompleteTrade[] }) => {
   if (!trades || trades.length === 0) {
     return (
-      <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
+      <div className="w-full h-64 flex items-center justify-center">
         <span className="text-base-content opacity-60">No data to display</span>
       </div>
     );
@@ -134,11 +134,11 @@ export const BacktestTradesByRoiCumHistogram = ({ trades }: { trades: TCompleteT
 
   return (
     <div>
-      <div className="flex justify-between items-center h-6 mb-2">
-        <h3 className="text-sm font-semibold text-base-content">Trades By ROI Cumulative</h3>
+      <div className="flex justify-between items-center h-6 mb-4">
+        <h3 className="font-semibold text-base-content">Trades By ROI Cumulative</h3>
       </div>
 
-      <div className="w-full h-64 bg-base-300 rounded p-4">
+      <div className="w-full h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
@@ -148,7 +148,7 @@ export const BacktestTradesByRoiCumHistogram = ({ trades }: { trades: TCompleteT
               axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
               angle={-45}
               textAnchor="end"
-              height={60}
+              height={50}
               interval="preserveStartEnd"
             />
             <YAxis

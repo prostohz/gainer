@@ -41,7 +41,13 @@ const metricOptions: MetricOption[] = [
   { value: 'maxRoi', label: 'Max ROI', formatter: (value) => `${value.toFixed(2)}%` },
 ];
 
-export const BacktestTradesByPairScore = () => {
+export const BacktestTradesByPairScore = ({
+  reportId,
+  tagId,
+}: {
+  reportId?: number;
+  tagId: number | null;
+}) => {
   const [selectedMetric, setSelectedMetric] = useState<MetricOption>(metricOptions[1]); // По умолчанию averageRoi
   const { data: tradesByPairScore, isLoading } = useQuery<
     Array<{
@@ -53,8 +59,14 @@ export const BacktestTradesByPairScore = () => {
       maxRoi: number;
     }>
   >({
-    queryKey: ['tradesByPairScore'],
-    queryFn: () => http.get('/api/mrReport/analytics/tradesByPairScore').then((res) => res.data),
+    queryKey: ['tradesByPairScore', tagId, reportId],
+    enabled: !!tagId,
+    queryFn: () =>
+      http
+        .get('/api/mrReport/analytics/tradesByPairScore', {
+          params: { tagId, reportId: reportId ?? undefined },
+        })
+        .then((res) => res.data),
   });
 
   if (isLoading) {
@@ -63,7 +75,7 @@ export const BacktestTradesByPairScore = () => {
 
   if (!tradesByPairScore || tradesByPairScore.length === 0) {
     return (
-      <div className="w-full h-64 bg-base-200 rounded p-4 flex items-center justify-center">
+      <div className="w-full h-64 flex items-center justify-center">
         <span className="text-base-content opacity-60">No data to display</span>
       </div>
     );
@@ -127,8 +139,8 @@ export const BacktestTradesByPairScore = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center h-6 mb-2">
-        <h3 className="text-sm font-semibold text-base-content">Trades By Pair Score</h3>
+      <div className="flex justify-between items-center h-6 mb-4">
+        <h3 className="font-semibold text-base-content">Trades By Pair Score</h3>
         <select
           value={selectedMetric.value}
           onChange={(e) => {
@@ -145,7 +157,7 @@ export const BacktestTradesByPairScore = () => {
         </select>
       </div>
 
-      <div className="w-full h-64 bg-base-300 rounded p-4">
+      <div className="w-full h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
@@ -154,6 +166,9 @@ export const BacktestTradesByPairScore = () => {
               tick={{ fontSize: 10, fill: 'currentColor' }}
               axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
               tickFormatter={(value) => value.toFixed(2)}
+              angle={-45}
+              textAnchor="end"
+              height={50}
             />
             <YAxis
               tick={{ fontSize: 12, fill: 'currentColor' }}

@@ -17,13 +17,6 @@ export const useLSState = <T>(key: string, defaultValue: T) => {
   });
 
   useEffect(() => {
-    // Обработчик для событий из других вкладок
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === key) {
-        setState(event.newValue ? JSON.parse(event.newValue) : defaultValue);
-      }
-    };
-
     // Обработчик для событий в текущей вкладке
     const handleLocalChange = (event: CustomEvent) => {
       const { key: eventKey, newValue } = event.detail;
@@ -32,11 +25,9 @@ export const useLSState = <T>(key: string, defaultValue: T) => {
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
     window.addEventListener(localStorageChangeEvent, handleLocalChange as EventListener);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener(localStorageChangeEvent, handleLocalChange as EventListener);
     };
   }, [key, defaultValue]);

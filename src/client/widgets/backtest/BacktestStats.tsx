@@ -6,26 +6,33 @@ import { BacktestTradesByRoiHistogram } from './BacktestTradesByRoiHistogram';
 import { BacktestTradesByRoiCumHistogram } from './BacktestTradesByRoiCumHistogram';
 import { BacktestTradesByHoldingTimeHistogram } from './BacktestTradesByHoldingTimeHistogram';
 import { BacktestTradesByPairScore } from './BacktestTradesByPairScore';
+import { BacktestTradesByDateTimeHistogram } from './BacktestTradesByDateTimeHistogram';
+import { BacktestTradesByHourTimeHistogram } from './BacktestTradesByHourTimeHistogram';
 
-export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
+export const BacktestStats = ({
+  trades,
+  reportId,
+  tagId,
+}: {
+  trades: TCompleteTrade[];
+  reportId?: number;
+  tagId: number | null;
+}) => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <BacktestMetrics trades={trades} />
       <BacktestCloseReasons trades={trades} />
 
-      <div className="grid grid-cols-2 gap-4 space-4">
+      <div className="grid grid-cols-2 gap-4">
         <BacktestTradesByRoiHistogram trades={trades} />
         <BacktestTradesByRoiCumHistogram trades={trades} />
         <BacktestTradesByHoldingTimeHistogram trades={trades} />
-        <BacktestTradesByPairScore />
+        <BacktestTradesByPairScore reportId={reportId} tagId={tagId} />
+        <BacktestTradesByDateTimeHistogram trades={trades} />
+        <BacktestTradesByHourTimeHistogram trades={trades} />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-base-content">Asset Stats</h3>
-        <div className="bg-base-300 rounded-md">
-          <BacktestAssets trades={trades} />
-        </div>
-      </div>
+      <BacktestAssets trades={trades} />
     </div>
   );
 };

@@ -52,7 +52,7 @@ export const getReportList = async (startDate?: number, endDate?: number, tagId?
   );
 
   return reports.map((report) => ({
-    id: report.reportId,
+    id: report.id,
     date: report.date,
     tagId: report.tagId,
     pairsCount: entryCountMap[report.id] || 0,
@@ -82,7 +82,6 @@ export const getReportList = async (startDate?: number, endDate?: number, tagId?
 export const createReport = measureTime(
   'Report creation',
   async (date: number, tagId: number) => {
-    const id = `${date}`;
     const reportData = await buildMrReport(date);
 
     const transaction = await MRReport.sequelize!.transaction();
@@ -90,7 +89,6 @@ export const createReport = measureTime(
     try {
       const report = await MRReport.create(
         {
-          reportId: id,
           date,
           tagId,
         },
@@ -126,9 +124,8 @@ export const createReport = measureTime(
   logger.info,
 );
 
-export const getReport = async (id: string) => {
-  const report = await MRReport.findOne({
-    where: { reportId: id },
+export const getReport = async (id: number) => {
+  const report = await MRReport.findByPk(id, {
     include: [
       {
         model: MRReportPair,
@@ -169,7 +166,7 @@ export const getReport = async (id: string) => {
   }));
 
   return {
-    id: report.reportId,
+    id: report.id,
     date: report.date,
     tagId: report.tagId,
     pairs,
@@ -197,7 +194,7 @@ export const getReport = async (id: string) => {
   };
 };
 
-export const updateReport = async (id: string) => {
+export const updateReport = async (id: number) => {
   const report = await getReport(id);
   if (!report) {
     return;
@@ -207,14 +204,14 @@ export const updateReport = async (id: string) => {
   await createReport(report.date, report.tagId);
 };
 
-export const deleteReport = async (id: string) => {
+export const deleteReport = async (id: number) => {
   await MRReport.destroy({
-    where: { reportId: id },
+    where: { id },
   });
 };
 
 export const createReportBacktest = async (
-  id: string,
+  id: number,
   startTimestamp: number,
   endTimestamp: number,
 ) => {
@@ -223,10 +220,7 @@ export const createReportBacktest = async (
     return null;
   }
 
-  const reportModel = await MRReport.findOne({
-    where: { reportId: id },
-  });
-
+  const reportModel = await MRReport.findByPk(id);
   if (!reportModel) {
     return null;
   }
@@ -244,6 +238,9 @@ export const createReportBacktest = async (
     endTimestamp,
   );
 
+  await MRReportBacktestTrade.destroy({
+    where: { reportId: report.id },
+  });
   await MRReportBacktestTrade.bulkCreate(
     reportBacktest.map((trade) => ({
       reportId: reportModel.id,
@@ -264,17 +261,13 @@ export const createReportBacktest = async (
       closeReason: trade.closeReason,
     })),
   );
-
-  // Обновляем дату последнего бэктеста
   await reportModel.update({
     lastBacktestAt: new Date(),
   });
 };
 
-export const deleteReportBacktest = async (id: string) => {
-  const report = await MRReport.findOne({
-    where: { reportId: id },
-  });
+export const deleteReportBacktest = async (id: number) => {
+  const report = await MRReport.findByPk(id);
 
   if (!report) {
     return null;
@@ -290,14 +283,29 @@ export const deleteReportBacktest = async (id: string) => {
   });
 };
 
-export const getBacktestTradesByPairScore = async () => {
+export const getBacktestTradesByPairScore = async ({
+  reportId,
+  tagId,
+}: {
+  reportId?: number;
+  tagId: number;
+}) => {
   const sequelize = MRReport.sequelize!;
+
+  // Строим условие WHERE динамически
+  const whereConditions = ['r."tagId" = $1'];
+  const bindParams = [tagId];
+
+  if (reportId) {
+    whereConditions.push('r.id = $2');
+    bindParams.push(reportId);
+  }
 
   // Выполняем группировку прямо в базе данных
   const results = (await sequelize.query(
     `
     SELECT 
-      FLOOR(p.score * 10) / 10 as score,
+      FLOOR(p.score) as score,
       COUNT(*) as trades_count,
       AVG(t.roi) as average_roi,
       SUM(t.roi) as total_roi,
@@ -312,10 +320,13 @@ export const getBacktestTradesByPairScore = async () => {
         (t."symbolA" = p."assetBBaseAsset" || p."assetBQuoteAsset" AND t."symbolB" = p."assetABaseAsset" || p."assetAQuoteAsset")
       )
     )
-    GROUP BY FLOOR(p.score * 10) / 10
+    INNER JOIN mr_reports r ON t."reportId" = r.id
+    WHERE ${whereConditions.join(' AND ')}
+    GROUP BY FLOOR(p.score)
     ORDER BY score ASC
   `,
     {
+      bind: bindParams,
       type: QueryTypes.SELECT,
     },
   )) as Array<{

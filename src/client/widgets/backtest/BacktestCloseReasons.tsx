@@ -56,17 +56,17 @@ export const BacktestCloseReasons = ({ trades }: { trades: TCompleteTrade[] }) =
 
   return (
     <div>
-      <h3 className="text-sm font-semibold mb-2 text-base-content">Position Close Reasons</h3>
+      <h3 className="text-sm font-semibold mb-2">Position Close Reasons</h3>
       <div className="bg-base-300 rounded-md border border-base-300 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="border-b border-base-100">
+          <thead className="border-b border-base-100 text-base-content/80">
             <tr>
-              <th className="text-left p-3 font-medium text-base-content">Reason</th>
-              <th className="text-left p-3 font-medium text-base-content">Frequency</th>
-              <th className="text-left p-3 font-medium text-base-content">Average Profit</th>
-              <th className="text-left p-3 font-medium text-base-content">Win Rate</th>
-              <th className="text-left p-3 font-medium text-base-content">Total Profit</th>
-              <th className="text-left p-3 font-medium text-base-content">Count</th>
+              <th className="text-left p-3 font-medium">Reason</th>
+              <th className="text-left p-3 font-medium">Frequency</th>
+              <th className="text-left p-3 font-medium">Average Profit</th>
+              <th className="text-left p-3 font-medium">Win Rate</th>
+              <th className="text-left p-3 font-medium">Total Profit</th>
+              <th className="text-left p-3 font-medium">Count</th>
             </tr>
           </thead>
           <tbody>

@@ -14,7 +14,7 @@ import { dayjs } from '../../../shared/utils/daytime';
 import { TMRReport } from '../../../shared/types';
 
 type ChartDataItem = {
-  id: string;
+  id: number;
   date: string;
   fullDate: string;
   profitability: number;
@@ -152,7 +152,7 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
   };
 
   return (
-    <div className="w-full h-64 bg-base-200 rounded p-4">
+    <div className="w-full h-64">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
@@ -169,7 +169,7 @@ export const ReportsBacktestHistogram = ({ reports }: { reports: TMRReport[] }) 
           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 12, fill: 'currentColor' }}
+            tick={{ fontSize: 10, fill: 'currentColor' }}
             axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
           />
           <YAxis

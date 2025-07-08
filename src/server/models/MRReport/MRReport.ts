@@ -6,7 +6,6 @@ const sequelize = new Sequelize(DATABASE_CONFIG);
 
 interface MRReportAttributes {
   id: number;
-  reportId: string;
   date: number;
   tagId: number;
   lastBacktestAt: Date | null;
@@ -24,7 +23,6 @@ export class MRReport
   implements MRReportAttributes
 {
   public id!: number;
-  public reportId!: string;
   public date!: number;
   public tagId!: number;
   public lastBacktestAt!: Date | null;
@@ -43,10 +41,6 @@ MRReport.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
-    },
-    reportId: {
-      type: DataTypes.STRING,
-      allowNull: false,
     },
     date: {
       type: DataTypes.BIGINT,
@@ -85,10 +79,8 @@ MRReport.init(
     tableName: 'mr_reports',
     timestamps: true,
     indexes: [
-      { fields: ['reportId'], name: 'idx_mr_reports_report_id' },
-      { fields: ['date'], name: 'idx_mr_reports_date' },
       { fields: ['tagId'], name: 'idx_mr_reports_tag_id' },
-      { fields: ['reportId', 'tagId'], name: 'idx_mr_reports_report_id_tag_id', unique: true },
+      { fields: ['date', 'tagId'], unique: true, name: 'idx_mr_reports_date_tag_id_unique' },
     ],
   },
 );

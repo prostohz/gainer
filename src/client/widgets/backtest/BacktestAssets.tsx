@@ -311,8 +311,8 @@ const ViewModeSelector = ({
   ] as const;
 
   return (
-    <div className="flex items-center justify-end space-x-4 p-4">
-      <div className="flex bg-base-200 rounded-lg p-1">
+    <div className="flex items-center justify-end space-x-4">
+      <div className="flex bg-base-200 rounded-lg">
         {viewModes.map((mode) => (
           <button
             key={mode.value}
@@ -418,20 +418,24 @@ export const BacktestAssets = ({ trades }: { trades: TCompleteTrade[] }) => {
 
   return (
     <div>
-      <ViewModeSelector viewMode={viewMode} onViewModeChange={setViewMode} />
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-semibold text-base-content">Asset Stats</h3>
+        <ViewModeSelector viewMode={viewMode} onViewModeChange={setViewMode} />
+      </div>
+      <div className="bg-base-300 rounded-md">
+        <div className="rounded-md border border-base-300 overflow-hidden">
+          <TableHeader sortConfig={sortConfig} onSort={handleSort} />
 
-      <div className="rounded-md border border-base-300 overflow-hidden">
-        <TableHeader sortConfig={sortConfig} onSort={handleSort} />
-
-        <FixedSizeList
-          height={MAX_TABLE_HEIGHT}
-          itemCount={stats.length}
-          itemSize={ROW_HEIGHT}
-          itemData={{ stats, viewMode }}
-          width="100%"
-        >
-          {TableRow}
-        </FixedSizeList>
+          <FixedSizeList
+            height={MAX_TABLE_HEIGHT}
+            itemCount={stats.length}
+            itemSize={ROW_HEIGHT}
+            itemData={{ stats, viewMode }}
+            width="100%"
+          >
+            {TableRow}
+          </FixedSizeList>
+        </div>
       </div>
     </div>
   );

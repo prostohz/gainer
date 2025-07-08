@@ -10,7 +10,7 @@ import { Asset } from '../../models/Asset';
 import { Candle } from '../../models/Candle';
 import { PearsonCorrelation } from '../../trading/indicators/PearsonCorrelation/PearsonCorrelation';
 import { BetaHedge } from '../../trading/indicators/BetaHedge/BetaHedge';
-import { EngleGrangerTest } from '../../trading/indicators/EngleGrangerTest/EngleGrangerTest';
+import { EngleGrangerTestOptimized } from '../../trading/indicators/EngleGrangerTest/EngleGrangerTestOptimized';
 import { TIndicatorShortCandle } from '../../trading/indicators/types';
 import { HalfLife } from '../../trading/indicators/HalfLife/HalfLife';
 import {
@@ -462,7 +462,7 @@ const checkCointegration = performanceTracker.measureTime(
     const cointegrationCandlesA = candlesA.slice(-CANDLE_COUNT_FOR_COINTEGRATION);
     const cointegrationCandlesB = candlesB.slice(-CANDLE_COUNT_FOR_COINTEGRATION);
 
-    const engleGrangerTest = new EngleGrangerTest();
+    const engleGrangerTest = new EngleGrangerTestOptimized();
     const cointegration = engleGrangerTest.calculateCointegration(
       cointegrationCandlesA,
       cointegrationCandlesB,

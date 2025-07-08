@@ -16,15 +16,16 @@ import { TagSelector } from '../../widgets/TagSelector';
 import { BacktestStats } from '../../widgets/backtest/BacktestStats';
 import { ReportsHistogram } from './ReportsHistogram';
 import { ReportsBacktestHistogram } from './ReportsBacktestHistogram';
-import { AverageRoiHistogram } from './AverageRoiHistogram';
+import { AverageRoiByDateHistogram } from './AverageRoiByDateHistogram';
+import { AverageCumRoiByDateHistogram } from './AverageCumRoiByDateHistogram';
 
 type TTableRowProps = {
   index: number;
   style: React.CSSProperties;
   data: {
     items: TMRReport[];
-    updateReport: (id: string) => void;
-    deleteReport: (id: string) => void;
+    updateReport: (id: number) => void;
+    deleteReport: (id: number) => void;
     isUpdating: boolean;
     isDeleting: boolean;
   };
@@ -167,14 +168,14 @@ export const MRReportListPage = () => {
   });
 
   const { mutate: updateReport, isPending: isUpdating } = useMutation({
-    mutationFn: (id: string) => http.put(`/api/mrReport/${id}`),
+    mutationFn: (id: number) => http.put(`/api/mrReport/${id}`),
     onSuccess: () => {
       refetch();
     },
   });
 
   const { mutate: deleteReport, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => http.delete(`/api/mrReport/${id}`),
+    mutationFn: (id: number) => http.delete(`/api/mrReport/${id}`),
     onSuccess: () => {
       refetch();
     },
@@ -309,7 +310,7 @@ export const MRReportListPage = () => {
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex gap-2">
           <DateTimePicker
             value={new Date(selectedDate)}
@@ -376,43 +377,63 @@ export const MRReportListPage = () => {
       </div>
 
       {reports && reports.length > 0 ? (
-        <div className="flex flex-col gap-4 mb-4">
-          <h2 className="text-lg font-semibold">Pairs count by date</h2>
-          <ReportsHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">ROI by date</h2>
-          <ReportsBacktestHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">Cumulative Average ROI</h2>
-          <AverageRoiHistogram reports={reports} />
-          <h2 className="text-lg font-semibold">Backtest Stats</h2>
-          <div className="bg-base-200 rounded-lg p-4">
-            <BacktestStats trades={trades} />
-          </div>
-          <h2 className="text-lg font-semibold">Reports</h2>
-          <div className="bg-base-200 rounded-lg">
-            <div className="flex items-center px-4 py-3 font-medium text-sm border-b border-base-100">
-              <div className="w-40 flex-shrink-0">ID</div>
-              <div className="w-40 flex-shrink-0">Date</div>
-              <div className="w-20 flex-shrink-0">Pairs</div>
-              <div className="flex-1">Backtest</div>
-              <div className="flex-shrink-0">Actions</div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Reports</h2>
+            <div className="grid grid-cols-2 gap-6 bg-base-200 rounded-lg p-4">
+              <div>
+                <h3 className="font-semibold mb-4">Pairs By Date</h3>
+                <ReportsHistogram reports={reports} />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-4">Total ROI By Date</h3>
+                <ReportsBacktestHistogram reports={reports} />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-4">Average ROI By Date</h3>
+                <AverageRoiByDateHistogram reports={reports} />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-4">Average Cumulative ROI By Date</h3>
+                <AverageCumRoiByDateHistogram reports={reports} />
+              </div>
             </div>
+          </div>
 
-            <div className="overflow-hidden">
-              <List
-                height={Math.min(600, reports.length * 80)}
-                width="100%"
-                itemCount={reports.length}
-                itemSize={80}
-                itemData={{
-                  items: reports,
-                  updateReport,
-                  deleteReport,
-                  isUpdating,
-                  isDeleting,
-                }}
-              >
-                {TableRow}
-              </List>
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Backtest Stats</h2>
+            <div className="bg-base-200 rounded-lg p-4">
+              <BacktestStats trades={trades} tagId={selectedTagId} />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Reports</h2>
+            <div className="bg-base-200 rounded-lg">
+              <div className="flex items-center px-4 py-3 font-medium text-sm border-b border-base-100">
+                <div className="w-40 flex-shrink-0">ID</div>
+                <div className="w-40 flex-shrink-0">Date</div>
+                <div className="w-20 flex-shrink-0">Pairs</div>
+                <div className="flex-1">Backtest</div>
+                <div className="flex-shrink-0">Actions</div>
+              </div>
+
+              <div className="overflow-hidden">
+                <List
+                  height={Math.min(600, reports.length * 80)}
+                  width="100%"
+                  itemCount={reports.length}
+                  itemSize={80}
+                  itemData={{
+                    items: reports,
+                    updateReport,
+                    deleteReport,
+                    isUpdating,
+                    isDeleting,
+                  }}
+                >
+                  {TableRow}
+                </List>
+              </div>
             </div>
           </div>
         </div>

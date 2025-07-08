@@ -457,7 +457,7 @@ const StatCard = ({ item }: { item: TStatItem }) => {
       <div className={cn('stat-value text-base font-bold', getValueColor(item.valueColor))}>
         {formatValue(item.value, item.format)}
       </div>
-      {item.description && <div className="stat-desc text-xs opacity-70">{item.description}</div>}
+      {item.description && <div className="stat-desc text-xs">{item.description}</div>}
     </div>
   );
 };
@@ -498,7 +498,7 @@ export const BacktestMetrics = ({ trades }: { trades: TCompleteTrade[] }) => {
   const sections = createStatSections(basicMetrics, detailedMetrics, riskMetrics, timeMetrics);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {sections.map((section, index) => (
         <StatSection key={index} section={section} />
       ))}

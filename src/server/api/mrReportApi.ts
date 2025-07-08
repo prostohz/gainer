@@ -41,7 +41,7 @@ router.post(
 router.get(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string;
+    const id = Number(req.params.id);
     const report = await getReport(id);
     sendResponse(res, report);
   }),
@@ -50,7 +50,7 @@ router.get(
 router.put(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string;
+    const id = Number(req.params.id);
     await updateReport(id);
     sendResponse(res, { message: 'Report updated' });
   }),
@@ -59,7 +59,7 @@ router.put(
 router.delete(
   '/:id',
   asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string;
+    const id = Number(req.params.id);
     await deleteReport(id);
     sendResponse(res, { message: 'Report deleted' });
   }),
@@ -69,7 +69,7 @@ router.post(
   '/:id/backtest',
   validateParams(['startTimestamp', 'endTimestamp']),
   asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string;
+    const id = Number(req.params.id);
     const startTimestamp = Number(req.body.startTimestamp);
     const endTimestamp = Number(req.body.endTimestamp);
 
@@ -81,7 +81,7 @@ router.post(
 router.delete(
   '/:id/backtest',
   asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id as string;
+    const id = Number(req.params.id);
     await deleteReportBacktest(id);
     sendResponse(res, { message: 'Backtests deleted' });
   }),
@@ -89,8 +89,18 @@ router.delete(
 
 router.get(
   '/analytics/tradesByPairScore',
+  validateParams(['tagId']),
   asyncHandler(async (req: Request, res: Response) => {
-    const result = await getBacktestTradesByPairScore();
+    const reportId = req.query.reportId ? Number(req.query.reportId) : undefined;
+    const tagId = Number(req.query.tagId);
+
+    const params: { tagId: number; reportId?: number } = { tagId };
+
+    if (reportId) {
+      params.reportId = reportId;
+    }
+
+    const result = await getBacktestTradesByPairScore(params);
     sendResponse(res, result);
   }),
 );

@@ -9,4 +9,5 @@ coverage/
 temp/
 logs/
 node_modules/
+src/server/modules/analysis/reports/
 npm-debug.log

@@ -131,14 +131,12 @@ export const BacktestTradesByTimeHistogram = ({ trades }: { trades: TCompleteTra
               radius={[2, 2, 0, 0]}
               isAnimationActive={false}
               fill="#10b981"
-              fillOpacity={0.8}
             />
             <Bar
               dataKey="unsuccessfulNegative"
               radius={[0, 0, 2, 2]}
               isAnimationActive={false}
               fill="#ef4444"
-              fillOpacity={0.8}
             />
           </BarChart>
         </ResponsiveContainer>

@@ -4,12 +4,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
     "dev:server": "ts-node-dev --respawn src/server/index.ts",
     "dev:client": "vite",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "meanReversion:debug": "ts-node src/server/trading/strategies/MRStrategy/debug.ts",
-    "meanReversion:backtest": "ts-node src/server/trading/strategies/MRStrategy/backtest.ts",
+    "build": "tsc",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
@@ -75,6 +73,7 @@
     "recharts": "^3.0.0",
     "remeda": "^2.21.4",
     "sequelize": "^6.37.7",
+    "simple-statistics": "^7.8.8",
     "winston": "^3.17.0",
     "ws": "^8.18.2"
   }

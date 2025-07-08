@@ -49,7 +49,7 @@ export type TMRReportTag = {
   updatedAt: Date;
 };
 export type TMRReport = {
-  id: string;
+  id: number;
   date: number;
   tagId: number;
   pairs?: TMRReportPair[];
