@@ -126,8 +126,9 @@ export const BacktestTradesByPairScore = () => {
   const yAxisDomain = [minValue - valueRange * 0.1, maxValue + valueRange * 0.1]; // Добавляем 10% отступа
 
   return (
-    <div className="w-full bg-base-300 rounded p-4">
-      <div className="mb-4">
+    <div>
+      <div className="flex justify-between items-center h-6 mb-2">
+        <h3 className="text-sm font-semibold text-base-content">Trades By Pair Score</h3>
         <select
           value={selectedMetric.value}
           onChange={(e) => {
@@ -144,8 +145,7 @@ export const BacktestTradesByPairScore = () => {
         </select>
       </div>
 
-      {/* График */}
-      <div className="h-64">
+      <div className="w-full h-64 bg-base-300 rounded p-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />

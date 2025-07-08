@@ -47,7 +47,6 @@ MRReport.init(
     reportId: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
     },
     date: {
       type: DataTypes.BIGINT,
@@ -86,9 +85,10 @@ MRReport.init(
     tableName: 'mr_reports',
     timestamps: true,
     indexes: [
-      { fields: ['reportId'], name: 'idx_mr_reports_report_id', unique: true },
+      { fields: ['reportId'], name: 'idx_mr_reports_report_id' },
       { fields: ['date'], name: 'idx_mr_reports_date' },
       { fields: ['tagId'], name: 'idx_mr_reports_tag_id' },
+      { fields: ['reportId', 'tagId'], name: 'idx_mr_reports_report_id_tag_id', unique: true },
     ],
   },
 );

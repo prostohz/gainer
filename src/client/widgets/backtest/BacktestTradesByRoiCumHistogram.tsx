@@ -133,70 +133,76 @@ export const BacktestTradesByRoiCumHistogram = ({ trades }: { trades: TCompleteT
   const breakEvenPoint = chartData.find((item) => item.roi >= 0);
 
   return (
-    <div className="w-full h-64 bg-base-300 rounded p-4">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
-          <XAxis
-            dataKey="roiLabel"
-            tick={{ fontSize: 10, fill: 'currentColor' }}
-            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'currentColor' }}
-            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            domain={[0, totalTrades]}
-          />
-          <Tooltip content={<CustomTooltip />} />
+    <div>
+      <div className="flex justify-between items-center h-6 mb-2">
+        <h3 className="text-sm font-semibold text-base-content">Trades By ROI Cumulative</h3>
+      </div>
 
-          {/* Линия медианы (50% сделок) */}
-          {medianPoint && (
+      <div className="w-full h-64 bg-base-300 rounded p-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
+            <XAxis
+              dataKey="roiLabel"
+              tick={{ fontSize: 10, fill: 'currentColor' }}
+              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{ fontSize: 12, fill: 'currentColor' }}
+              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+              domain={[0, totalTrades]}
+            />
+            <Tooltip content={<CustomTooltip />} />
+
+            {/* Линия медианы (50% сделок) */}
+            {medianPoint && (
+              <ReferenceLine
+                x={medianPoint.roiLabel}
+                stroke="var(--fallback-wa,oklch(var(--wa)))"
+                strokeDasharray="5 5"
+                opacity={0.7}
+              />
+            )}
+
+            {/* Линия breakeven (ROI = 0%) */}
+            {breakEvenPoint && (
+              <ReferenceLine
+                x={breakEvenPoint.roiLabel}
+                stroke="var(--fallback-n,oklch(var(--n)))"
+                strokeDasharray="2 2"
+                opacity={0.5}
+              />
+            )}
+
+            {/* Горизонтальная линия 50% */}
             <ReferenceLine
-              x={medianPoint.roiLabel}
+              y={totalTrades / 2}
               stroke="var(--fallback-wa,oklch(var(--wa)))"
               strokeDasharray="5 5"
               opacity={0.7}
             />
-          )}
 
-          {/* Линия breakeven (ROI = 0%) */}
-          {breakEvenPoint && (
-            <ReferenceLine
-              x={breakEvenPoint.roiLabel}
-              stroke="var(--fallback-n,oklch(var(--n)))"
-              strokeDasharray="2 2"
-              opacity={0.5}
+            <Bar
+              dataKey="unprofitableCount"
+              stackId="trades"
+              fill="var(--fallback-er,oklch(var(--er)))"
+              radius={[0, 0, 0, 0]}
+              isAnimationActive={false}
             />
-          )}
-
-          {/* Горизонтальная линия 50% */}
-          <ReferenceLine
-            y={totalTrades / 2}
-            stroke="var(--fallback-wa,oklch(var(--wa)))"
-            strokeDasharray="5 5"
-            opacity={0.7}
-          />
-
-          <Bar
-            dataKey="unprofitableCount"
-            stackId="trades"
-            fill="var(--fallback-er,oklch(var(--er)))"
-            radius={[0, 0, 0, 0]}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="profitableCount"
-            stackId="trades"
-            fill="var(--fallback-su,oklch(var(--su)))"
-            radius={[2, 2, 0, 0]}
-            isAnimationActive={false}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+            <Bar
+              dataKey="profitableCount"
+              stackId="trades"
+              fill="var(--fallback-su,oklch(var(--su)))"
+              radius={[2, 2, 0, 0]}
+              isAnimationActive={false}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

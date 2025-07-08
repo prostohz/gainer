@@ -108,7 +108,7 @@ export const TagManager = () => {
             <tbody>
               {isCreating && (
                 <tr className="bg-base-300">
-                  <td>
+                  <td className="align-top">
                     <input
                       type="text"
                       className="input input-bordered w-full"
@@ -117,7 +117,7 @@ export const TagManager = () => {
                       onChange={(e) => setNewTag({ ...newTag, code: e.target.value })}
                     />
                   </td>
-                  <td>
+                  <td className="align-top">
                     <input
                       type="text"
                       className="input input-bordered w-full"
@@ -126,7 +126,7 @@ export const TagManager = () => {
                       onChange={(e) => setNewTag({ ...newTag, description: e.target.value })}
                     />
                   </td>
-                  <td className="text-right">
+                  <td className="text-right align-top">
                     <div className="flex gap-2 justify-center">
                       <button
                         className="btn btn-sm btn-success"
@@ -148,7 +148,7 @@ export const TagManager = () => {
               )}
               {tags?.map((tag) => (
                 <tr key={tag.id}>
-                  <td>
+                  <td className="align-top">
                     {editingTag?.id === tag.id ? (
                       <input
                         type="text"
@@ -160,11 +160,11 @@ export const TagManager = () => {
                       <span className="font-mono text-sm">{tag.code}</span>
                     )}
                   </td>
-                  <td>
+                  <td className="align-top">
                     {editingTag?.id === tag.id ? (
-                      <input
-                        type="text"
-                        className="input input-bordered w-full"
+                      <textarea
+                        rows={12}
+                        className="input input-bordered w-full h-48"
                         value={editingTag.description}
                         onChange={(e) =>
                           setEditingTag({ ...editingTag, description: e.target.value })
@@ -174,9 +174,9 @@ export const TagManager = () => {
                       <span className="text-sm">{tag.description}</span>
                     )}
                   </td>
-                  <td className="text-center">
+                  <td className="text-right align-top">
                     {editingTag?.id === tag.id ? (
-                      <div className="flex gap-2 justify-center">
+                      <>
                         <button
                           className="btn btn-sm btn-success"
                           onClick={handleUpdateTag}
@@ -191,7 +191,7 @@ export const TagManager = () => {
                         >
                           Cancel
                         </button>
-                      </div>
+                      </>
                     ) : (
                       <div className="flex gap-2 justify-end">
                         <button

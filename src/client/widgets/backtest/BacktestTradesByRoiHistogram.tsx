@@ -118,33 +118,39 @@ export const BacktestTradesByRoiHistogram = ({ trades }: { trades: TCompleteTrad
   const yAxisDomain = [0, maxTradesCount * 1.1]; // Добавляем 10% отступа
 
   return (
-    <div className="w-full h-64 bg-base-300 rounded p-4">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
-          <XAxis
-            dataKey="rangeLabel"
-            tick={{ fontSize: 10, fill: 'currentColor' }}
-            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'currentColor' }}
-            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            domain={yAxisDomain}
-            tickFormatter={(value) => Math.round(value).toString()}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine x="0.00%" stroke="currentColor" opacity={0.5} strokeDasharray="2 2" />
-          <Bar dataKey="tradesCount" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={getBarColor(entry.status)} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div>
+      <div className="flex justify-between items-center h-6 mb-2">
+        <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By ROI</h3>
+      </div>
+
+      <div className="w-full h-64 bg-base-300 rounded p-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
+            <XAxis
+              dataKey="rangeLabel"
+              tick={{ fontSize: 10, fill: 'currentColor' }}
+              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis
+              tick={{ fontSize: 12, fill: 'currentColor' }}
+              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+              domain={yAxisDomain}
+              tickFormatter={(value) => Math.round(value).toString()}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <ReferenceLine x="0.00%" stroke="currentColor" opacity={0.5} strokeDasharray="2 2" />
+            <Bar dataKey="tradesCount" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getBarColor(entry.status)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

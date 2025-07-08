@@ -22,7 +22,7 @@ export const ReportsHistogram = ({ reports }: { reports: TMRReport[] }) => {
             date: item.date,
           };
         }
-        acc[dateKey].totalPairs += item.pairsCount;
+        acc[dateKey].totalPairs += item.pairsCount ?? 0;
         acc[dateKey].reportsCount += 1;
         return acc;
       },

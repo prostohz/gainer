@@ -65,6 +65,7 @@
     "express": "^5.1.0",
     "lightweight-charts": "^5.0.6",
     "mathjs": "^14.5.2",
+    "ml-matrix": "^6.12.1",
     "pg": "^8.16.2",
     "react": "^18.2.0",
     "react-datepicker": "^8.4.0",

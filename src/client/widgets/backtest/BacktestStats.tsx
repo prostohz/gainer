@@ -13,26 +13,11 @@ export const BacktestStats = ({ trades }: { trades: TCompleteTrade[] }) => {
       <BacktestMetrics trades={trades} />
       <BacktestCloseReasons trades={trades} />
 
-      <div className="flex gap-4">
-        <div className="w-1/2">
-          <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By ROI</h3>
-          <BacktestTradesByRoiHistogram trades={trades} />
-        </div>
-        <div className="w-1/2">
-          <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By ROI Cumulative</h3>
-          <BacktestTradesByRoiCumHistogram trades={trades} />
-        </div>
-      </div>
-
-      <div className="flex gap-4">
-        <div className="w-1/2">
-          <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By Holding Time</h3>
-          <BacktestTradesByHoldingTimeHistogram trades={trades} />
-        </div>
-        <div className="w-1/2">
-          <h3 className="text-sm font-semibold mb-2 text-base-content">Trades By Pair Score</h3>
-          <BacktestTradesByPairScore />
-        </div>
+      <div className="grid grid-cols-2 gap-4 space-4">
+        <BacktestTradesByRoiHistogram trades={trades} />
+        <BacktestTradesByRoiCumHistogram trades={trades} />
+        <BacktestTradesByHoldingTimeHistogram trades={trades} />
+        <BacktestTradesByPairScore />
       </div>
 
       <div className="flex flex-col gap-2">

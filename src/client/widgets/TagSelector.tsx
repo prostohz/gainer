@@ -21,7 +21,7 @@ export const TagSelector = ({
       value={value || ''}
       onChange={(e) => onChange(Number(e.target.value))}
     >
-      <option value="">Select tag</option>
+      <option value="">- Select tag -</option>
       {tags?.map((tag) => (
         <option key={tag.id} value={tag.id}>
           {tag.code}

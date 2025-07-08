@@ -158,41 +158,47 @@ export const BacktestTradesByHoldingTimeHistogram = ({ trades }: { trades: TComp
   const yAxisDomain = [0, maxTradesCount * 1.1]; // Добавляем 10% отступа
 
   return (
-    <div className="w-full h-64 bg-base-300 rounded p-4">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
-          <XAxis
-            dataKey="rangeLabel"
-            tick={{ fontSize: 10, fill: 'currentColor' }}
-            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis
-            tick={{ fontSize: 12, fill: 'currentColor' }}
-            axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
-            domain={yAxisDomain}
-            tickFormatter={(value) => Math.round(value).toString()}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar
-            dataKey="unprofitableCount"
-            stackId="trades"
-            fill="var(--fallback-er,oklch(var(--er)))"
-            radius={[0, 0, 0, 0]}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="profitableCount"
-            stackId="trades"
-            fill="var(--fallback-su,oklch(var(--su)))"
-            radius={[2, 2, 0, 0]}
-            isAnimationActive={false}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+    <div>
+      <div className="flex justify-between items-center h-6 mb-2">
+        <h3 className="text-sm font-semibold text-base-content">Trades By Holding Time</h3>
+      </div>
+
+      <div className="w-full h-64 bg-base-300 rounded p-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.15} />
+            <XAxis
+              dataKey="rangeLabel"
+              tick={{ fontSize: 10, fill: 'currentColor' }}
+              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis
+              tick={{ fontSize: 12, fill: 'currentColor' }}
+              axisLine={{ stroke: 'currentColor', opacity: 0.3 }}
+              domain={yAxisDomain}
+              tickFormatter={(value) => Math.round(value).toString()}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar
+              dataKey="unprofitableCount"
+              stackId="trades"
+              fill="var(--fallback-er,oklch(var(--er)))"
+              radius={[0, 0, 0, 0]}
+              isAnimationActive={false}
+            />
+            <Bar
+              dataKey="profitableCount"
+              stackId="trades"
+              fill="var(--fallback-su,oklch(var(--su)))"
+              radius={[2, 2, 0, 0]}
+              isAnimationActive={false}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
