@@ -297,19 +297,6 @@ const createStatSections = (
       columns: 4,
       items: [
         {
-          title: 'Max Drawdown',
-          value: riskMetrics.maxDrawdown,
-          format: 'percentage',
-          valueColor:
-            riskMetrics.maxDrawdown <= 5
-              ? 'success'
-              : riskMetrics.maxDrawdown <= 15
-                ? 'warning'
-                : 'error',
-          tooltip:
-            'Maximum capital decline from peak to trough. Shows worst loss scenario. <5% excellent, 5-15% acceptable, >15% risky.',
-        },
-        {
           title: 'Sharpe Ratio',
           value: riskMetrics.sharpeRatio,
           format: 'default',
@@ -339,6 +326,19 @@ const createStatSections = (
                 : 'error',
           tooltip:
             'Coefficient of Variation (CV = σ/μ). Measures relative risk-adjusted consistency. ≤3 excellent, 3-8 acceptable, >8 high risk.',
+        },
+        {
+          title: 'Max Drawdown',
+          value: riskMetrics.maxDrawdown,
+          format: 'percentage',
+          valueColor:
+            riskMetrics.maxDrawdown <= 5
+              ? 'success'
+              : riskMetrics.maxDrawdown <= 15
+                ? 'warning'
+                : 'error',
+          tooltip:
+            'Maximum capital decline from peak to trough. Shows worst loss scenario. <5% excellent, 5-15% acceptable, >15% risky.',
         },
         {
           title: 'Recovery Factor',

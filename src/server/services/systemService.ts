@@ -187,7 +187,9 @@ export const loadCandles = measureTime(
 
     const chunks = R.chunk(binanceAssetsSymbols, 20);
 
-    for (const chunk of chunks) {
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      const chunk = chunks[chunkIndex];
+
       await Promise.all(
         chunk.map(async (symbol) => {
           await Promise.all(
@@ -221,6 +223,10 @@ export const loadCandles = measureTime(
 
           console.log(`Processed symbol ${symbol}`);
         }),
+      );
+
+      console.log(
+        `Processed ${(((chunkIndex + 1) / chunks.length) * 100).toFixed(2)}% of ${chunks.length} chunks`,
       );
     }
   },

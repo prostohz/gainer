@@ -4,10 +4,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dev:server": "ts-node-dev --respawn src/server/index.ts",
     "dev:client": "vite",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "build": "tsc",
+    "dev:server": "ts-node-dev --respawn src/server/index.ts",
+    "dev": "dotenvx run -f .env -- concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
@@ -50,6 +49,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.47.3",
     "@tanstack/react-query": "^5.76.1",
     "@types/pg": "^8.15.4",
     "@types/react-datepicker": "^7.0.0",

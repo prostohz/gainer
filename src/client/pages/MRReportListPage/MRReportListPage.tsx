@@ -17,7 +17,7 @@ import { BacktestStats } from '../../widgets/backtest/BacktestStats';
 import { ReportsHistogram } from './ReportsHistogram';
 import { ReportsBacktestHistogram } from './ReportsBacktestHistogram';
 import { AverageRoiByDateHistogram } from './AverageRoiByDateHistogram';
-import { AverageCumRoiByDateHistogram } from './AverageCumRoiByDateHistogram';
+import { EquityByDateHistogram } from './EquityByDateHistogram';
 
 type TTableRowProps = {
   index: number;
@@ -394,8 +394,8 @@ export const MRReportListPage = () => {
                 <AverageRoiByDateHistogram reports={reports} />
               </div>
               <div>
-                <h3 className="font-semibold mb-4">Average Cumulative ROI By Date</h3>
-                <AverageCumRoiByDateHistogram reports={reports} />
+                <h3 className="font-semibold mb-4">Equity By Date</h3>
+                <EquityByDateHistogram reports={reports} />
               </div>
             </div>
           </div>

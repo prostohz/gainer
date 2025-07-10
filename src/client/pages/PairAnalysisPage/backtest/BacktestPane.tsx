@@ -96,8 +96,8 @@ export const BacktestPane = ({ symbolA, symbolB }: BacktestPaneProps) => {
         endTimestamp: endDate,
       });
     },
-    onSuccess: (response) => {
-      setBacktestTrades(response.data);
+    onSuccess: (response: { data: TCompleteTrade[] }) => {
+      setBacktestTrades(response.data.sort((a, b) => a.openTime - b.openTime));
       refetchAssetACandles();
       refetchAssetBCandles();
     },

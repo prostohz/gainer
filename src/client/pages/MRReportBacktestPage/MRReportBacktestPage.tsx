@@ -71,7 +71,7 @@ export const MRReportBacktestPage = () => {
       );
     }
 
-    const trades = report.backtestTrades || [];
+    const trades = report.backtestTrades?.sort((a, b) => a.openTime - b.openTime) || [];
 
     return (
       <div className="flex flex-col gap-4">

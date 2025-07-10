@@ -26,7 +26,9 @@ export const Navigation = () => {
     <div className="bg-base-200">
       <div className="container mx-auto">
         <nav className="p-4 flex gap-8 items-center">
-          <img src={logo} alt="logo" className="w-10 h-10 rounded-md" />
+          <NavLink to="/">
+            <img src={logo} alt="logo" className="w-10 h-10 rounded-md" />
+          </NavLink>
           {links.map((link) => (
             <NavLink
               to={link.to}

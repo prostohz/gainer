@@ -6,6 +6,7 @@ import { measureTime } from '../../../utils/performance/measureTime';
 import { backtestLogger as logger } from '../../../utils/logger';
 import { Asset } from '../../../models/Asset';
 import { Candle } from '../../../models/Candle';
+import { Trade } from '../../../models/Trade';
 import { BinanceHTTPClient, TTrade } from '../../providers/Binance/spot/BinanceHTTPClient';
 import { TBinanceTrade } from '../../providers/Binance/spot/BinanceStreamClient';
 import { TTimeEnvironment } from '../types';
@@ -55,40 +56,96 @@ export type TCompleteTrade = {
   closeReason: string;
 };
 
+const getSymbolTrades = async (symbol: string, startTimestamp: number, endTimestamp: number) => {
+  const binanceHttpClient = BinanceHTTPClient.getInstance();
+
+  const loadTradesFromDb = async () => {
+    try {
+      const trades = await Trade.findAll({
+        where: {
+          symbol,
+          timestamp: {
+            [Op.gte]: startTimestamp,
+            [Op.lt]: endTimestamp,
+          },
+        },
+        order: [['timestamp', 'ASC']],
+      });
+
+      return trades.map((trade) => ({
+        symbol,
+        price: trade.price,
+        timestamp: trade.timestamp,
+        tradeId: 0,
+        quantity: '1',
+        firstTradeId: 0,
+        lastTradeId: 0,
+        isBuyerMaker: true,
+        isBestPriceMatch: true,
+      }));
+    } catch (error) {
+      logger.error(error);
+      throw error;
+    }
+  };
+
+  const trades = await loadTradesFromDb();
+
+  if (trades.length > 0) {
+    return trades;
+  }
+
+  const BATCH_SIZE = 1000;
+
+  let symbolTrades: TTrade[] = [];
+  let lastTradeId: number | undefined;
+
+  while (true) {
+    const params: { startTime?: number; fromId?: number } = {};
+    if (lastTradeId) {
+      params.fromId = lastTradeId;
+    } else {
+      params.startTime = startTimestamp;
+    }
+    const batchTrades = await binanceHttpClient.fetchAssetTrades(symbol, BATCH_SIZE, params);
+    const batchTradesFiltered = batchTrades.filter((trade) => trade.timestamp <= endTimestamp);
+
+    symbolTrades = [...symbolTrades, ...batchTradesFiltered];
+
+    if (batchTradesFiltered.length < BATCH_SIZE) {
+      break;
+    }
+
+    lastTradeId = batchTradesFiltered[batchTradesFiltered.length - 1].tradeId;
+  }
+
+  try {
+    await Trade.bulkCreate(
+      symbolTrades.map((trade) => ({
+        symbol: symbol,
+        price: trade.price.toString(),
+        timestamp: trade.timestamp,
+      })),
+      {
+        ignoreDuplicates: true,
+      },
+    );
+  } catch (error) {
+    logger.error(error);
+    throw error;
+  }
+
+  return loadTradesFromDb();
+};
+
 const buildTradesCache = measureTime(
   'Построение кеша сделок',
   async (symbols: string[], startTimestamp: number, endTimestamp: number) => {
-    const BATCH_SIZE = 1000;
-
-    const binanceHttpClient = BinanceHTTPClient.getInstance();
-
     const cache = new Map<string, TTrade[]>();
 
     await Promise.all(
       symbols.map(async (symbol) => {
-        let symbolTrades: TTrade[] = [];
-        let lastTradeId: number | undefined;
-
-        while (true) {
-          const params: { startTime?: number; fromId?: number } = {};
-          if (lastTradeId) {
-            params.fromId = lastTradeId;
-          } else {
-            params.startTime = startTimestamp;
-          }
-          const batchTrades = await binanceHttpClient.fetchAssetTrades(symbol, BATCH_SIZE, params);
-          const batchTradesFiltered = batchTrades.filter(
-            (trade) => trade.timestamp <= endTimestamp,
-          );
-
-          symbolTrades = [...symbolTrades, ...batchTradesFiltered];
-
-          if (batchTradesFiltered.length < BATCH_SIZE) {
-            break;
-          }
-
-          lastTradeId = batchTradesFiltered[batchTradesFiltered.length - 1].tradeId;
-        }
+        const symbolTrades = await getSymbolTrades(symbol, startTimestamp, endTimestamp);
 
         cache.set(symbol, symbolTrades);
       }),

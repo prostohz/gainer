@@ -8,7 +8,7 @@ import { Asset } from './models';
 import { errorHandler } from './utils/apiHandler';
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.SERVER_PORT;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -16,17 +16,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use('/api', api);
 
-// Общий обработчик ошибок
 app.use(errorHandler);
 
 (async () => {
   try {
-    console.log('Checking database connection...');
-
     const sequelize = Asset.sequelize!;
     await sequelize.authenticate();
-
-    console.log('Database connection successful');
 
     // Start server
     app.listen(PORT, () => {

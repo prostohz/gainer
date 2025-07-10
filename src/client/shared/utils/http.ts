@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
 const http = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: `http://localhost:${import.meta.env.VITE_SERVER_PORT}`,
 });
 
 // Перехватчик ответов для обработки ошибок

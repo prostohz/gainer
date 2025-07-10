@@ -21,7 +21,7 @@ type ChartDataItem = {
   tradesCount: number;
 };
 
-export const AverageCumRoiByDateHistogram = ({ reports }: { reports: TMRReport[] }) => {
+export const EquityByDateHistogram = ({ reports }: { reports: TMRReport[] }) => {
   const chartData: ChartDataItem[] = useMemo(() => {
     if (!reports || reports.length === 0) {
       return [];
@@ -38,36 +38,27 @@ export const AverageCumRoiByDateHistogram = ({ reports }: { reports: TMRReport[]
     const data: ChartDataItem[] = [];
 
     sortedReports.forEach((report, index) => {
-      if (index < 2) {
-        // Пропускаем первые два отчета, так как нет достаточно предыдущих данных
-        return;
+      let reportCurrentResult = 100;
+      let reportCurrentTrades = 0;
+      if (index > 0) {
+        reportCurrentResult = data[index - 1].cumulativeRoi;
+        reportCurrentTrades = data[index - 1].tradesCount;
       }
 
-      let cumulativeProduct = 1;
-      let totalTrades = 0;
+      const currentReport = sortedReports[index];
+      if (currentReport.backtestTrades && currentReport.backtestTrades.length > 0) {
+        const totalRoi = currentReport.backtestTrades.reduce((sum, trade) => sum + trade.roi, 0);
 
-      // Вычисляем произведение средних ROI от reports[0] до reports[index-2]
-      for (let i = 0; i <= index - 2; i++) {
-        const currentReport = sortedReports[i];
-        if (currentReport.backtestTrades && currentReport.backtestTrades.length > 0) {
-          const totalRoi = currentReport.backtestTrades.reduce((sum, trade) => sum + trade.roi, 0);
-          const avgRoi = totalRoi / currentReport.backtestTrades.length;
-
-          // Преобразуем ROI в мультипликатор (предполагаем, что ROI в процентах)
-          cumulativeProduct *= 1 + avgRoi / 100;
-          totalTrades += currentReport.backtestTrades.length;
-        }
+        reportCurrentResult *= totalRoi < -100 ? 0 : 1 + totalRoi / 100;
+        reportCurrentTrades += currentReport.backtestTrades.length;
       }
-
-      // Конвертируем обратно в проценты
-      const cumulativeRoi = (cumulativeProduct - 1) * 100;
 
       data.push({
         date: dayjs(report.date).format('DD/MM HH:mm'),
         fullDate: dayjs(report.date).format('DD.MM.YYYY HH:mm'),
         timestamp: report.date,
-        cumulativeRoi: cumulativeRoi,
-        tradesCount: totalTrades,
+        cumulativeRoi: reportCurrentResult,
+        tradesCount: reportCurrentTrades,
       });
     });
 
