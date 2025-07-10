@@ -1,9 +1,10 @@
 ---
 id: task-1
 title: Улучшить EngleGrangerTest
-status: To Do
+status: Done
 assignee: []
 created_date: '2025-07-08'
+updated_date: '2025-07-10'
 labels: []
 dependencies: []
 ---
